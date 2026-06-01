@@ -1,0 +1,22 @@
+# Xcode / Swift
+.build/
+.project-cleanup-backups/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Local session / tooling
+.handoff/
+.cursor/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# SPM checkouts inside DerivedData are already under .build/
