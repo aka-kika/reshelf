@@ -117,7 +117,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Enable Intelligence (v2 preview)", isOn: $labsFeaturesEnabled)
 
-                    Text("Off by default. Turns on the v2 Intelligence engine: clone + AI analysis, runbooks, Compare, and Ecosystems — and reveals the AI Providers and Repository Storage settings. Requires git, and a configured AI provider for the AI steps.")
+                    Text("Off by default. Turns on the v2 Intelligence engine: deep AI analysis, runbooks, Compare, and Ecosystems — and reveals the AI Providers settings. Requires a configured AI provider for the AI steps.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -130,8 +130,7 @@ struct SettingsView: View {
                 )
                 .padding(.bottom, 12)
 
-                // MARK: - Repository Storage (v2 — only relevant when cloning)
-                if labsFeaturesEnabled {
+                // MARK: - Repository Storage (where repos are cloned)
                 sectionHeader("Repository Storage")
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -158,7 +157,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    Text("Where repositories are cloned for intelligence and runbooks. Repos are organized by host/owner/name inside this folder. Changing it only affects new clones — existing clones stay where they are.")
+                    Text("Where repositories are cloned (right-click a repo → Clone Repository, or use the inspector). Repos are organized by owner/name inside this folder. Changing it only affects new clones — existing clones stay where they are.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -170,7 +169,6 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
-                } // labsFeaturesEnabled — Repository Storage
         }
     }
 

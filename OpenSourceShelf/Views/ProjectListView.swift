@@ -23,6 +23,7 @@ struct ProjectListView: View {
     @State private var isBatchRunbookActionRunning = false
     @State private var runbookFilter: CatalogRunbookFilter = .all
     @State private var pendingDeleteProject: ToolProject?
+    @State private var cloningProjectIDs: Set<UUID> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -311,6 +312,21 @@ struct ProjectListView: View {
             }
         }
 
+        // — Local copy — clone the repo to disk (no AI / intelligence needed)
+        if !project.githubURL.trimmingCharacters(in: .whitespaces).isEmpty {
+            Divider()
+            if CatalogCloneService.isCloned(project),
+               let dest = CatalogCloneService.destination(for: project) {
+                Button("Reveal Clone in Finder") {
+                    CatalogCloneService.revealInFinder(dest)
+                }
+            } else if cloningProjectIDs.contains(project.id) {
+                Button("Cloning…") {}.disabled(true)
+            } else {
+                Button("Clone Repository") { cloneProject(project) }
+            }
+        }
+
         Divider()
 
         // — Catalog —
@@ -323,6 +339,26 @@ struct ProjectListView: View {
         project.status = shelf
         try? modelContext.save()
         catalogStateStore.refresh(projects: filteredProjects)
+    }
+
+    private func cloneProject(_ project: ToolProject) {
+        cloningProjectIDs.insert(project.id)
+        compareNotice = "Cloning \(project.name)…"
+        Task {
+            do {
+                let dest = try await CatalogCloneService.clone(project)
+                await MainActor.run {
+                    cloningProjectIDs.remove(project.id)
+                    compareNotice = "Cloned \(project.name) to \(dest.path)."
+                    CatalogCloneService.revealInFinder(dest)
+                }
+            } catch {
+                await MainActor.run {
+                    cloningProjectIDs.remove(project.id)
+                    compareNotice = "Clone failed: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 
     // MARK: - Context-menu action helpers

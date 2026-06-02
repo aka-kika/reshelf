@@ -429,6 +429,13 @@
 			path = "OpenSourceShelf/Services/CatalogBackupService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CatalogCloneService.swift";
+			path = "OpenSourceShelf/Services/CatalogCloneService.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		CE07F1A2B3C4D5E6F7080007 /* RestoreBackupSheet.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -1036,6 +1043,7 @@
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
 				CE05F1A2B3C4D5E6F7080005 /* CatalogBackupService.swift */,
+				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
 				CC01A2B3D4E5F60789ABCDE0 /* CategoryClassifier.swift */,
 				011EDAC97AD3411BF259663B /* GitHubRepositoryURL.swift */,
 				CAB6FC28BA83F90F9A18E66C /* RepositoryCloneService.swift */,
@@ -1444,6 +1452,10 @@
 			isa = PBXBuildFile;
 			fileRef = CE05F1A2B3C4D5E6F7080005;
 		};
+		CE10F1A2B3C4D5E6F7080010 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = CE09F1A2B3C4D5E6F7080009;
+		};
 		CE08F1A2B3C4D5E6F7080008 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = CE07F1A2B3C4D5E6F7080007;
@@ -1673,6 +1685,7 @@
 				CE04F1A2B3C4D5E6F7080004,
 				CE06F1A2B3C4D5E6F7080006,
 				CE08F1A2B3C4D5E6F7080008,
+				CE10F1A2B3C4D5E6F7080010,
 				4EBE97C8805632E9D6166E20,
 				F2033FF1EFDA024407F13292,
 				002F4751F7FC9A5FBE360FB1,

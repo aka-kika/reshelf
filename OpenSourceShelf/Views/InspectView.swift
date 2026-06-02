@@ -26,6 +26,8 @@ struct InspectView: View {
     @State private var showsFullStack = false
     @State private var showsAllRecommendations = false
     @State private var showsIntelligenceDetails = false
+    @State private var isCloningLocalCopy = false
+    @State private var localCopyNotice: String?
 
     private var inspectorSettings: AppSettings {
         appSettingsQuery.first ?? AppSettings()
@@ -71,6 +73,13 @@ struct InspectView: View {
                         if labsFeaturesEnabled || !section.isIntelligence {
                             inspectorSectionContent(section)
                         }
+                    }
+
+                    // Local copy — clone the repo to disk (v1; AI-free). With Labs
+                    // on, the richer intelligence clone/fetch section below replaces it.
+                    if !labsFeaturesEnabled {
+                        Divider().padding(.vertical, 12)
+                        localCopySection
                     }
 
                     // Deep intelligence + clone (v2 — Labs only)
@@ -409,6 +418,81 @@ struct InspectView: View {
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var localCopySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Local Copy")
+
+            if project.githubURL.trimmingCharacters(in: .whitespaces).isEmpty {
+                Text("Add a GitHub URL to clone this repo.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            } else if CatalogCloneService.isCloned(project),
+                      let dest = CatalogCloneService.destination(for: project) {
+                Text(dest.path)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .help(dest.path)
+                HStack(spacing: 8) {
+                    Button("Reveal in Finder") { CatalogCloneService.revealInFinder(dest) }
+                        .controlSize(.small)
+                    let editors = CatalogCloneService.installedEditors()
+                    Menu("Open in…") {
+                        ForEach(editors, id: \.name) { editor in
+                            Button(editor.name) { CatalogCloneService.open(dest, inEditorAt: editor.appURL) }
+                        }
+                        Button("Terminal") { CatalogCloneService.openInTerminal(dest) }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .controlSize(.small)
+                    .fixedSize()
+                }
+            } else if isCloningLocalCopy {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Cloning…").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Clone a full copy to your repositories folder (\(CloneLocation.rootURL.lastPathComponent)/owner/name).")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Clone Repository") { cloneLocalCopy() }
+                    .controlSize(.small)
+            }
+
+            if let localCopyNotice {
+                Text(localCopyNotice)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func cloneLocalCopy() {
+        isCloningLocalCopy = true
+        localCopyNotice = nil
+        Task {
+            do {
+                let dest = try await CatalogCloneService.clone(project)
+                await MainActor.run {
+                    isCloningLocalCopy = false
+                    CatalogCloneService.revealInFinder(dest)
+                }
+            } catch {
+                await MainActor.run {
+                    isCloningLocalCopy = false
+                    localCopyNotice = error.localizedDescription
                 }
             }
         }

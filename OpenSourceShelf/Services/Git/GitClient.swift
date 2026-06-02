@@ -65,13 +65,14 @@ struct GitClient {
         "-c", "filter.lfs.required=false"
     ]
 
-    func clone(repositoryURL: String, destinationURL: URL, cancellationID: String? = nil) async throws {
-        _ = try await run(arguments: Self.lfsBypass + [
-            "clone",
-            "--filter=blob:none",
-            repositoryURL,
-            destinationURL.path
-        ], cancellationID: cancellationID)
+    /// - Parameter blobless: when true, a partial (`--filter=blob:none`) clone —
+    ///   lighter, used by the intelligence pipeline. When false, a normal full
+    ///   clone — what a user expects when they "clone to work on it."
+    func clone(repositoryURL: String, destinationURL: URL, blobless: Bool = true, cancellationID: String? = nil) async throws {
+        var arguments = Self.lfsBypass + ["clone"]
+        if blobless { arguments.append("--filter=blob:none") }
+        arguments += [repositoryURL, destinationURL.path]
+        _ = try await run(arguments: arguments, cancellationID: cancellationID)
     }
 
     func fetch(repositoryURL: URL, cancellationID: String? = nil) async throws {
