@@ -21,37 +21,64 @@ enum CatalogCloneService {
         }
     }
 
-    /// Where a project would be cloned: `<Clones folder>/<owner>/<repo>`.
-    static func destination(for project: ToolProject) -> URL? {
+    /// Candidate folder names for a repo: the flat repo name first (clean — you
+    /// browse repo names directly), then `<owner>-<repo>` as a collision fallback.
+    private static func candidatePaths(owner: String, repo: String) -> [URL] {
+        let root = CloneLocation.rootURL
+        return [
+            root.appendingPathComponent(repo, isDirectory: true),
+            root.appendingPathComponent("\(owner)-\(repo)", isDirectory: true),
+        ]
+    }
+
+    /// Whether the git clone at `dir` is actually this owner/repo (so a same-named
+    /// folder for a *different* repo doesn't get mistaken for it).
+    private static func originMatches(_ dir: URL, owner: String, repo: String) -> Bool {
+        guard let config = try? String(contentsOf: dir.appendingPathComponent(".git/config"), encoding: .utf8) else {
+            return false
+        }
+        return config.lowercased().contains("\(owner)/\(repo)".lowercased())
+    }
+
+    /// The existing clone for a project, if one is present.
+    static func existingClone(for project: ToolProject) -> URL? {
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
-        return CloneLocation.rootURL
-            .appendingPathComponent(owner, isDirectory: true)
-            .appendingPathComponent(repo, isDirectory: true)
+        let fm = FileManager.default
+        for path in candidatePaths(owner: owner, repo: repo)
+        where fm.fileExists(atPath: path.appendingPathComponent(".git").path)
+            && originMatches(path, owner: owner, repo: repo) {
+            return path
+        }
+        return nil
     }
 
-    /// True when a valid git clone already exists at the destination.
+    /// Where a project is/would be cloned: the existing clone, else the first free
+    /// candidate (`<repo>`, then `<owner>-<repo>`).
+    static func destination(for project: ToolProject) -> URL? {
+        if let existing = existingClone(for: project) { return existing }
+        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
+        let candidates = candidatePaths(owner: owner, repo: repo)
+        for path in candidates where !FileManager.default.fileExists(atPath: path.path) {
+            return path
+        }
+        return candidates.last
+    }
+
     static func isCloned(_ project: ToolProject) -> Bool {
-        guard let dest = destination(for: project) else { return false }
-        return FileManager.default.fileExists(atPath: dest.appendingPathComponent(".git").path)
+        existingClone(for: project) != nil
     }
 
-    /// Clones the project (full clone). Returns the local path. If it's already
-    /// cloned, returns the existing path. Removes a failed/partial leftover first.
+    /// Clones the project (full clone). Returns the local path; returns the existing
+    /// path if already cloned. Clears an empty/failed leftover at the target first.
     static func clone(_ project: ToolProject) async throws -> URL {
-        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else {
+        if let existing = existingClone(for: project) { return existing }
+        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL),
+              let dest = destination(for: project) else {
             throw CloneError.invalidURL
         }
         let fm = FileManager.default
-        let dest = CloneLocation.rootURL
-            .appendingPathComponent(owner, isDirectory: true)
-            .appendingPathComponent(repo, isDirectory: true)
 
         if fm.fileExists(atPath: dest.path) {
-            if fm.fileExists(atPath: dest.appendingPathComponent(".git").path) {
-                return dest // already cloned
-            }
-            // A leftover folder under our managed Clones dir without a .git — safe
-            // to clear (only true when it's empty / a failed partial clone).
             let contents = (try? fm.contentsOfDirectory(atPath: dest.path)) ?? []
             if contents.isEmpty || contents.allSatisfy({ $0 == ".DS_Store" }) {
                 try? fm.removeItem(at: dest)

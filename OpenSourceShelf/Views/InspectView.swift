@@ -484,10 +484,9 @@ struct InspectView: View {
         localCopyNotice = nil
         Task {
             do {
-                let dest = try await CatalogCloneService.clone(project)
+                _ = try await CatalogCloneService.clone(project)
                 await MainActor.run {
                     isCloningLocalCopy = false
-                    CatalogCloneService.revealInFinder(dest)
                 }
             } catch {
                 await MainActor.run {

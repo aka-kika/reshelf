@@ -97,6 +97,8 @@ struct ProjectListView: View {
                                     isSelected: listSelection?.projectID == project.id,
                                     showsIntelligence: labsFeaturesEnabled,
                                     statusKey: project.statusRaw,
+                                    isCloning: cloningProjectIDs.contains(project.id),
+                                    isClonedLocally: CatalogCloneService.isCloned(project),
                                     onSelect: { selectProject(project) }
                                 ) {
                                     toggleCompareSelection(for: project)
@@ -350,7 +352,6 @@ struct ProjectListView: View {
                 await MainActor.run {
                     cloningProjectIDs.remove(project.id)
                     compareNotice = "Cloned \(project.name) to \(dest.path)."
-                    CatalogCloneService.revealInFinder(dest)
                 }
             } catch {
                 await MainActor.run {
@@ -649,6 +650,8 @@ struct ProjectRowView: View, Equatable {
     /// Captured status value so `.equatable()` detects a shelf move (status changes
     /// but the project reference stays the same, so we can't read it live in `==`).
     var statusKey: String = ""
+    var isCloning: Bool = false
+    var isClonedLocally: Bool = false
     var onSelect: (() -> Void)?
     var onCompareToggle: (() -> Void)?
 
@@ -657,6 +660,8 @@ struct ProjectRowView: View, Equatable {
     static func == (lhs: ProjectRowView, rhs: ProjectRowView) -> Bool {
         lhs.project.id == rhs.project.id
             && lhs.statusKey == rhs.statusKey
+            && lhs.isCloning == rhs.isCloning
+            && lhs.isClonedLocally == rhs.isClonedLocally
             && lhs.catalogState == rhs.catalogState
             && lhs.isCompareSelectMode == rhs.isCompareSelectMode
             && lhs.isCompareSelected == rhs.isCompareSelected
@@ -709,6 +714,18 @@ struct ProjectRowView: View, Equatable {
             }
 
             Spacer(minLength: 8)
+
+            if isCloning {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.7)
+                    .help("Cloning…")
+            } else if isClonedLocally {
+                Image(systemName: "internaldrive")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .help("Cloned to disk")
+            }
 
             if showsIntelligence {
                 VStack(alignment: .trailing, spacing: 4) {
