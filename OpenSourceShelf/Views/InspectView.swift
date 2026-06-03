@@ -467,7 +467,7 @@ struct InspectView: View {
                     Text("Cloning…").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             } else {
-                Text("Clone a full copy to your repositories folder (\(CloneLocation.rootURL.lastPathComponent)/<repo>).")
+                Text("Clone a full copy into its category folder (\(CloneLocation.rootURL.lastPathComponent)/\(CatalogCloneService.categoryFolderName(for: project))/<repo>).")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

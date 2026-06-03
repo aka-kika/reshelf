@@ -27,7 +27,7 @@ Stored fields you can view and edit:
 - Category, license, star count (text)
 - Tags and use cases (lists)
 - Personal notes and **fit score** (1–5 stars)
-- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive)
+- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). Color-coded badges — Top Shelf **blue** (keeper), The Collector **gray** (neutral), Yard Sale **amber** (needs review). With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / right-click **Move to** — so you can sort straight after capturing without the mouse
 - **Local-first** and **self-hosted** flags
 - Repo **icon** (fetched and cached)
 - **Added** and **last checked** dates
@@ -90,7 +90,7 @@ Extra metadata stays **inside this pane** (no fourth `.inspector()` column).
 
 Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and no `git-lfs` requirement (LFS smudge/clean filters are bypassed, so LFS repos like `zotero` still clone).
 
-- **Clone Repository** — from the repo's right-click menu or the inspector's Local Copy section. Full clone to `~/reshelf/repos/<repo>` (flat by repo name; falls back to `<owner>-<repo>` only on a name collision with a *different* repo). Rows show a **spinner while cloning** and a **disk badge** once cloned. Cloning never auto-opens Finder.
+- **Clone Repository** — from the repo's right-click menu or the inspector's Local Copy section. Full clone into the repo's **category subfolder**: `~/reshelf/repos/<Category>/<repo>` (e.g. `~/reshelf/repos/AI Agent/Glyph`), so clones are grouped the same way the catalog is — point an AI agent at one category folder for focused reference. Falls back to `<owner>-<repo>` only on a name collision with a *different* repo. Detection scans every category folder, so a clone is still found after you recategorize it. Legacy flat clones are tidied into category folders on launch. Rows show a **spinner while cloning** and a **disk badge** once cloned. Cloning never auto-opens Finder.
 - **Update check** — opening a cloned repo's inspector runs a cheap `git ls-remote origin HEAD` (one read-only round-trip, no fetch, no objects downloaded) and shows **✓ Up to date** or **↑ Updates available**. On-demand only — no background polling.
 - **Pull** — when behind, a one-click **Pull** does a fast-forward pull, then flips back to up-to-date.
 - **Check Clones for Updates** (**File** menu, ⌘⇧U) — sweeps every cloned repo at once and flags the ones that are behind with an **orange dot** on their disk badge. Pair it with the **Cloned** sidebar filter to see exactly what needs pulling.
@@ -105,7 +105,7 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 ## Settings
 
 - **Appearance** — System / Light / Dark (System follows macOS); applies to every window and persists
-- **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are stored **flat by repo name** (`<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
+- **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are grouped into **category subfolders** (`<Category>/<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
 - **AI Providers** — pick a **preferred provider** for suggestions; configure **Ollama** (local URL + model), **OpenAI**, **Anthropic**, **Gemini**, and **GitHub Copilot / Models** (API keys stored in Keychain, model picker, connection test). **Apple Intelligence** toggle remains placeholder until wired.
 - **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders
 - One `AppSettings` row in SwiftData (appearance is stored separately in `@AppStorage`)

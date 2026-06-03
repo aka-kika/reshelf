@@ -15,19 +15,20 @@ struct StatusBadge: View {
             .foregroundColor(textColor)
     }
 
+    // Blue = keeper (calm), gray = neutral default, amber/yellow = needs review.
     private var backgroundColor: Color {
         switch status {
-        case .topShelf: .yellow.opacity(0.14)
-        case .collector: .blue.opacity(0.1)
-        case .yardSale: .gray.opacity(0.12)
+        case .topShelf: .blue.opacity(0.12)
+        case .collector: .gray.opacity(0.14)
+        case .yardSale: .yellow.opacity(0.20)
         }
     }
 
     private var textColor: Color {
         switch status {
-        case .topShelf: .orange
-        case .collector: .blue
-        case .yardSale: .gray
+        case .topShelf: .blue
+        case .collector: .secondary
+        case .yardSale: .orange
         }
     }
 }

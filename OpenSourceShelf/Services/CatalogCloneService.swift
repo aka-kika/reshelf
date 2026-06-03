@@ -21,13 +21,27 @@ enum CatalogCloneService {
         }
     }
 
-    /// Candidate folder names for a repo: the flat repo name first (clean — you
-    /// browse repo names directly), then `<owner>-<repo>` as a collision fallback.
-    private static func candidatePaths(owner: String, repo: String) -> [URL] {
-        let root = CloneLocation.rootURL
+    /// Sanitized, human-readable folder name for a project's category, so clones
+    /// are grouped by category (`<repos>/<Category>/<repo>`) — e.g. point an AI
+    /// agent at just the "Note Taking" folder. "AI / Agent" → "AI Agent"; blank
+    /// → "Uncategorized".
+    static func categoryFolderName(for project: ToolProject) -> String {
+        let cleaned = project.category
+            .replacingOccurrences(of: "/", with: " ")
+            .replacingOccurrences(of: ":", with: " ")
+            .replacingOccurrences(of: "\\", with: " ")
+            .split(whereSeparator: { $0 == " " || $0 == "\t" || $0.isNewline })
+            .joined(separator: " ")
+        return cleaned.isEmpty ? "Uncategorized" : cleaned
+    }
+
+    /// Where a NEW clone should go: under the project's category subfolder, the
+    /// flat repo name first (clean), then `<owner>-<repo>` as a collision fallback.
+    private static func candidatePaths(owner: String, repo: String, category: String) -> [URL] {
+        let dir = CloneLocation.rootURL.appendingPathComponent(category, isDirectory: true)
         return [
-            root.appendingPathComponent(repo, isDirectory: true),
-            root.appendingPathComponent("\(owner)-\(repo)", isDirectory: true),
+            dir.appendingPathComponent(repo, isDirectory: true),
+            dir.appendingPathComponent("\(owner)-\(repo)", isDirectory: true),
         ]
     }
 
@@ -40,28 +54,74 @@ enum CatalogCloneService {
         return config.lowercased().contains("\(owner)/\(repo)".lowercased())
     }
 
-    /// The existing clone for a project, if one is present.
+    /// The existing clone for a project, if one is present. Scans the clone root
+    /// (legacy flat layout) plus every category subfolder, matching `<repo>` or
+    /// `<owner>-<repo>` by git origin — so a clone is found regardless of which
+    /// category folder it sits in (even after the repo is recategorized).
     static func existingClone(for project: ToolProject) -> URL? {
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
         let fm = FileManager.default
-        for path in candidatePaths(owner: owner, repo: repo)
-        where fm.fileExists(atPath: path.appendingPathComponent(".git").path)
-            && originMatches(path, owner: owner, repo: repo) {
-            return path
+        let root = CloneLocation.rootURL
+        let names = [repo, "\(owner)-\(repo)"]
+
+        var searchDirs: [URL] = [root]
+        if let entries = try? fm.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+            searchDirs += entries.filter {
+                (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            }
+        }
+
+        for dir in searchDirs {
+            for name in names {
+                let path = dir.appendingPathComponent(name, isDirectory: true)
+                if fm.fileExists(atPath: path.appendingPathComponent(".git").path),
+                   originMatches(path, owner: owner, repo: repo) {
+                    return path
+                }
+            }
         }
         return nil
     }
 
     /// Where a project is/would be cloned: the existing clone, else the first free
-    /// candidate (`<repo>`, then `<owner>-<repo>`).
+    /// candidate under its category subfolder (`<category>/<repo>`, then
+    /// `<category>/<owner>-<repo>`).
     static func destination(for project: ToolProject) -> URL? {
         if let existing = existingClone(for: project) { return existing }
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
-        let candidates = candidatePaths(owner: owner, repo: repo)
+        let candidates = candidatePaths(owner: owner, repo: repo, category: categoryFolderName(for: project))
         for path in candidates where !FileManager.default.fileExists(atPath: path.path) {
             return path
         }
         return candidates.last
+    }
+
+    /// One-time tidy: move legacy flat clones (sitting directly in the clone root)
+    /// into their project's category subfolder. No-op once everything is organized.
+    @discardableResult
+    static func migrateClonesIntoCategoryFolders(_ projects: [ToolProject]) -> Int {
+        let fm = FileManager.default
+        let root = CloneLocation.rootURL
+        var moved = 0
+        for project in projects {
+            guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { continue }
+            for name in [repo, "\(owner)-\(repo)"] {
+                let flat = root.appendingPathComponent(name, isDirectory: true)
+                guard fm.fileExists(atPath: flat.appendingPathComponent(".git").path),
+                      originMatches(flat, owner: owner, repo: repo) else { continue }
+                let categoryDir = root.appendingPathComponent(categoryFolderName(for: project), isDirectory: true)
+                let dest = categoryDir.appendingPathComponent(name, isDirectory: true)
+                guard flat.path != dest.path, !fm.fileExists(atPath: dest.path) else { continue }
+                do {
+                    try fm.createDirectory(at: categoryDir, withIntermediateDirectories: true)
+                    try fm.moveItem(at: flat, to: dest)
+                    moved += 1
+                } catch { /* leave in place on failure */ }
+                break
+            }
+        }
+        return moved
     }
 
     static func isCloned(_ project: ToolProject) -> Bool {

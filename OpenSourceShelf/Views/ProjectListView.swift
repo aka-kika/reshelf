@@ -165,40 +165,24 @@ struct ProjectListView: View {
         .onChange(of: appRefreshStore.catalogRevision) { _, _ in
             catalogStateStore.refresh(projects: filteredProjects)
         }
-        .onReceive(NotificationCenter.default.publisher(for: AppQuickActionCenter.catalogActionName)) { notification in
-            guard let raw = notification.userInfo?["action"] as? String,
-                  let action = AppQuickAction(rawValue: raw) else { return }
-            handleCatalogQuickAction(action)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .setCatalogRunbookFilter)) { notification in
-            guard let raw = notification.userInfo?["filter"] as? String,
-                  let filter = CatalogRunbookFilter(rawValue: raw) else { return }
-            runbookFilter = filter
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleCatalogCompareMode)) { _ in
-            if isCompareSelectMode {
-                isCompareSelectMode = false
-                compareSelectedProjectIDs = []
-                compareNotice = nil
-            } else {
-                isCompareSelectMode = true
-                compareNotice = "Select 2–4 projects, then use Catalog → Compare Selected."
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .catalogFetchAllIntelligence)) { _ in
-            fetchIntelligenceForAllVisible()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .catalogCompareSelected)) { _ in
-            compareSelectedProjects()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .catalogCancelCompareMode)) { _ in
-            isCompareSelectMode = false
-            compareSelectedProjectIDs = []
-            compareNotice = nil
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in
-            checkAllClonesForUpdates()
-        }
+        .modifier(CatalogEventHandlers(
+            onCatalogQuickAction: { notification in
+                guard let raw = notification.userInfo?["action"] as? String,
+                      let action = AppQuickAction(rawValue: raw) else { return }
+                handleCatalogQuickAction(action)
+            },
+            onSetRunbookFilter: { notification in
+                guard let raw = notification.userInfo?["filter"] as? String,
+                      let filter = CatalogRunbookFilter(rawValue: raw) else { return }
+                runbookFilter = filter
+            },
+            onToggleCompareMode: { toggleCompareMode() },
+            onFetchAllIntelligence: { fetchIntelligenceForAllVisible() },
+            onCompareSelected: { compareSelectedProjects() },
+            onCancelCompareMode: { cancelCompareMode() },
+            onCheckCloneUpdates: { checkAllClonesForUpdates() },
+            onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) }
+        ))
         .confirmationDialog(
             "Remove \(pendingDeleteProject?.name ?? "this project")?",
             isPresented: Binding(
@@ -353,6 +337,33 @@ struct ProjectListView: View {
         project.status = shelf
         try? modelContext.save()
         catalogStateStore.refresh(projects: filteredProjects)
+    }
+
+    private func toggleCompareMode() {
+        if isCompareSelectMode {
+            isCompareSelectMode = false
+            compareSelectedProjectIDs = []
+            compareNotice = nil
+        } else {
+            isCompareSelectMode = true
+            compareNotice = "Select 2–4 projects, then use Catalog → Compare Selected."
+        }
+    }
+
+    private func cancelCompareMode() {
+        isCompareSelectMode = false
+        compareSelectedProjectIDs = []
+        compareNotice = nil
+    }
+
+    /// ⌘T / ⌘Y / ⌘⇧G — move the currently selected repo to a shelf.
+    private func moveSelectedToShelf(_ rawStatus: String?) {
+        guard let rawStatus, let shelf = ProjectStatus(rawValue: rawStatus),
+              let id = listSelection?.projectID,
+              let project = allProjects.first(where: { $0.id == id }) else { return }
+        guard project.status != shelf else { return }
+        setShelf(shelf, for: project)
+        compareNotice = "Moved \(project.name) to \(shelf.displayName)."
     }
 
     private func cloneProject(_ project: ToolProject) {
@@ -831,6 +842,31 @@ struct ProjectRowView: View, Equatable {
 private func isGitHubURL(_ text: String) -> Bool {
     let trimmed = text.trimmingCharacters(in: .whitespaces)
     return trimmed.hasPrefix("https://github.com/") || trimmed.hasPrefix("github.com/")
+}
+
+/// Bundles the catalog's notification `.onReceive` handlers into one modifier so
+/// the main `body` modifier chain stays short enough for the type-checker.
+private struct CatalogEventHandlers: ViewModifier {
+    let onCatalogQuickAction: (Notification) -> Void
+    let onSetRunbookFilter: (Notification) -> Void
+    let onToggleCompareMode: () -> Void
+    let onFetchAllIntelligence: () -> Void
+    let onCompareSelected: () -> Void
+    let onCancelCompareMode: () -> Void
+    let onCheckCloneUpdates: () -> Void
+    let onMoveSelectedToShelf: (Notification) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: AppQuickActionCenter.catalogActionName), perform: onCatalogQuickAction)
+            .onReceive(NotificationCenter.default.publisher(for: .setCatalogRunbookFilter), perform: onSetRunbookFilter)
+            .onReceive(NotificationCenter.default.publisher(for: .toggleCatalogCompareMode)) { _ in onToggleCompareMode() }
+            .onReceive(NotificationCenter.default.publisher(for: .catalogFetchAllIntelligence)) { _ in onFetchAllIntelligence() }
+            .onReceive(NotificationCenter.default.publisher(for: .catalogCompareSelected)) { _ in onCompareSelected() }
+            .onReceive(NotificationCenter.default.publisher(for: .catalogCancelCompareMode)) { _ in onCancelCompareMode() }
+            .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in onCheckCloneUpdates() }
+            .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)
+    }
 }
 
 /// How the catalog list is ordered. Persisted via `@AppStorage`.

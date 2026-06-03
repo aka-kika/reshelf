@@ -215,6 +215,28 @@ struct OpenSourceShelfApp: App {
                 }
             }
 
+            // Drop the default Format menu (Show Fonts steals ⌘T) — this app has
+            // no rich-text formatting, and ⌘T is our "Move to Top Shelf".
+            CommandGroup(replacing: .textFormatting) { }
+
+            // Quick shelf moves for the selected repo (no mouse needed).
+            CommandMenu("Shelf") {
+                Button("Move to Top Shelf") {
+                    NotificationCenter.default.post(name: .moveSelectedToShelf, object: ProjectStatus.topShelf.rawValue)
+                }
+                .keyboardShortcut("t", modifiers: .command)
+
+                Button("Move to The Collector") {
+                    NotificationCenter.default.post(name: .moveSelectedToShelf, object: ProjectStatus.collector.rawValue)
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+
+                Button("Move to Yard Sale") {
+                    NotificationCenter.default.post(name: .moveSelectedToShelf, object: ProjectStatus.yardSale.rawValue)
+                }
+                .keyboardShortcut("y", modifiers: .command)
+            }
+
             // Catalog (intelligence) + Actions menus are the v2 Intelligence
             // surface — shown only when Labs is enabled.
             if labsFeaturesEnabled {
@@ -441,4 +463,6 @@ extension Notification.Name {
     static let importURLs = Notification.Name("importURLs")
     static let restoreBackup = Notification.Name("restoreBackup")
     static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
+    /// Move the currently selected repo to a shelf; object is the ProjectStatus rawValue.
+    static let moveSelectedToShelf = Notification.Name("moveSelectedToShelf")
 }

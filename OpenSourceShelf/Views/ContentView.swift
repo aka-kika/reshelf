@@ -141,6 +141,8 @@ struct ContentView: View {
         // Reclassify before snapshotting so the launch backup reflects the
         // corrected categories (not the pre-reclassify state).
         reclassifyProjectsIfNeeded()
+        // Tidy any legacy flat clones into their category subfolders.
+        CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
         CatalogBackupService.writeSnapshot(allProjects)
         if sidebarSelection == .queue {
             sidebarSelection = .allProjects

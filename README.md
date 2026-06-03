@@ -58,7 +58,7 @@ Built app (Debug) is under DerivedData, or run from Xcode for day-to-day use.
 |------|--------|
 | Catalog (projects, settings) | `~/reshelf/catalog.store` (SwiftData — isolated, not the shared default store) |
 | Automatic JSON backups | `~/reshelf/backups/` (last 30 add/remove/background snapshots) |
-| Local clones | `~/reshelf/repos/<repo>` (flat by repo name; full clones) |
+| Local clones | `~/reshelf/repos/<Category>/<repo>` (grouped by category; full clones) |
 | Intelligence layer (v2 preview) | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
 
 The intelligence database is created at launch; the v1 catalog is the main surface today. See [features.md](features.md) and [future-features.md](future-features.md) for what is wired vs planned.
@@ -83,6 +83,9 @@ The intelligence database is created at launch; the v1 catalog is the main surfa
 | ⌘K | Command palette — search projects or paste a GitHub URL |
 | ⌘N | New project (manual) |
 | ⌘⇧N | Quick Capture (GitHub URL) |
+| ⌘T | Move selected repo to Top Shelf |
+| ⌘Y | Move selected repo to Yard Sale |
+| ⌘⇧G | Move selected repo to The Collector |
 | ⌘⇧E | Export catalog as JSON |
 | ⌘⇧U | Check clones for updates |
 | ⌘S | Toggle sidebar |
