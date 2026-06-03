@@ -27,17 +27,6 @@ struct SidebarView: View {
         SidebarFilterCounts(projects: allProjects)
     }
 
-    /// Only the category filters that actually have repos — so the sidebar shows
-    /// exactly the categories in use (no empty rows, new categories appear on
-    /// their own). Always includes the currently selected one so it can't vanish
-    /// from under the user mid-filter.
-    private var visibleCategoryItems: [SidebarItem] {
-        let counts = filterCounts
-        return SidebarItem.sidebarCategoryItems.filter {
-            counts.count(for: $0) > 0 || selection == $0
-        }
-    }
-
     /// The sidebar column's content origin sits ~10pt lower than the detail
     /// column's (measured: sidebar top 42pt vs detail 32pt), so its header and
     /// divider would render 10pt below the list/inspector dividers. This negative
@@ -46,7 +35,12 @@ struct SidebarView: View {
     private static let headerTopAlignmentNudge: CGFloat = -10
 
     var body: some View {
-        VStack(spacing: 0) {
+        // Build the counts once per render (the struct rebuilds on each access).
+        let counts = filterCounts
+        let categories = SidebarItem.sidebarCategoryItems.filter {
+            counts.count(for: $0) > 0 || selection == $0
+        }
+        return VStack(spacing: 0) {
             AlignedSplitColumnHeader {
                 ReshelfBrandHeader()
             }
@@ -54,17 +48,17 @@ struct SidebarView: View {
 
             List(selection: $selection) {
                 Section(SidebarSection.library.rawValue) {
-                    SidebarRow(item: .allProjects, count: filterCounts.count(for: .allProjects))
-                    SidebarRow(item: .topShelf, count: filterCounts.count(for: .topShelf))
-                    SidebarRow(item: .collector, count: filterCounts.count(for: .collector))
-                    SidebarRow(item: .yardSale, count: filterCounts.count(for: .yardSale))
-                    SidebarRow(item: .cloned, count: filterCounts.count(for: .cloned))
+                    SidebarRow(item: .allProjects, count: counts.count(for: .allProjects))
+                    SidebarRow(item: .topShelf, count: counts.count(for: .topShelf))
+                    SidebarRow(item: .collector, count: counts.count(for: .collector))
+                    SidebarRow(item: .yardSale, count: counts.count(for: .yardSale))
+                    SidebarRow(item: .cloned, count: counts.count(for: .cloned))
                 }
 
-                if !visibleCategoryItems.isEmpty {
+                if !categories.isEmpty {
                     Section(SidebarSection.categories.rawValue) {
-                        ForEach(visibleCategoryItems) { item in
-                            SidebarRow(item: item, count: filterCounts.count(for: item))
+                        ForEach(categories) { item in
+                            SidebarRow(item: item, count: counts.count(for: item))
                         }
                     }
                 }

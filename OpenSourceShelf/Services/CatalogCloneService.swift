@@ -21,6 +21,73 @@ enum CatalogCloneService {
         }
     }
 
+    // MARK: - Clone index (cached)
+
+    /// Cached map of `owner/repo` (lowercased) → clone folder. Built by one scan of
+    /// the clone tree; lookups are O(1). `isCloned`/`existingClone` are called per
+    /// row on every list re-render, so scanning the filesystem each time made
+    /// clicking sluggish — this cache fixes that. Invalidated on clone/migrate.
+    private static var cloneIndexCache: [String: URL]?
+    private static let cloneIndexLock = NSLock()
+
+    /// Drop the cached clone index so the next lookup rescans (after a new clone,
+    /// a migration, or any change to what's on disk).
+    static func invalidateCloneIndex() {
+        cloneIndexLock.lock()
+        cloneIndexCache = nil
+        cloneIndexLock.unlock()
+    }
+
+    /// `owner/repo` → clone folder for every git checkout under the clone root
+    /// (root level for legacy flat clones, plus one level deep for category
+    /// folders). One filesystem walk, then cached.
+    private static func cloneIndex() -> [String: URL] {
+        cloneIndexLock.lock()
+        defer { cloneIndexLock.unlock() }
+        if let cached = cloneIndexCache { return cached }
+
+        var index: [String: URL] = [:]
+        let fm = FileManager.default
+        let root = CloneLocation.rootURL
+
+        var dirs: [URL] = [root]
+        if let entries = try? fm.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+            for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                dirs.append(entry)
+            }
+        }
+
+        for dir in dirs {
+            guard let entries = try? fm.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { continue }
+            for entry in entries {
+                guard fm.fileExists(atPath: entry.appendingPathComponent(".git").path),
+                      let slug = originSlug(fromConfigAt: entry) else { continue }
+                if index[slug] == nil { index[slug] = entry }
+            }
+        }
+
+        cloneIndexCache = index
+        return index
+    }
+
+    /// Extract `owner/repo` (lowercased) from a checkout's `.git/config` origin URL,
+    /// handling https and ssh forms (`github.com/owner/repo[.git]`, `github.com:owner/repo`).
+    private static func originSlug(fromConfigAt dir: URL) -> String? {
+        guard let config = try? String(contentsOf: dir.appendingPathComponent(".git/config"), encoding: .utf8),
+              let hostRange = config.range(of: "github.com", options: .caseInsensitive) else { return nil }
+        var rest = config[hostRange.upperBound...]
+        guard let sep = rest.first, sep == ":" || sep == "/" else { return nil }
+        rest = rest.dropFirst()
+        let token = rest.prefix { !$0.isWhitespace }
+        let parts = token.split(separator: "/")
+        guard parts.count >= 2 else { return nil }
+        var repo = String(parts[1])
+        if repo.hasSuffix(".git") { repo = String(repo.dropLast(4)) }
+        return "\(parts[0])/\(repo)".lowercased()
+    }
+
     /// Sanitized, human-readable folder name for a project's category, so clones
     /// are grouped by category (`<repos>/<Category>/<repo>`) — e.g. point an AI
     /// agent at just the "Note Taking" folder. "AI / Agent" → "AI Agent"; blank
@@ -54,34 +121,13 @@ enum CatalogCloneService {
         return config.lowercased().contains("\(owner)/\(repo)".lowercased())
     }
 
-    /// The existing clone for a project, if one is present. Scans the clone root
-    /// (legacy flat layout) plus every category subfolder, matching `<repo>` or
-    /// `<owner>-<repo>` by git origin — so a clone is found regardless of which
-    /// category folder it sits in (even after the repo is recategorized).
+    /// The existing clone for a project, if one is present. O(1) lookup in the
+    /// cached clone index — finds the clone regardless of which category folder it
+    /// sits in (even after the repo is recategorized), and stays fast when called
+    /// per row during list rendering.
     static func existingClone(for project: ToolProject) -> URL? {
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
-        let fm = FileManager.default
-        let root = CloneLocation.rootURL
-        let names = [repo, "\(owner)-\(repo)"]
-
-        var searchDirs: [URL] = [root]
-        if let entries = try? fm.contentsOfDirectory(
-            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
-            searchDirs += entries.filter {
-                (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-            }
-        }
-
-        for dir in searchDirs {
-            for name in names {
-                let path = dir.appendingPathComponent(name, isDirectory: true)
-                if fm.fileExists(atPath: path.appendingPathComponent(".git").path),
-                   originMatches(path, owner: owner, repo: repo) {
-                    return path
-                }
-            }
-        }
-        return nil
+        return cloneIndex()["\(owner)/\(repo)".lowercased()]
     }
 
     /// Where a project is/would be cloned: the existing clone, else the first free
@@ -121,6 +167,7 @@ enum CatalogCloneService {
                 break
             }
         }
+        if moved > 0 { invalidateCloneIndex() }
         return moved
     }
 
@@ -150,6 +197,7 @@ enum CatalogCloneService {
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         let url = "https://github.com/\(owner)/\(repo)"
         try await GitClient().clone(repositoryURL: url, destinationURL: dest, blobless: false)
+        invalidateCloneIndex()
         return dest
     }
 
