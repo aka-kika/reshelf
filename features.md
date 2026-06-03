@@ -53,7 +53,7 @@ Stored fields you can view and edit:
 
 ## List and search
 
-- Projects sorted by name; list header shows the active sidebar filter title
+- **Sort** the list from the header's sort menu (⬆⬇ icon): **Recently Added** (default), **Name (A–Z)**, or **Most Stars** (star strings like `18.2k`/`1.5M` are parsed; ties fall back to name). The choice persists. List header shows the active sidebar filter title
 - Active search term shows as a dismissible chip in the header (set from command palette)
 - Search: name, descriptions, category, tags, notes, use cases
 - **⌘K** — open command palette to search or capture
@@ -66,6 +66,7 @@ Stored fields you can view and edit:
 - Fetches repo info from the **GitHub API** (and can pull README for context)
 - **Auto-categorizes** the repo into a meaningful category (Database, AI / Agent, macOS, Workspace, Media, etc.) from its GitHub topics, description, and language — not just the raw language name
 - Edit fields, then save into the SwiftData catalog
+- **No-mouse flow** — from the command palette (⌘K): paste a URL → **Enter** fetches → **Enter** again saves (Save is the sheet's default button)
 - **Your configured AI provider** (Settings → AI Providers) can suggest notes / use cases — Ollama locally, or OpenAI, Anthropic, Gemini, GitHub Models when enabled with an API key
 
 Quick Capture uses a **solid sheet** (readable over any background), not a glass overlay.

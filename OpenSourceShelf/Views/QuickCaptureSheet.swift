@@ -54,6 +54,9 @@ struct QuickCaptureSheet: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small).font(.system(size: 13))
                         .disabled(name.isEmpty)
+                        // Return saves once a repo is fetched, so ⌘K → paste →
+                        // Enter (fetch) → Enter (save) needs no mouse.
+                        .keyboardShortcut(.defaultAction)
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 16)
@@ -71,7 +74,7 @@ struct QuickCaptureSheet: View {
                             TextField("https://github.com/owner/repo", text: $urlText)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: 13))
-                                .onSubmit { fetchRepo() }
+                                .onSubmit { handleSubmit() }
                             Button(action: fetchRepo) {
                                 if isFetching {
                                     ProgressView().scaleEffect(0.6).frame(width: 16, height: 16)
@@ -243,6 +246,16 @@ struct QuickCaptureSheet: View {
     }
 
     // MARK: - Fetch GitHub Data
+
+    /// Return-key handler: fetch when nothing is fetched yet, otherwise save.
+    /// Keeps the whole capture keyboard-only (paste → Enter → Enter).
+    private func handleSubmit() {
+        if fetchedInfo == nil {
+            fetchRepo()
+        } else if !name.isEmpty {
+            saveProject()
+        }
+    }
 
     private func fetchRepo() {
         let trimmed = urlText.trimmingCharacters(in: .whitespaces)

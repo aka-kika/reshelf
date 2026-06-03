@@ -26,6 +26,11 @@ struct ProjectListView: View {
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
     @State private var isCheckingCloneUpdates = false
+    @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
+
+    private var sortOrder: CatalogSortOrder {
+        CatalogSortOrder(rawValue: sortOrderRaw) ?? .recentlyAdded
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,6 +42,7 @@ struct ProjectListView: View {
                     Text(sidebarSelection?.title ?? "All Projects")
                         .font(.system(size: 15, weight: .semibold))
                     Spacer()
+                    sortMenu
                     HeaderChromeButton(systemImage: "magnifyingglass", help: "Search (⌘K)") {
                         NotificationCenter.default.post(name: .openCommandPalette, object: nil)
                     }
@@ -598,8 +604,32 @@ struct ProjectListView: View {
         let byRunbook = bySidebar.filter { project in
             runbookFilter == .all || runbookFilter.matches(catalogStateStore.state(for: project))
         }
-        guard !searchText.isEmpty else { return byRunbook }
-        return byRunbook.filter { $0.matchesSearch(searchText) }
+        let bySearch = searchText.isEmpty
+            ? byRunbook
+            : byRunbook.filter { $0.matchesSearch(searchText) }
+        return sortOrder.sorted(bySearch)
+    }
+
+    /// Header control to pick how the list is ordered (Recently Added / Name / Stars).
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort by", selection: $sortOrderRaw) {
+                ForEach(CatalogSortOrder.allCases) { order in
+                    Label(order.displayName, systemImage: order.icon).tag(order.rawValue)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Sort: \(sortOrder.displayName)")
     }
 
     private func applySidebarFilter(_ projects: [ToolProject]) -> [ToolProject] {
@@ -801,4 +831,61 @@ struct ProjectRowView: View, Equatable {
 private func isGitHubURL(_ text: String) -> Bool {
     let trimmed = text.trimmingCharacters(in: .whitespaces)
     return trimmed.hasPrefix("https://github.com/") || trimmed.hasPrefix("github.com/")
+}
+
+/// How the catalog list is ordered. Persisted via `@AppStorage`.
+enum CatalogSortOrder: String, CaseIterable, Identifiable {
+    case recentlyAdded
+    case name
+    case stars
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .recentlyAdded: "Recently Added"
+        case .name: "Name (A–Z)"
+        case .stars: "Most Stars"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .recentlyAdded: "clock"
+        case .name: "textformat"
+        case .stars: "star"
+        }
+    }
+
+    func sorted(_ projects: [ToolProject]) -> [ToolProject] {
+        switch self {
+        case .recentlyAdded:
+            return projects.sorted { $0.addedDate > $1.addedDate }
+        case .name:
+            return projects.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+        case .stars:
+            return projects.sorted {
+                let a = Self.starValue($0.stars), b = Self.starValue($1.stars)
+                // Ties (and blanks) fall back to name so order stays stable.
+                return a == b
+                    ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                    : a > b
+            }
+        }
+    }
+
+    /// Parse a GitHub-style star string ("18.2k", "1.5M", "342", "1,024") into a
+    /// number for sorting. Blank/unparseable values sort last (-1).
+    static func starValue(_ raw: String) -> Double {
+        var s = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !s.isEmpty else { return -1 }
+        var multiplier = 1.0
+        if s.hasSuffix("k") { multiplier = 1_000; s.removeLast() }
+        else if s.hasSuffix("m") { multiplier = 1_000_000; s.removeLast() }
+        s = s.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
+        guard let value = Double(s) else { return -1 }
+        return value * multiplier
+    }
 }
