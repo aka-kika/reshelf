@@ -53,7 +53,7 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## Release prep
 
-- [ ] Clean Mac first-run test (seed data, GRDB create, no duplicate init)
+- [x] Clean Mac first-run test (seed data, GRDB create, no duplicate init) — **PASS**. With `~/reshelf` moved aside (true new-user state), launch creates the SwiftData store, seeds exactly **8** projects (no double-seed), creates the GRDB `opensource-shelf.sqlite`, writes one backup snapshot, no crash. Benign note: on a machine that already has a shared `~/Library/Application Support/default.store`, `CatalogStoreLocation.migrateAndResolve()` copies it once, so CoreData logs harmless persistent-history truncation for unrelated entities; a genuine fresh install has no such store and stays silent.
 - [x] `xcodebuild` CI-style build on macOS
 
 ## Done recently
