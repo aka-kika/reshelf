@@ -2,6 +2,10 @@
 
 Near-term work for **reshelf**. Check off as you go. Agents: do not recreate this list elsewhere — update here only.
 
+## Next up (v2) — after v1 testing
+
+- [ ] ⭐️ **GitHub login inside the app** (FIRST v2 item) — in-app "Connect GitHub" flow: OAuth device flow (primary) + fine-grained PAT (fallback), token in **Keychain**, read-only. Full spec in [v2.0-roadmap.md](v2.0-roadmap.md).
+
 ## Documentation and repo
 
 - [x] Add [README.md](README.md) with “In one minute” and build steps

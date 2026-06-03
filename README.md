@@ -6,6 +6,11 @@ The menu bar and Dock show the name **reshelf**; the Xcode project folder is sti
 
 No account. Data stays on your Mac.
 
+![platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) ![license: MIT](https://img.shields.io/badge/license-MIT-green) ![status: v1 testing](https://img.shields.io/badge/status-v1%20testing-yellow)
+
+> **Status:** v1 is in early testing. Things may change and break. Bug reports and
+> contributions are very welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 > **v1 is the Catalog** — capture, organize, and find open-source repos, zero
 > setup. The **Intelligence engine** (clone + AI analysis, runbooks, Compare,
 > Ecosystems) is a **v2 preview** hidden behind **Settings → Enable Intelligence**
@@ -66,6 +71,9 @@ The intelligence database is created at launch; the v1 catalog is the main surfa
 | [features.md](features.md) | What works today |
 | [future-features.md](future-features.md) | Ideas not built yet |
 | [todo.md](todo.md) | Near-term checklist |
+| [v2.0-roadmap.md](v2.0-roadmap.md) | What's next (GitHub login is first up) |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to build and contribute |
 | [AGENTS.md](AGENTS.md) | Rules for humans and coding agents |
 
 ## Shortcuts
@@ -92,3 +100,20 @@ The intelligence database is created at launch; the v1 catalog is the main surfa
 - **SwiftData** — shelf entries you see in the app
 - **GRDB (SQLite)** — deeper “intelligence” store for repos, metadata, clone state, and ingestion jobs (foundation for future analysis)
 - **GitHub REST** + **Ollama HTTP** — optional helpers
+
+## Contributing
+
+reshelf is open to contributions — bug reports, fixes, features, docs, and design
+feedback. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for build steps and the
+one important gotcha (new Swift files must be registered in `project.pbxproj`).
+Use the issue templates for bugs and feature requests.
+
+## Roadmap
+
+v1 is **the Catalog**. Next up is **GitHub login inside the app** (read-only,
+token in Keychain) to power better recommendations — see
+[v2.0-roadmap.md](v2.0-roadmap.md).
+
+## License
+
+[MIT](LICENSE) © reshelf contributors.
