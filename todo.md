@@ -8,7 +8,7 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 - [x] Add project [AGENTS.md](AGENTS.md) aligned with `/Users/kika_hub/AGENTS.md`
 - [x] Align [features.md](features.md), [goals.md](goals.md), [future-features.md](future-features.md) with README/AGENTS
 - [x] Add `.gitignore` (`.build/`, `DerivedData/`, `.DS_Store`, `xcuserdata/`)
-- [ ] Add app icon (needs 1024px artwork + `Assets.xcassets/AppIcon`; `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon` is set but the asset set is missing, so the brand falls back to the generic system icon)
+- [x] App icon — owl artwork ships as a loose `AppIcon.icns` (Info.plist `CFBundleIconFile = AppIcon`). Regenerated the `.icns` from the 1024px `AppIcon.png` with a full 10-representation iconset via `iconutil` (the old one had only an `ic12` rep, so macOS fell back to the generic icon)
 - [x] About window — native About panel (app menu → About reshelf) with version + reshelf tagline (`OpenSourceShelfApp.showAboutPanel`)
 - [x] Configure GitHub remote and push
 
