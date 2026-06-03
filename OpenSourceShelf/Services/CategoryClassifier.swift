@@ -66,13 +66,16 @@ enum CategoryClassifier {
                                       "firebase-alternative", "supabase"]
         if !topics.isDisjoint(with: dbTopics) { return "Database" }
 
-        // AI / Agent
-        let aiTopics: Set<String> = ["ai", "llm", "agent", "agents", "machine-learning", "deep-learning",
-                                      "chatbot", "langchain", "gpt", "openai", "ollama", "rag",
-                                      "artificial-intelligence", "large-language-models", "multiagent-systems",
-                                      "agentic-ai", "agentic-workflow", "ai-agent", "ai-agents",
-                                      "generative-ai", "text-generation", "inference"]
-        if !topics.isDisjoint(with: aiTopics) { return "AI / Agent" }
+        // AI / Agent — match compound topics too ("ai-agent", "ai-coworker",
+        // "personal-ai", "coding-agent"), not just exact keywords.
+        if topics.contains(where: { t in
+            t == "ai" || t.hasPrefix("ai-") || t.hasSuffix("-ai")
+                || t.contains("agent") || t.contains("llm") || t.contains("gpt")
+                || t.contains("chatbot") || t.contains("langchain") || t.contains("rag")
+                || t.contains("artificial-intelligence") || t.contains("machine-learning")
+                || t.contains("deep-learning") || t.contains("generative")
+                || t.contains("openai") || t.contains("ollama") || t.contains("copilot")
+        }) { return "AI / Agent" }
 
         // macOS
         let macTopics: Set<String> = ["macos", "macos-app", "mac", "mac-app", "menubar", "menu-bar",
@@ -152,7 +155,9 @@ enum CategoryClassifier {
         }
 
         // AI signals
-        if desc.contains("ai agent") || desc.contains("llm") || desc.contains("language model")
+        if desc.contains("ai agent") || desc.contains("coding agent") || desc.contains("ai assistant")
+            || desc.contains("ai co") || desc.contains("copilot") || desc.contains("autonomous agent")
+            || desc.contains("llm") || desc.contains("language model")
             || desc.contains("chatbot") || desc.contains("machine learning") {
             return "AI / Agent"
         }
@@ -219,8 +224,10 @@ enum CategoryClassifier {
             }
         }
 
-        // Return the language as fallback (still better than empty)
-        return language
+        // No meaningful signal: stay uncategorized rather than leaking a raw
+        // language name ("TypeScript", "Go") as a fake category — languages
+        // aren't browsable categories and orphan the repo from the sidebar.
+        return ""
     }
 
     /// Check if a category is a meaningful classification vs just a language name.

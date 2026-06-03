@@ -27,6 +27,17 @@ struct SidebarView: View {
         SidebarFilterCounts(projects: allProjects)
     }
 
+    /// Only the category filters that actually have repos — so the sidebar shows
+    /// exactly the categories in use (no empty rows, new categories appear on
+    /// their own). Always includes the currently selected one so it can't vanish
+    /// from under the user mid-filter.
+    private var visibleCategoryItems: [SidebarItem] {
+        let counts = filterCounts
+        return SidebarItem.sidebarCategoryItems.filter {
+            counts.count(for: $0) > 0 || selection == $0
+        }
+    }
+
     /// The sidebar column's content origin sits ~10pt lower than the detail
     /// column's (measured: sidebar top 42pt vs detail 32pt), so its header and
     /// divider would render 10pt below the list/inspector dividers. This negative
@@ -50,9 +61,11 @@ struct SidebarView: View {
                     SidebarRow(item: .cloned, count: filterCounts.count(for: .cloned))
                 }
 
-                Section(SidebarSection.categories.rawValue) {
-                    ForEach(SidebarItem.sidebarCategoryItems) { item in
-                        SidebarRow(item: item, count: filterCounts.count(for: item))
+                if !visibleCategoryItems.isEmpty {
+                    Section(SidebarSection.categories.rawValue) {
+                        ForEach(visibleCategoryItems) { item in
+                            SidebarRow(item: item, count: filterCounts.count(for: item))
+                        }
                     }
                 }
             }

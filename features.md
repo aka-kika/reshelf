@@ -39,9 +39,9 @@ Stored fields you can view and edit:
 - All Projects, Top Shelf, The Collector, Yard Sale, **Cloned**
 - **Cloned** is filesystem-derived (which repos actually have a local clone), filtered in-memory; its count updates live as you clone or remove repos
 
-**Categories** — top auto-classified filters in the sidebar (full taxonomy in `CategoryClassifier`)
+**Categories** — auto-classified filters, shown **dynamically**: a row appears for every category that actually has repos (with a live count), so nothing is orphaned and new categories show up on their own. Empty categories are hidden.
 
-- Database Tools, Agent Tools, macOS Tools, Workspace, Knowledge, CLI, DevOps, Editor, Local-First
+- Full set: Database, Backend, AI / Agent, Internal Tools, Workspace, Knowledge, macOS, CLI, Editor, DevOps, Automation, Media, Design, Security, Utility, plus Local-First (flag-based). Classification is **rule-based** (GitHub topics → description → language), **no AI** — see `CategoryClassifier`. Repos with no clear signal stay uncategorized (visible under All Projects) rather than being mislabeled with a raw language name.
 
 **Intelligence (v2 preview)** (Settings → **Enable Intelligence**, off by default) — the entire intelligence engine is gated behind one flag. With it **off** (the v1 default), reshelf is a pure catalog: no clone/Fetch-Intelligence, no runbooks, no Compare/Ecosystems, no Queue or Actions menu, no AI step in Quick Capture, no AI-Providers or Repository-Storage settings, and no intelligence badges on rows or in the inspector. Turning it **on** restores all of it unchanged (clone + AI analysis, runbooks, Compare, Ecosystems, Workflows, My Stack, Queue, AI providers, clone-folder setting).
 

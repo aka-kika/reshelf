@@ -10,13 +10,20 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     // Categories
     case databaseTools = "databaseTools"
+    case backendTools = "backendTools"
     case agentTools = "agentTools"
-    case macOSTools = "macOSTools"
+    case internalTools = "internalTools"
     case workspaceTools = "workspaceTools"
     case knowledgeTools = "knowledgeTools"
+    case macOSTools = "macOSTools"
     case cliTools = "cliTools"
-    case devopsTools = "devopsTools"
     case editorTools = "editorTools"
+    case devopsTools = "devopsTools"
+    case automationTools = "automationTools"
+    case mediaTools = "mediaTools"
+    case designTools = "designTools"
+    case securityTools = "securityTools"
+    case utilityTools = "utilityTools"
     case localFirst = "localFirst"
 
     // Intelligence (v2 — Labs) destinations
@@ -38,14 +45,21 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .collector: "The Collector"
         case .yardSale: "Yard Sale"
         case .cloned: "Cloned"
-        case .databaseTools: "Database Tools"
-        case .agentTools: "Agent Tools"
-        case .macOSTools: "macOS Tools"
+        case .databaseTools: "Database"
+        case .backendTools: "Backend"
+        case .agentTools: "AI / Agent"
+        case .internalTools: "Internal Tools"
         case .workspaceTools: "Workspace"
         case .knowledgeTools: "Knowledge"
+        case .macOSTools: "macOS"
         case .cliTools: "CLI"
-        case .devopsTools: "DevOps"
         case .editorTools: "Editor"
+        case .devopsTools: "DevOps"
+        case .automationTools: "Automation"
+        case .mediaTools: "Media"
+        case .designTools: "Design"
+        case .securityTools: "Security"
+        case .utilityTools: "Utility"
         case .localFirst: "Local-First"
         case .queue: "Queue"
         case .compare: "Compare"
@@ -64,13 +78,20 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .yardSale: "tag"
         case .cloned: "internaldrive"
         case .databaseTools: "cylinder"
+        case .backendTools: "server.rack"
         case .agentTools: "brain"
-        case .macOSTools: "macbook"
+        case .internalTools: "rectangle.grid.2x2"
         case .workspaceTools: "rectangle.3.group"
         case .knowledgeTools: "book"
+        case .macOSTools: "macbook"
         case .cliTools: "terminal"
-        case .devopsTools: "gearshape.2"
         case .editorTools: "doc.text"
+        case .devopsTools: "gearshape.2"
+        case .automationTools: "arrow.triangle.2.circlepath"
+        case .mediaTools: "photo.on.rectangle"
+        case .designTools: "paintbrush"
+        case .securityTools: "lock.shield"
+        case .utilityTools: "wrench.and.screwdriver"
         case .localFirst: "house"
         case .queue: "tray.full"
         case .compare: "arrow.left.arrow.right"
@@ -85,9 +106,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         switch self {
         case .allProjects, .topShelf, .collector, .yardSale, .cloned:
             return .library
-        case .databaseTools, .agentTools, .macOSTools,
-             .workspaceTools, .knowledgeTools, .cliTools, .devopsTools,
-             .editorTools, .localFirst:
+        case .databaseTools, .backendTools, .agentTools, .internalTools,
+             .workspaceTools, .knowledgeTools, .macOSTools, .cliTools,
+             .editorTools, .devopsTools, .automationTools, .mediaTools,
+             .designTools, .securityTools, .utilityTools, .localFirst:
             return .categories
         case .queue, .compare, .ecosystems, .workflows, .myStack:
             return .library
@@ -98,9 +120,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     /// Top category filters shown in the sidebar (full taxonomy stays in CategoryClassifier).
     static let sidebarCategoryItems: [SidebarItem] = [
-        .databaseTools, .agentTools, .macOSTools,
-        .workspaceTools, .knowledgeTools, .cliTools, .devopsTools, .editorTools,
-        .localFirst,
+        .databaseTools, .backendTools, .agentTools, .internalTools,
+        .workspaceTools, .knowledgeTools, .macOSTools, .cliTools, .editorTools,
+        .devopsTools, .automationTools, .mediaTools, .designTools,
+        .securityTools, .utilityTools, .localFirst,
     ]
 
     /// Items shown in the sidebar list (catalog filters only).
@@ -133,21 +156,35 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return CatalogCloneService.isCloned(project)
         case .databaseTools:
             return project.category.localizedStandardContains("Database")
+        case .backendTools:
+            return project.category.localizedStandardContains("Backend")
         case .agentTools:
             return project.category.localizedStandardContains("Agent")
                 || project.category.localizedStandardContains("AI")
-        case .macOSTools:
-            return project.category.localizedStandardContains("macOS")
+        case .internalTools:
+            return project.category.localizedStandardContains("Internal Tools")
         case .workspaceTools:
             return project.category.localizedStandardContains("Workspace")
         case .knowledgeTools:
             return project.category.localizedStandardContains("Knowledge")
+        case .macOSTools:
+            return project.category.localizedStandardContains("macOS")
         case .cliTools:
             return project.category.localizedStandardContains("CLI")
-        case .devopsTools:
-            return project.category.localizedStandardContains("DevOps")
         case .editorTools:
             return project.category.localizedStandardContains("Editor")
+        case .devopsTools:
+            return project.category.localizedStandardContains("DevOps")
+        case .automationTools:
+            return project.category.localizedStandardContains("Automation")
+        case .mediaTools:
+            return project.category.localizedStandardContains("Media")
+        case .designTools:
+            return project.category.localizedStandardContains("Design")
+        case .securityTools:
+            return project.category.localizedStandardContains("Security")
+        case .utilityTools:
+            return project.category.localizedStandardContains("Utility")
         case .localFirst:
             return project.isLocalFirst
         }
@@ -162,13 +199,20 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         // Filesystem-derived (no stored field) — filtered in-memory via matchesCatalogFilter.
         case .cloned: return nil
         case .databaseTools: return #Predicate { $0.category.localizedStandardContains("Database") }
+        case .backendTools: return #Predicate { $0.category.localizedStandardContains("Backend") }
         case .agentTools: return #Predicate { $0.category.localizedStandardContains("Agent") || $0.category.localizedStandardContains("AI") }
-        case .macOSTools: return #Predicate { $0.category.localizedStandardContains("macOS") }
+        case .internalTools: return #Predicate { $0.category.localizedStandardContains("Internal Tools") }
         case .workspaceTools: return #Predicate { $0.category.localizedStandardContains("Workspace") }
         case .knowledgeTools: return #Predicate { $0.category.localizedStandardContains("Knowledge") }
+        case .macOSTools: return #Predicate { $0.category.localizedStandardContains("macOS") }
         case .cliTools: return #Predicate { $0.category.localizedStandardContains("CLI") }
-        case .devopsTools: return #Predicate { $0.category.localizedStandardContains("DevOps") }
         case .editorTools: return #Predicate { $0.category.localizedStandardContains("Editor") }
+        case .devopsTools: return #Predicate { $0.category.localizedStandardContains("DevOps") }
+        case .automationTools: return #Predicate { $0.category.localizedStandardContains("Automation") }
+        case .mediaTools: return #Predicate { $0.category.localizedStandardContains("Media") }
+        case .designTools: return #Predicate { $0.category.localizedStandardContains("Design") }
+        case .securityTools: return #Predicate { $0.category.localizedStandardContains("Security") }
+        case .utilityTools: return #Predicate { $0.category.localizedStandardContains("Utility") }
         case .localFirst: return #Predicate { $0.isLocalFirst == true }
         case .queue, .compare, .ecosystems, .workflows, .myStack, .settings: return nil
         }

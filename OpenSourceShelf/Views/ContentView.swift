@@ -138,8 +138,10 @@ struct ContentView: View {
         if !CatalogBackupService.restoreIfCatalogEmpty(context: modelContext) {
             SeedData.seedIfNeeded(context: modelContext)
         }
-        CatalogBackupService.writeSnapshot(allProjects)
+        // Reclassify before snapshotting so the launch backup reflects the
+        // corrected categories (not the pre-reclassify state).
         reclassifyProjectsIfNeeded()
+        CatalogBackupService.writeSnapshot(allProjects)
         if sidebarSelection == .queue {
             sidebarSelection = .allProjects
         }
