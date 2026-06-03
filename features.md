@@ -7,7 +7,7 @@ What **reshelf** does today. Plain-language map of the app — see [README.md](R
 - **Three columns** — sidebar (owl app-icon branding), project list (title + controls header), inspector pane. The sidebar and inspector are **user-resizable** by dragging their dividers; the project list flexes between them.
 - **Merged title bar** — the header row doubles as the window title bar (no separate empty toolbar band). The controls live in the project-list header: a **sidebar toggle** on the left, **search** (⌘K) and **inspector toggle** on the right. Toggles stay visible even when their panel is collapsed, so you can always reopen it. The three column header dividers line up as one clean line, and the sidebar edge is a thin hairline (not a heavy macOS shadow).
 - **Command palette** (⌘K) — floating sheet with search field, recent searches, live project filtering. Paste a GitHub URL → "Capture this repository" row appears → click or press Enter → Quick Capture opens with repo info auto-fetched. Escape dismisses.
-- **Menu bar** — File (New / Quick Capture / Search), View (column toggles + navigation), Catalog (runbook filter, fetch intelligence, compare flow), Actions (runbook + intelligence), and Window (Show Queue, ⌘⇧Q). No status-bar menu extra.
+- **Menu bar** — File (New / Quick Capture / Search / Export / Import / Restore / **Check Clones for Updates** ⌘⇧U), View (column toggles + navigation), and the app menu (Settings, About). The intelligence menus (Catalog, Actions, Window → Queue) appear only with **Labs on**. No status-bar menu extra.
 - **No sign-in** — local app only.
 - **Seed library** — on first empty launch, sample tools (Baserow, NocoDB, AppFlowy, Budibase, etc.) are inserted once.
 
@@ -27,28 +27,21 @@ Stored fields you can view and edit:
 - Category, license, star count (text)
 - Tags and use cases (lists)
 - Personal notes and **fit score** (1–5 stars)
-- **Status:** New, Testing, Useful, Ignored
-- **Workflow flags:** helps Codex, local AI, macOS apps, content/design, private projects
-- **Local-first** and **self-hosted** toggles
+- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive)
+- **Local-first** and **self-hosted** flags
 - Repo **icon** (fetched and cached)
 - **Added** and **last checked** dates
 
 ## Sidebar
 
-**Library** — status filters
+**Library** — shelf + clone filters
 
-- All Projects, Useful for Me, Testing, Ignored
+- All Projects, Top Shelf, The Collector, Yard Sale, **Cloned**
+- **Cloned** is filesystem-derived (which repos actually have a local clone), filtered in-memory; its count updates live as you clone or remove repos
 
 **Categories** — top auto-classified filters in the sidebar (full taxonomy in `CategoryClassifier`)
 
 - Database Tools, Agent Tools, macOS Tools, Workspace, Knowledge, CLI, DevOps, Editor, Local-First
-
-**My Workflows** — personal workflow lanes (catalog flags + manual pins)
-
-- Codex Workflow, Local AI Stack, Private Projects
-- **Pinned** — add public GitHub repos or local project folders per lane (header **Add Repo** / **Add Folder**); pins show above catalog matches
-- **From Catalog** — projects tagged with the workflow toggles in the inspector / edit sheet
-- **Deduped display** — repo pins hide when the same GitHub URL already exists in the catalog for that lane; **Add to Catalog** on a pin creates the catalog row and removes the pin
 
 **Intelligence (v2 preview)** (Settings → **Enable Intelligence**, off by default) — the entire intelligence engine is gated behind one flag. With it **off** (the v1 default), reshelf is a pure catalog: no clone/Fetch-Intelligence, no runbooks, no Compare/Ecosystems, no Queue or Actions menu, no AI step in Quick Capture, no AI-Providers or Repository-Storage settings, and no intelligence badges on rows or in the inspector. Turning it **on** restores all of it unchanged (clone + AI analysis, runbooks, Compare, Ecosystems, Workflows, My Stack, Queue, AI providers, clone-folder setting).
 
@@ -81,15 +74,25 @@ Existing projects whose category was empty or just a language name are **re-cate
 
 ## Inspector (detail pane)
 
-- Header, links, status
+- Header, links, shelf
 - Metadata, description, use cases, tags, notes
-- Personal fit and workflow toggles
-- Open GitHub / website in the default browser
+- Personal fit
+- **Links** — left-click opens GitHub / website in the default browser; right-click copies the URL
+- **Local Copy** — clone status, on-disk path, **Reveal in Finder**, and **Open in…** (installed editors + Terminal); when not cloned, a one-click **Clone Repository**
 - Edit sheet
 - **Resizable** — drag the divider to set the inspector width (persists)
-- **Discovery clusters** — when viewing Ecosystems, Workflows, or My Stack (View/Window menu), select a cluster to inspect score, stack, and gaps; tap a repo to open it in the catalog
+- **Discovery clusters** — when viewing Ecosystems, Workflows, or My Stack (View/Window menu, Labs on), select a cluster to inspect score, stack, and gaps; tap a repo to open it in the catalog
 
 Extra metadata stays **inside this pane** (no fourth `.inspector()` column).
+
+## Clone & updates (v1, no AI)
+
+Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and no `git-lfs` requirement (LFS smudge/clean filters are bypassed, so LFS repos like `zotero` still clone).
+
+- **Clone Repository** — from the repo's right-click menu or the inspector's Local Copy section. Full clone to `~/reshelf/repos/<repo>` (flat by repo name; falls back to `<owner>-<repo>` only on a name collision with a *different* repo). Rows show a **spinner while cloning** and a **disk badge** once cloned. Cloning never auto-opens Finder.
+- **Update check** — opening a cloned repo's inspector runs a cheap `git ls-remote origin HEAD` (one read-only round-trip, no fetch, no objects downloaded) and shows **✓ Up to date** or **↑ Updates available**. On-demand only — no background polling.
+- **Pull** — when behind, a one-click **Pull** does a fast-forward pull, then flips back to up-to-date.
+- **Check Clones for Updates** (**File** menu, ⌘⇧U) — sweeps every cloned repo at once and flags the ones that are behind with an **orange dot** on their disk badge. Pair it with the **Cloned** sidebar filter to see exactly what needs pulling.
 
 ## Runbooks
 
@@ -101,7 +104,7 @@ Extra metadata stays **inside this pane** (no fourth `.inspector()` column).
 ## Settings
 
 - **Appearance** — System / Light / Dark (System follows macOS); applies to every window and persists
-- **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Repos are organized by host/owner/name inside it. Changing it affects only new clones; **Reset** returns to the default
+- **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are stored **flat by repo name** (`<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
 - **AI Providers** — pick a **preferred provider** for suggestions; configure **Ollama** (local URL + model), **OpenAI**, **Anthropic**, **Gemini**, and **GitHub Copilot / Models** (API keys stored in Keychain, model picker, connection test). **Apple Intelligence** toggle remains placeholder until wired.
 - **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders
 - One `AppSettings` row in SwiftData (appearance is stored separately in `@AppStorage`)

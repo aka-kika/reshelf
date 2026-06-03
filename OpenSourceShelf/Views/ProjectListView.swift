@@ -24,6 +24,8 @@ struct ProjectListView: View {
     @State private var runbookFilter: CatalogRunbookFilter = .all
     @State private var pendingDeleteProject: ToolProject?
     @State private var cloningProjectIDs: Set<UUID> = []
+    @State private var behindProjectIDs: Set<UUID> = []
+    @State private var isCheckingCloneUpdates = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -99,6 +101,7 @@ struct ProjectListView: View {
                                     statusKey: project.statusRaw,
                                     isCloning: cloningProjectIDs.contains(project.id),
                                     isClonedLocally: CatalogCloneService.isCloned(project),
+                                    isBehind: behindProjectIDs.contains(project.id),
                                     onSelect: { selectProject(project) }
                                 ) {
                                     toggleCompareSelection(for: project)
@@ -186,6 +189,9 @@ struct ProjectListView: View {
             isCompareSelectMode = false
             compareSelectedProjectIDs = []
             compareNotice = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in
+            checkAllClonesForUpdates()
         }
         .confirmationDialog(
             "Remove \(pendingDeleteProject?.name ?? "this project")?",
@@ -357,6 +363,36 @@ struct ProjectListView: View {
                 await MainActor.run {
                     cloningProjectIDs.remove(project.id)
                     compareNotice = "Clone failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    /// Checks every cloned repo against its upstream (cheap `ls-remote`, no fetch)
+    /// and flags the ones that are behind with a dot on their row. On-demand only.
+    private func checkAllClonesForUpdates() {
+        guard !isCheckingCloneUpdates else { return }
+        let cloned = allProjects.filter { CatalogCloneService.isCloned($0) }
+        guard !cloned.isEmpty else {
+            compareNotice = "No cloned repositories to check."
+            return
+        }
+        isCheckingCloneUpdates = true
+        compareNotice = "Checking \(cloned.count) clone\(cloned.count == 1 ? "" : "s") for updates…"
+        Task {
+            var behind: Set<UUID> = []
+            for project in cloned {
+                if case .updatesAvailable = await CatalogCloneService.updateStatus(for: project) {
+                    behind.insert(project.id)
+                }
+            }
+            await MainActor.run {
+                behindProjectIDs = behind
+                isCheckingCloneUpdates = false
+                if behind.isEmpty {
+                    compareNotice = "All clones are up to date."
+                } else {
+                    compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Open a repo to pull."
                 }
             }
         }
@@ -652,6 +688,8 @@ struct ProjectRowView: View, Equatable {
     var statusKey: String = ""
     var isCloning: Bool = false
     var isClonedLocally: Bool = false
+    /// Local clone is behind its upstream (updates available to pull).
+    var isBehind: Bool = false
     var onSelect: (() -> Void)?
     var onCompareToggle: (() -> Void)?
 
@@ -662,6 +700,7 @@ struct ProjectRowView: View, Equatable {
             && lhs.statusKey == rhs.statusKey
             && lhs.isCloning == rhs.isCloning
             && lhs.isClonedLocally == rhs.isClonedLocally
+            && lhs.isBehind == rhs.isBehind
             && lhs.catalogState == rhs.catalogState
             && lhs.isCompareSelectMode == rhs.isCompareSelectMode
             && lhs.isCompareSelected == rhs.isCompareSelected
@@ -723,8 +762,16 @@ struct ProjectRowView: View, Equatable {
             } else if isClonedLocally {
                 Image(systemName: "internaldrive")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .help("Cloned to disk")
+                    .foregroundStyle(isBehind ? Color.orange : .secondary)
+                    .overlay(alignment: .topTrailing) {
+                        if isBehind {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 5, height: 5)
+                                .offset(x: 2, y: -2)
+                        }
+                    }
+                    .help(isBehind ? "Updates available — pull to update" : "Cloned to disk")
             }
 
             if showsIntelligence {

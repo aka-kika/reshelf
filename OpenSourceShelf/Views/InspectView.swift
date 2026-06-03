@@ -28,6 +28,9 @@ struct InspectView: View {
     @State private var showsIntelligenceDetails = false
     @State private var isCloningLocalCopy = false
     @State private var localCopyNotice: String?
+    @State private var cloneUpdateStatus: CatalogCloneService.UpdateStatus?
+    @State private var isCheckingUpdates = false
+    @State private var isPulling = false
 
     private var inspectorSettings: AppSettings {
         appSettingsQuery.first ?? AppSettings()
@@ -441,6 +444,9 @@ struct InspectView: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
                     .help(dest.path)
+
+                cloneUpdateRow
+
                 HStack(spacing: 8) {
                     Button("Reveal in Finder") { CatalogCloneService.revealInFinder(dest) }
                         .controlSize(.small)
@@ -461,7 +467,7 @@ struct InspectView: View {
                     Text("Cloning…").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             } else {
-                Text("Clone a full copy to your repositories folder (\(CloneLocation.rootURL.lastPathComponent)/owner/name).")
+                Text("Clone a full copy to your repositories folder (\(CloneLocation.rootURL.lastPathComponent)/<repo>).")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -477,6 +483,76 @@ struct InspectView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .task(id: project.id) { await autoCheckUpdatesIfCloned() }
+    }
+
+    /// Up-to-date / updates-available / check / pull line for a cloned repo.
+    @ViewBuilder
+    private var cloneUpdateRow: some View {
+        if isPulling {
+            inlineProgress("Pulling…")
+        } else if isCheckingUpdates {
+            inlineProgress("Checking for updates…")
+        } else {
+            switch cloneUpdateStatus {
+            case .upToDate:
+                Label("Up to date", systemImage: "checkmark.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.green)
+            case .updatesAvailable:
+                HStack(spacing: 8) {
+                    Label("Updates available", systemImage: "arrow.down.circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                    Button("Pull") { pullUpdates() }
+                        .controlSize(.small)
+                }
+            case let .error(message):
+                HStack(spacing: 6) {
+                    Text(message)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Button("Check") { Task { await checkUpdates() } }
+                        .controlSize(.small)
+                }
+            case nil:
+                Button("Check for updates") { Task { await checkUpdates() } }
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private func inlineProgress(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            ProgressView().controlSize(.small)
+            Text(text).font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+
+    private func checkUpdates() async {
+        isCheckingUpdates = true
+        let status = await CatalogCloneService.updateStatus(for: project)
+        cloneUpdateStatus = status
+        isCheckingUpdates = false
+    }
+
+    private func pullUpdates() {
+        isPulling = true
+        Task {
+            do {
+                try await CatalogCloneService.pull(project)
+                await MainActor.run { isPulling = false; cloneUpdateStatus = .upToDate }
+            } catch {
+                await MainActor.run { isPulling = false; cloneUpdateStatus = .error(error.localizedDescription) }
+            }
+        }
+    }
+
+    private func autoCheckUpdatesIfCloned() async {
+        guard CatalogCloneService.isCloned(project),
+              cloneUpdateStatus == nil, !isCheckingUpdates else { return }
+        await checkUpdates()
     }
 
     private func cloneLocalCopy() {

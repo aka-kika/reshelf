@@ -6,6 +6,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case topShelf = "topShelf"
     case collector = "collector"
     case yardSale = "yardSale"
+    case cloned = "cloned"
 
     // Categories
     case databaseTools = "databaseTools"
@@ -36,6 +37,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .topShelf: "Top Shelf"
         case .collector: "The Collector"
         case .yardSale: "Yard Sale"
+        case .cloned: "Cloned"
         case .databaseTools: "Database Tools"
         case .agentTools: "Agent Tools"
         case .macOSTools: "macOS Tools"
@@ -60,6 +62,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .topShelf: "star.fill"
         case .collector: "square.stack.3d.up"
         case .yardSale: "tag"
+        case .cloned: "internaldrive"
         case .databaseTools: "cylinder"
         case .agentTools: "brain"
         case .macOSTools: "macbook"
@@ -80,7 +83,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     var section: SidebarSection {
         switch self {
-        case .allProjects, .topShelf, .collector, .yardSale:
+        case .allProjects, .topShelf, .collector, .yardSale, .cloned:
             return .library
         case .databaseTools, .agentTools, .macOSTools,
              .workspaceTools, .knowledgeTools, .cliTools, .devopsTools,
@@ -102,7 +105,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     /// Items shown in the sidebar list (catalog filters only).
     static var sidebarCatalogItems: [SidebarItem] {
-        [.allProjects, .topShelf, .collector, .yardSale] + sidebarCategoryItems
+        [.allProjects, .topShelf, .collector, .yardSale, .cloned] + sidebarCategoryItems
     }
 
     /// Sidebar items that narrow the catalog list (not Queue, Compare, etc.).
@@ -126,6 +129,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return project.statusRaw == ProjectStatus.collector.rawValue
         case .yardSale:
             return project.statusRaw == ProjectStatus.yardSale.rawValue
+        case .cloned:
+            return CatalogCloneService.isCloned(project)
         case .databaseTools:
             return project.category.localizedStandardContains("Database")
         case .agentTools:
@@ -154,6 +159,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .topShelf: return #Predicate { $0.statusRaw == "topShelf" }
         case .collector: return #Predicate { $0.statusRaw == "collector" }
         case .yardSale: return #Predicate { $0.statusRaw == "yardSale" }
+        // Filesystem-derived (no stored field) — filtered in-memory via matchesCatalogFilter.
+        case .cloned: return nil
         case .databaseTools: return #Predicate { $0.category.localizedStandardContains("Database") }
         case .agentTools: return #Predicate { $0.category.localizedStandardContains("Agent") || $0.category.localizedStandardContains("AI") }
         case .macOSTools: return #Predicate { $0.category.localizedStandardContains("macOS") }

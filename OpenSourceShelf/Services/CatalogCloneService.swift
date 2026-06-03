@@ -93,6 +93,36 @@ enum CatalogCloneService {
         return dest
     }
 
+    // MARK: - Updates (plain git — no AI)
+
+    enum UpdateStatus: Equatable {
+        case upToDate
+        case updatesAvailable
+        case error(String)
+    }
+
+    /// Compares the local clone's commit to the remote default branch's tip via a
+    /// cheap `ls-remote` (no fetch). Different SHA → upstream has updates.
+    static func updateStatus(for project: ToolProject) async -> UpdateStatus {
+        guard let dir = existingClone(for: project) else { return .error("Not cloned.") }
+        let git = GitClient()
+        do {
+            async let localTask = git.currentHead(repositoryURL: dir)
+            async let remoteTask = git.remoteDefaultHead(repositoryURL: dir)
+            let (local, remote) = try await (localTask, remoteTask)
+            guard let local, let remote else { return .error("Couldn't read commits.") }
+            return local == remote ? .upToDate : .updatesAvailable
+        } catch {
+            return .error(error.localizedDescription)
+        }
+    }
+
+    /// Fast-forward pull (LFS-bypassed, like clone).
+    static func pull(_ project: ToolProject) async throws {
+        guard let dir = existingClone(for: project) else { throw CloneError.invalidURL }
+        try await GitClient().pullFastForward(repositoryURL: dir)
+    }
+
     // MARK: - Opening
 
     @MainActor

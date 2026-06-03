@@ -1,6 +1,6 @@
 # reshelf
 
-**reshelf** (repo shelf) is a **macOS app** for keeping a personal shelf of open-source repos you might use — with workflow tags, fit scores, and Quick Capture from GitHub.
+**reshelf** (repo shelf) is a **macOS app** for keeping a personal shelf of open-source repos you might use — capture from GitHub, organize onto shelves, clone locally, and get told when a clone has updates to pull.
 
 The menu bar and Dock show the name **reshelf**; the Xcode project folder is still `OpenSourceShelf` for now.
 
@@ -16,7 +16,8 @@ No account. Data stays on your Mac.
 1. Open the project in Xcode (or build from the terminal below).
 2. Run the app — you get a **sidebar**, **project list**, and **inspector** pane.
 3. Press **⌘K** to open the command palette, paste a GitHub URL — Quick Capture opens with the repo info already fetched and **auto-categorized** (Database, AI / Agent, macOS, …).
-4. Mark repos **New → Testing → Useful** (or **Ignored**) and filter by how they fit your work (Codex, local AI, macOS apps, etc.).
+4. Sort repos onto shelves — **Top Shelf** (favorites), **The Collector** (default landing shelf), **Yard Sale** (not sure / archive) — and filter the sidebar by shelf, category, or **Cloned**.
+5. Right-click a repo → **Clone Repository** to pull a full copy to `~/reshelf/repos`. The inspector shows whether a clone is **up to date** or has **updates available** with a one-click **Pull**; **File → Check Clones for Updates** (⌘⇧U) sweeps every clone at once.
 
 Tip: drag the sidebar/inspector dividers to resize them, and in **Settings** show/hide and **drag-reorder** the inspector sections.
 
@@ -50,10 +51,12 @@ Built app (Debug) is under DerivedData, or run from Xcode for day-to-day use.
 
 | What | Where |
 |------|--------|
-| Catalog UI (projects, settings) | SwiftData — app sandbox |
-| Intelligence layer (repos, clone state, jobs) | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
+| Catalog (projects, settings) | `~/reshelf/catalog.store` (SwiftData — isolated, not the shared default store) |
+| Automatic JSON backups | `~/reshelf/backups/` (last 30 add/remove/background snapshots) |
+| Local clones | `~/reshelf/repos/<repo>` (flat by repo name; full clones) |
+| Intelligence layer (v2 preview) | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
 
-The intelligence database is created at launch; the UI catalog is still the main surface today. See [features.md](features.md) and [future-features.md](future-features.md) for what is wired vs planned.
+The intelligence database is created at launch; the v1 catalog is the main surface today. See [features.md](features.md) and [future-features.md](future-features.md) for what is wired vs planned.
 
 ## Project docs
 
@@ -72,6 +75,8 @@ The intelligence database is created at launch; the UI catalog is still the main
 | ⌘K | Command palette — search projects or paste a GitHub URL |
 | ⌘N | New project (manual) |
 | ⌘⇧N | Quick Capture (GitHub URL) |
+| ⌘⇧E | Export catalog as JSON |
+| ⌘⇧U | Check clones for updates |
 | ⌘S | Toggle sidebar |
 | ⌘I | Toggle inspector |
 

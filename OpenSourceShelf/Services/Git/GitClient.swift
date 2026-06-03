@@ -91,6 +91,15 @@ struct GitClient {
         try await trimmedOutput(arguments: ["rev-parse", "HEAD"], workingDirectory: repositoryURL)
     }
 
+    /// The remote default branch's tip SHA — a cheap, read-only `ls-remote`
+    /// (one network round-trip, no objects fetched, doesn't touch the clone).
+    func remoteDefaultHead(repositoryURL: URL, cancellationID: String? = nil) async throws -> String? {
+        let output = try await trimmedOutput(arguments: ["ls-remote", "origin", "HEAD"],
+                                             workingDirectory: repositoryURL)
+        // Output line: "<sha>\tHEAD"
+        return output.split(whereSeparator: { $0 == "\t" || $0 == " " }).first.map(String.init)
+    }
+
     func branchCount(repositoryURL: URL) async throws -> Int {
         let output = try await trimmedOutput(arguments: ["branch", "--list", "--all"], workingDirectory: repositoryURL)
         return lineCount(output)

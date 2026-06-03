@@ -47,6 +47,7 @@ struct SidebarView: View {
                     SidebarRow(item: .topShelf, count: filterCounts.count(for: .topShelf))
                     SidebarRow(item: .collector, count: filterCounts.count(for: .collector))
                     SidebarRow(item: .yardSale, count: filterCounts.count(for: .yardSale))
+                    SidebarRow(item: .cloned, count: filterCounts.count(for: .cloned))
                 }
 
                 Section(SidebarSection.categories.rawValue) {

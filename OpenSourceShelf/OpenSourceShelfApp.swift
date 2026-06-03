@@ -166,6 +166,13 @@ struct OpenSourceShelfApp: App {
                 Button("Restore from Backup…") {
                     NotificationCenter.default.post(name: .restoreBackup, object: nil)
                 }
+
+                Divider()
+
+                Button("Check Clones for Updates") {
+                    NotificationCenter.default.post(name: .checkCloneUpdates, object: nil)
+                }
+                .keyboardShortcut("u", modifiers: [.command, .shift])
             }
 
             // One View menu: column toggles live in the standard sidebar slot,
@@ -433,4 +440,5 @@ extension Notification.Name {
     static let exportCatalog = Notification.Name("exportCatalog")
     static let importURLs = Notification.Name("importURLs")
     static let restoreBackup = Notification.Name("restoreBackup")
+    static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
 }
