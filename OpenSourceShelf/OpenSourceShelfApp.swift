@@ -465,4 +465,7 @@ extension Notification.Name {
     static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
     /// Move the currently selected repo to a shelf; object is the ProjectStatus rawValue.
     static let moveSelectedToShelf = Notification.Name("moveSelectedToShelf")
+    /// A clone's update status became known (object: project id string, userInfo["behind"]: Bool)
+    /// — lets the list's "updates available" row dot stay in sync after a pull/check.
+    static let cloneUpdateStatusKnown = Notification.Name("cloneUpdateStatusKnown")
 }

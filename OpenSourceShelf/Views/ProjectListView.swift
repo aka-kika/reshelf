@@ -181,7 +181,8 @@ struct ProjectListView: View {
             onCompareSelected: { compareSelectedProjects() },
             onCancelCompareMode: { cancelCompareMode() },
             onCheckCloneUpdates: { checkAllClonesForUpdates() },
-            onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) }
+            onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) },
+            onCloneStatusKnown: { note in syncBehindBadge(note) }
         ))
         .confirmationDialog(
             "Remove \(pendingDeleteProject?.name ?? "this project")?",
@@ -412,6 +413,18 @@ struct ProjectListView: View {
                     compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Open a repo to pull."
                 }
             }
+        }
+    }
+
+    /// Keep a row's "updates available" dot in sync with what the inspector found
+    /// (e.g. clear it right after a pull, or set it when a check finds it behind).
+    private func syncBehindBadge(_ note: Notification) {
+        guard let idStr = note.object as? String, let id = UUID(uuidString: idStr) else { return }
+        let behind = (note.userInfo?["behind"] as? Bool) ?? false
+        if behind {
+            behindProjectIDs.insert(id)
+        } else {
+            behindProjectIDs.remove(id)
         }
     }
 
@@ -855,6 +868,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onCancelCompareMode: () -> Void
     let onCheckCloneUpdates: () -> Void
     let onMoveSelectedToShelf: (Notification) -> Void
+    let onCloneStatusKnown: (Notification) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -866,6 +880,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .catalogCancelCompareMode)) { _ in onCancelCompareMode() }
             .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in onCheckCloneUpdates() }
             .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)
+            .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown), perform: onCloneStatusKnown)
     }
 }
 

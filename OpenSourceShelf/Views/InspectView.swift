@@ -535,6 +535,12 @@ struct InspectView: View {
         let status = await CatalogCloneService.updateStatus(for: project)
         cloneUpdateStatus = status
         isCheckingUpdates = false
+        // Keep the list row's "updates available" dot in sync with what we found.
+        switch status {
+        case .upToDate: broadcastBehind(false)
+        case .updatesAvailable: broadcastBehind(true)
+        case .error: break
+        }
     }
 
     private func pullUpdates() {
@@ -542,11 +548,24 @@ struct InspectView: View {
         Task {
             do {
                 try await CatalogCloneService.pull(project)
-                await MainActor.run { isPulling = false; cloneUpdateStatus = .upToDate }
+                await MainActor.run {
+                    isPulling = false
+                    cloneUpdateStatus = .upToDate
+                    broadcastBehind(false) // clear the orange row dot now that it's current
+                }
             } catch {
                 await MainActor.run { isPulling = false; cloneUpdateStatus = .error(error.localizedDescription) }
             }
         }
+    }
+
+    /// Tell the list whether this repo's clone is behind upstream, so its row dot matches.
+    private func broadcastBehind(_ behind: Bool) {
+        NotificationCenter.default.post(
+            name: .cloneUpdateStatusKnown,
+            object: project.id.uuidString,
+            userInfo: ["behind": behind]
+        )
     }
 
     private func autoCheckUpdatesIfCloned() async {
