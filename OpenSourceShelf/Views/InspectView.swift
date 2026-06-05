@@ -6,6 +6,7 @@ struct InspectView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
+    @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
     @Query private var appSettingsQuery: [AppSettings]
     @State private var isEditing: Bool = false
     @State private var cloneSnapshot: CloneStatusSnapshot?
@@ -414,6 +415,7 @@ struct InspectView: View {
                         Text(project.license)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
+                        LicenseInfoButton(license: project.license)
                     }
                     if !project.category.isEmpty {
                         Text("·").foregroundStyle(.secondary)
@@ -422,6 +424,9 @@ struct InspectView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+            if warnOnStrictLicense, !project.license.isEmpty {
+                LicenseCautionBanner(license: project.license)
             }
         }
     }

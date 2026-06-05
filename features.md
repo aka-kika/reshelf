@@ -78,6 +78,7 @@ Existing projects whose category was empty or just a language name are **re-cate
 
 - Header, links, shelf
 - Metadata, description, use cases, tags, notes
+- **License explainer** — an ⓘ next to the license opens a plain-language popover (what you *can* do, what you *must* do, and the takeaway) for MIT, Apache, BSD, ISC, MPL, LGPL, EPL, GPL, AGPL, BUSL, public-domain, and more. When **Warn about strict licenses** is on (Settings), copyleft/source-available repos (GPL, AGPL, MPL, BUSL…) also show an automatic caution banner. Plain-language, not legal advice
 - Personal fit
 - **Links** — left-click opens GitHub / website in the default browser; right-click copies the URL
 - **Local Copy** — clone status, on-disk path, **Reveal in Finder**, and **Open in…** (installed editors + Terminal); when not cloned, a one-click **Clone Repository**
@@ -106,6 +107,7 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 ## Settings
 
 - **Appearance** — System / Light / Dark (System follows macOS); applies to every window and persists
+- **Warn about strict licenses** — when on (default), the inspector auto-shows a caution for copyleft/source-available licenses (GPL, AGPL, MPL, LGPL, BUSL…); the ⓘ license explainer is always available regardless
 - **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are grouped into **category subfolders** (`<Category>/<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
 - **AI Providers** — pick a **preferred provider** for suggestions; configure **Ollama** (local URL + model), **OpenAI**, **Anthropic**, **Gemini**, and **GitHub Copilot / Models** (API keys stored in Keychain, model picker, connection test). **Apple Intelligence** toggle remains placeholder until wired.
 - **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders

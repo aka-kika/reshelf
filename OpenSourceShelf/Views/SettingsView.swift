@@ -18,6 +18,7 @@ struct SettingsView: View {
     // Appearance (light / dark / system)
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
+    @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
 
     // Repository clone location (empty = default ~/reshelf/repos)
     @AppStorage(CloneLocation.storageKey) private var cloneRootPath: String = ""
@@ -99,6 +100,25 @@ struct SettingsView: View {
                     .labelsHidden()
 
                     Text("Choose how reshelf looks. “System” follows your macOS appearance.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
+
+                // MARK: - Licenses
+                sectionHeader("Licenses")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Warn about strict (copyleft) licenses", isOn: $warnOnStrictLicense)
+
+                    Text("Shows a caution in the inspector when a repo uses a copyleft license (GPL, AGPL, MPL, LGPL…) that can require you to open-source your own project if you reuse its code. The ⓘ next to any license always explains what it allows — this just surfaces the caution automatically.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
