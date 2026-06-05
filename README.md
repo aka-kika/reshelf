@@ -6,14 +6,19 @@ clone locally by category, and get told when a clone has updates to pull.
 
 No account. No cloud. Your catalog and clones live on your Mac.
 
+[![Download](https://img.shields.io/badge/download-reshelf.dmg-1f8fff)](https://github.com/aka-kika/reshelf/releases/latest)
 ![platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
-![Swift 6](https://img.shields.io/badge/Swift-6-orange)
+![universal](https://img.shields.io/badge/universal-arm64%20%2B%20x86__64-555)
 ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 ![status: v1](https://img.shields.io/badge/status-v1-brightgreen)
 
-> The menu bar and Dock show the name **reshelf**; the Xcode project/module keeps
-> the legacy name `OpenSourceShelf`. There's no notarized download yet — build from
-> source (below); a signed release is planned.
+> **Download:** grab the latest **signed & notarized**
+> [`reshelf.dmg` from Releases](https://github.com/aka-kika/reshelf/releases/latest)
+> — universal (Apple Silicon + Intel), macOS 14+. Drag to Applications and run; no
+> Gatekeeper warnings. Or build from source (below).
+>
+> The menu bar and Dock show the name **reshelf**; the Xcode project/module keeps the
+> legacy name `OpenSourceShelf`.
 
 ## What it does
 
@@ -52,6 +57,12 @@ Tip: drag the sidebar/inspector dividers to resize, and in **Settings** show/hid
 **drag-reorder** the inspector sections.
 
 ## How you run it
+
+**Download (no Xcode)** — grab `reshelf.dmg` from
+[Releases](https://github.com/aka-kika/reshelf/releases/latest), open it, and drag
+**reshelf** to Applications. It's signed & notarized, so it just opens.
+
+To build it yourself:
 
 **Xcode**
 

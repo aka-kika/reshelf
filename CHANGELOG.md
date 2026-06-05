@@ -61,6 +61,9 @@ the Intelligence engine ships dormant behind a Labs flag (off by default).
 - **Settings** — Appearance (System/Light/Dark), inspector section show/hide +
   drag-reorder, Repository Storage folder, and the Labs (v2 preview) toggle.
 - App icon (owl).
+- **Signed & notarized universal DMG** (Apple Silicon + Intel) on the
+  [Releases](https://github.com/aka-kika/reshelf/releases) page — built by
+  `scripts/release.sh`.
 
 ### Notes
 - The **Intelligence engine** (clone + AI analysis, runbooks, Compare,
