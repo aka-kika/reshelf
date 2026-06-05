@@ -8,6 +8,7 @@ struct QuickCaptureSheet: View {
 
     @Environment(\.modelContext) private var modelContext
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
+    @Query private var existingProjects: [ToolProject]
 
     @State private var urlText: String = ""
     @State private var isFetching: Bool = false
@@ -53,7 +54,7 @@ struct QuickCaptureSheet: View {
                     Button("Save") { saveProject() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small).font(.system(size: 13))
-                        .disabled(name.isEmpty)
+                        .disabled(name.isEmpty || duplicateProject != nil)
                         // Return saves once a repo is fetched, so ⌘K → paste →
                         // Enter (fetch) → Enter (save) needs no mouse.
                         .keyboardShortcut(.defaultAction)
@@ -91,6 +92,20 @@ struct QuickCaptureSheet: View {
                             Text(error)
                                 .font(.system(size: 11)).foregroundStyle(.red)
                         }
+                    }
+
+                    if let dup = duplicateProject {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(.blue)
+                            Text("“\(dup.name)” is already in your catalog — saving is disabled to avoid a duplicate.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.08)))
                     }
 
                     if fetchedInfo != nil {
@@ -424,7 +439,17 @@ struct QuickCaptureSheet: View {
         }
     }
 
+    /// An existing catalog entry for the same repo being captured, if any — used to
+    /// block duplicate saves and warn the user.
+    private var duplicateProject: ToolProject? {
+        let key = IconFetcher.repoDedupKey(for: urlText)
+        guard !key.isEmpty else { return nil }
+        return existingProjects.first { IconFetcher.repoDedupKey(for: $0.githubURL) == key }
+    }
+
     private func saveProject() {
+        // Safety net behind the disabled Save button / Enter handler.
+        guard duplicateProject == nil else { return }
         let project = ToolProject(
             name: name.trimmingCharacters(in: .whitespaces),
             shortDescription: shortDescription.trimmingCharacters(in: .whitespaces),

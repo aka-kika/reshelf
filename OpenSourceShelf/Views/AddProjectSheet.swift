@@ -6,6 +6,7 @@ struct AddProjectSheet: View {
     var onSave: (ToolProject) -> Void
 
     @Environment(\.modelContext) private var modelContext
+    @Query private var existingProjects: [ToolProject]
 
     @State private var name: String = ""
     @State private var githubURL: String = ""
@@ -31,7 +32,8 @@ struct AddProjectSheet: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .font(.system(size: 13))
-                    .disabled(name.isEmpty)
+                    .disabled(name.isEmpty || duplicateProject != nil)
+                    .help(duplicateProject.map { "“\($0.name)” is already in your catalog." } ?? "")
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -158,7 +160,15 @@ struct AddProjectSheet: View {
         }
     }
 
+    /// Existing entry for the same repo (only when a GitHub URL is given), to block dupes.
+    private var duplicateProject: ToolProject? {
+        let key = IconFetcher.repoDedupKey(for: githubURL)
+        guard IconFetcher.extractOwnerRepo(from: githubURL) != nil, !key.isEmpty else { return nil }
+        return existingProjects.first { IconFetcher.repoDedupKey(for: $0.githubURL) == key }
+    }
+
     private func saveProject() {
+        guard duplicateProject == nil else { return }
         let project = ToolProject(
             name: name.trimmingCharacters(in: .whitespaces),
             shortDescription: shortDescription.trimmingCharacters(in: .whitespaces),

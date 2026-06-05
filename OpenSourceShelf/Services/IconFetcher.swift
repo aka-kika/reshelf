@@ -81,6 +81,22 @@ enum IconFetcher {
         return (String(parts[0]), String(parts[1]))
     }
 
+    /// A normalized key for detecting duplicate captures of the same repo. Uses
+    /// `owner/repo` (lowercased, `.git` stripped) so http/https, `www.`, trailing
+    /// slashes, `/tree/...`, and case all collapse to one key. Non-GitHub URLs fall
+    /// back to a trimmed, lowercased URL.
+    static func repoDedupKey(for url: String) -> String {
+        if let (owner, repo) = extractOwnerRepo(from: url) {
+            var r = repo.lowercased()
+            if r.hasSuffix(".git") { r = String(r.dropLast(4)) }
+            return "\(owner.lowercased())/\(r)"
+        }
+        return url.trimmingCharacters(in: .whitespaces).lowercased()
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+
     private static func resizeIfNeeded(_ data: Data, maxSize: CGFloat) -> Data? {
         guard let image = NSImage(data: data) else { return data }
         let size = image.size
