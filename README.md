@@ -6,6 +6,10 @@ clone locally by category, and get told when a clone has updates to pull.
 
 No account. No cloud. Your catalog and clones live on your Mac.
 
+<p align="center">
+  <img src="assets/reshelf-catalog.png" alt="reshelf — sidebar of shelves and categories, project list, and an inspector showing metadata, license, and personal fit" width="900">
+</p>
+
 [![Download](https://img.shields.io/badge/download-reshelf.dmg-1f8fff)](https://github.com/aka-kika/reshelf/releases/latest)
 ![platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
 ![universal](https://img.shields.io/badge/universal-arm64%20%2B%20x86__64-555)
@@ -42,6 +46,12 @@ No account. No cloud. Your catalog and clones live on your Mac.
 
 The **Intelligence engine** (clone + AI analysis, runbooks, Compare, Ecosystems) is a
 **v2 preview** behind **Settings → Enable Intelligence** (off by default).
+
+<p align="center">
+  <img src="assets/reshelf-cloned.png" alt="reshelf — the Cloned filter showing which local clones have updates available, with one-click pull" width="900">
+  <br>
+  <em>The <strong>Cloned</strong> filter: see which local clones are behind upstream and pull with one click.</em>
+</p>
 
 ## In one minute
 
