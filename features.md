@@ -17,6 +17,7 @@ What **reshelf** does today. Plain-language map of the app — see [README.md](R
 - **Automatic backups** — every add/remove and every time the app backgrounds, a full-fidelity JSON snapshot is written to `~/reshelf/backups/` (last 30 kept). Same schema as **File → Export Catalog as JSON…** (⌘⇧E), so backups and exports are interchangeable.
 - **Auto-restore-on-empty** — on launch, if the catalog is empty but a backup with data exists, it restores from the backup instead of seeding defaults (so a transient empty state can't silently destroy a real catalog).
 - **Manual recovery** — **File → Restore from Backup…** lists snapshots (date + count) and merges a chosen one in non-destructively. **File → Import GitHub URLs…** bulk-adds a pasted list of repos (also the path to rebuild from a recovered URL list).
+- **No duplicates** — capture (Quick Capture, Add Project, Import URLs) detects when a repo is already in the catalog by normalized `owner/repo` (so `https`/`www.`/trailing slash/`.git`/case all match) and blocks the save with an "already in your catalog" notice. **File → Remove Duplicate Repos…** cleans up any pre-existing duplicates, keeping the best-filled copy of each (higher shelf, richer/edited data, then the original) and saving a backup first.
 
 ## Each tool project (SwiftData catalog)
 

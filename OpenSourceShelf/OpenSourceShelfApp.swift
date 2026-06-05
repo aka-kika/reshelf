@@ -173,6 +173,10 @@ struct OpenSourceShelfApp: App {
                     NotificationCenter.default.post(name: .checkCloneUpdates, object: nil)
                 }
                 .keyboardShortcut("u", modifiers: [.command, .shift])
+
+                Button("Remove Duplicate Repos…") {
+                    NotificationCenter.default.post(name: .removeDuplicateRepos, object: nil)
+                }
             }
 
             // One View menu: column toggles live in the standard sidebar slot,
@@ -468,4 +472,5 @@ extension Notification.Name {
     /// A clone's update status became known (object: project id string, userInfo["behind"]: Bool)
     /// — lets the list's "updates available" row dot stay in sync after a pull/check.
     static let cloneUpdateStatusKnown = Notification.Name("cloneUpdateStatusKnown")
+    static let removeDuplicateRepos = Notification.Name("removeDuplicateRepos")
 }

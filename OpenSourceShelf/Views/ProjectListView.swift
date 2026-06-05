@@ -26,6 +26,8 @@ struct ProjectListView: View {
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
     @State private var isCheckingCloneUpdates = false
+    /// Number of duplicate entries pending removal (drives the confirm dialog); nil = no dialog.
+    @State private var pendingDuplicateRemoval: Int?
     @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
 
     private var sortOrder: CatalogSortOrder {
@@ -182,7 +184,8 @@ struct ProjectListView: View {
             onCancelCompareMode: { cancelCompareMode() },
             onCheckCloneUpdates: { checkAllClonesForUpdates() },
             onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) },
-            onCloneStatusKnown: { note in syncBehindBadge(note) }
+            onCloneStatusKnown: { note in syncBehindBadge(note) },
+            onRemoveDuplicates: { requestRemoveDuplicates() }
         ))
         .confirmationDialog(
             "Remove \(pendingDeleteProject?.name ?? "this project")?",
@@ -198,6 +201,21 @@ struct ProjectListView: View {
             Button("Cancel", role: .cancel) {}
         } message: { project in
             Text("“\(project.name)” will be removed from your catalog. This can’t be undone. Cloned files and intelligence data are left untouched.")
+        }
+        .confirmationDialog(
+            "Remove duplicate repos?",
+            isPresented: Binding(
+                get: { pendingDuplicateRemoval != nil },
+                set: { if !$0 { pendingDuplicateRemoval = nil } }
+            ),
+            presenting: pendingDuplicateRemoval
+        ) { count in
+            Button("Remove \(count) Duplicate\(count == 1 ? "" : "s")", role: .destructive) {
+                performRemoveDuplicates()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { count in
+            Text("\(count) duplicate entr\(count == 1 ? "y" : "ies") will be removed, keeping the best-filled copy of each repo. A backup is saved first, and cloned files are left untouched.")
         }
     }
 
@@ -426,6 +444,70 @@ struct ProjectListView: View {
         } else {
             behindProjectIDs.remove(id)
         }
+    }
+
+    // MARK: - De-duplicate
+
+    /// Groups of catalog entries that are the same repo (by normalized owner/repo).
+    private func duplicateGroups() -> [[ToolProject]] {
+        var groups: [String: [ToolProject]] = [:]
+        for project in allProjects {
+            guard IconFetcher.extractOwnerRepo(from: project.githubURL) != nil else { continue }
+            let key = IconFetcher.repoDedupKey(for: project.githubURL)
+            guard !key.isEmpty else { continue }
+            groups[key, default: []].append(project)
+        }
+        return groups.values.filter { $0.count > 1 }
+    }
+
+    /// Higher = keep. Prefers a higher shelf, then richer/edited data, then the
+    /// original (earliest added) — so the copy you invested in survives.
+    private func dedupKeepScore(_ p: ToolProject) -> Int {
+        var score = 0
+        switch p.status {
+        case .topShelf: score += 3000
+        case .collector: score += 2000
+        case .yardSale: score += 1000
+        }
+        if !p.notes.isEmpty { score += 50 }
+        score += min(p.tags.count, 20)
+        score += min(p.useCases.count, 20) * 2
+        if !p.longDescription.isEmpty { score += 20 }
+        if !p.websiteURL.isEmpty { score += 10 }
+        if !p.license.isEmpty { score += 5 }
+        if p.fitScore != 3 { score += 10 }
+        if p.lastCheckedDate != nil { score += 10 }
+        return score
+    }
+
+    private func requestRemoveDuplicates() {
+        let victims = duplicateGroups().reduce(0) { $0 + ($1.count - 1) }
+        if victims == 0 {
+            compareNotice = "No duplicate repos found."
+        } else {
+            pendingDuplicateRemoval = victims
+        }
+    }
+
+    private func performRemoveDuplicates() {
+        let groups = duplicateGroups()
+        guard !groups.isEmpty else { return }
+        CatalogBackupService.writeSnapshot(allProjects) // recoverable via Restore from Backup
+        var removed = 0
+        for group in groups {
+            let ranked = group.sorted { a, b in
+                let sa = dedupKeepScore(a), sb = dedupKeepScore(b)
+                return sa == sb ? a.addedDate < b.addedDate : sa > sb
+            }
+            for victim in ranked.dropFirst() {
+                if listSelection?.projectID == victim.id { listSelection = nil }
+                modelContext.delete(victim)
+                removed += 1
+            }
+        }
+        try? modelContext.save()
+        catalogStateStore.refresh(projects: filteredProjects)
+        compareNotice = "Removed \(removed) duplicate\(removed == 1 ? "" : "s"). A backup was saved."
     }
 
     // MARK: - Context-menu action helpers
@@ -869,6 +951,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onCheckCloneUpdates: () -> Void
     let onMoveSelectedToShelf: (Notification) -> Void
     let onCloneStatusKnown: (Notification) -> Void
+    let onRemoveDuplicates: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -881,6 +964,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in onCheckCloneUpdates() }
             .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)
             .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown), perform: onCloneStatusKnown)
+            .onReceive(NotificationCenter.default.publisher(for: .removeDuplicateRepos)) { _ in onRemoveDuplicates() }
     }
 }
 
