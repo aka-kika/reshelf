@@ -153,6 +153,19 @@ Keychain) to power better recommendations — full spec in
 [v2.0-roadmap.md](v2.0-roadmap.md). Broader ideas live in
 [future-features.md](future-features.md).
 
+## Why I built this
+
+I kept finding great open-source repos — in browser tabs, GitHub stars, links I'd
+never open again — and losing them. Stars are a pile; tabs are a mess. I wanted a
+calm, local place to keep the ones that matter to *me*: decide quickly whether
+something is a keeper, a maybe, or a let-go, and when I'm ready to actually use a
+repo, pull its code close to learn from it.
+
+reshelf is that shelf. It lives on my Mac, needs no account, and stays out of the
+way. I use it every day — I hope it's useful to you too.
+
+— Kika ([@akakika](https://github.com/aka-kika))
+
 ## Contributing
 
 Bug reports, fixes, features, docs, design feedback, and integrations are all welcome.
