@@ -1,67 +1,50 @@
 # Future features
 
-Ideas **not** in the UI yet. Filename kept as `future-features.md` for your earlier naming. Prioritized with [AGENTS.md](AGENTS.md): main window stable before palette/menu bar.
+Ideas **not** built yet — a backlog, not a commitment. The headline next item
+(in-app **GitHub login**) has its own spec in [v2.0-roadmap.md](v2.0-roadmap.md).
 
-## Intelligence layer (GRDB — highest leverage)
+## Capture & data
 
-- [ ] **Bridge SwiftData ↔ GRDB** — Quick Capture writes `RepositoryRecord` + metadata; shelf shows one source of truth
-- [ ] **Ingestion job runner** — process queue: fetch metadata, README, license refresh
-- [ ] **Clone state UI** — show local path, last fetch, errors per repo
-- [ ] **Dedupe by `github_url`** across catalog and intelligence tables
-- [ ] **Sync status** — map SwiftData `ProjectStatus` ↔ intelligence `user_status`
-
-## Capture and data
-
-- [ ] Non-GitHub hosts (GitLab, Codeberg) + manual homepage capture
-- [ ] Drag URL to Dock icon → Quick Capture
-- [ ] Clipboard watcher for `github.com` links
-- [ ] User-controlled periodic GitHub refresh (rate-limited)
-- [ ] Import / export JSON for full shelf + intelligence backup
-
-## AI and intelligence
-
-- [ ] **Apple Intelligence** — on-device summaries when Foundation Models are wired (or hide toggle until then)
-- [ ] Structured AI: suggested fit score + workflow flags from README
-- [ ] Batch Ollama pass over all **New** projects
-- [ ] Compare two projects for one workflow
-
-## Navigation and UX (after main window is solid)
-
-- [ ] **Command palette (⌘K)** — Raycast-style: jump project, set status, open GitHub; **opaque** panel
-- [ ] Menu bar extra for Quick Capture without raising main window
-- [ ] Settings: **hide inspector sections** (metadata, use cases, tags, etc.)
-- [ ] List density toggle; pinned / recent row
-- [ ] Empty states for every sidebar filter and zero search results
+- [ ] Non-GitHub hosts (GitLab, Codeberg) + manual homepage-only capture
+- [ ] Clipboard watcher / drag-URL-to-Dock → Quick Capture without raising the window
+- [ ] User-controlled periodic GitHub metadata refresh (rate-limited)
+- [ ] "Not checked in 90 days" view using `lastCheckedDate`
 
 ## Organization
 
-- [ ] Custom smart collections beyond fixed sidebar items
+- [ ] Custom smart collections beyond the built-in sidebar filters
+- [ ] Manual category override when the auto-classifier guesses wrong
 - [ ] Multiple fit dimensions (docs, maintenance, build quality)
-- [ ] Related projects (“alternative to X”)
-- [ ] “Not checked in 90 days” view using `lastCheckedDate`
+- [ ] "Alternative to X" / related-projects links
 
-## Integrations
+## Clones & workflow
 
-- [ ] **GitHub workflow connection (v2.0)** — optional connect for stars/owned repos → workflow profile → smarter recommendations. **Deferred** — spec in [v2.0-roadmap.md](v2.0-roadmap.md); not in current builds.
-- [ ] Open in Cursor / VS Code when `local_path` is set
-- [ ] Obsidian export (one note per repo)
-- [ ] Optional Pieces / workstream log when marking Useful
-- [ ] UNDRDR / repo graph export for high-fit tools
+- [ ] Open a clone directly in Cursor / VS Code / Zed from the row menu
+- [ ] Per-repo update history (what changed since you last pulled)
+- [ ] Strict-license **gate before cloning** (not just an inspector caution)
+- [ ] Export a category's clones as a manifest for an AI agent
 
-## Distribution
+## Intelligence (v2 — behind Labs today)
 
-- [ ] Public repo README + screenshots (partially done — maintain with releases)
-- [ ] Signed, notarized `.dmg`
-- [ ] Sparkle updates (if outside Mac App Store)
+- [ ] **GitHub login** (read-only) → stars/owned repos → smarter recommendations
+      (spec in [v2.0-roadmap.md](v2.0-roadmap.md))
+- [ ] Bridge SwiftData catalog ↔ GRDB intelligence as one source of truth
+- [ ] **Apple Intelligence** on-device summaries when Foundation Models are wired
+- [ ] Batch AI pass over a shelf or category
 
-## Quality
+## Distribution & quality
 
-- [ ] Unit tests: GitHub URL parse, API mapping, GRDB migrations, sidebar predicates
-- [ ] UI smoke tests: capture, filter, search
-- [ ] Swift 6 concurrency audit on services
-- [ ] Accessibility: VoiceOver on list + inspector
-- [ ] `.gitignore` for `.build/` and SPM checkouts
+- [ ] Signed, notarized `.dmg` release (+ optional Sparkle auto-update)
+- [ ] Screenshots / short demo in the README
+- [ ] Unit tests: GitHub URL parsing, license matching, dedup keys, sidebar predicates
+- [ ] UI smoke tests: capture → categorize → clone → pull
+- [ ] Accessibility pass: VoiceOver on list + inspector
 
-## Explicitly later (per goals)
+## Community
 
-- Team sync, cloud accounts, in-app `git clone`
+- [ ] Showcase of community skills / integrations that talk to reshelf
+      (see "Extending reshelf with skills" in the [README](README.md))
+
+## Explicitly later
+
+- Team sync, cloud accounts, hosted backend

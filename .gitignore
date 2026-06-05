@@ -13,6 +13,10 @@ xcuserdata/
 # Local session / tooling
 .handoff/
 .cursor/
+.claude/
+
+# Build artifacts (the app icon is generated from OpenSourceShelf/AppIcon.png)
+/AppIcon.iconset/
 
 # macOS
 .DS_Store

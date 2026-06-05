@@ -5,7 +5,36 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
-### Planned (v2 — first up after v1 testing)
+### Added
+- **Quick shelf moves** — ⌘T → Top Shelf, ⌘Y → Yard Sale, ⌘⇧G → The Collector for
+  the selected repo (plus a **Shelf** menu), so you can sort right after capturing.
+- **List sorting** — header sort menu: Recently Added (default), Name (A–Z), Most Stars.
+- **Cloned sidebar filter** — see only repos you've cloned to disk.
+- **Clones grouped by category** — `~/reshelf/repos/<Category>/<repo>`, so you can
+  point an AI agent at one category folder. Existing flat clones migrate on launch.
+- **Dynamic categories** — the sidebar shows a row for every category in use (live
+  count), and the classifier was hardened (no more raw language names as categories).
+- **License explainer** — an ⓘ next to any license opens a plain-language popover
+  (what you *can* / *must* do); an optional Settings toggle auto-cautions for
+  copyleft / source-available licenses (GPL, AGPL, MPL, BUSL…).
+- **Duplicate protection** — capture blocks a repo already in the catalog;
+  **File → Remove Duplicate Repos…** cleans up existing duplicates (keeps the best
+  copy, backs up first).
+- **Enter-to-save** in Quick Capture (paste → Enter → Enter, no mouse).
+- **Claude Code skill** ([`extras/reshelf-skill/`](extras/reshelf-skill)) that uses
+  your clone library as a working reference (learn / use).
+
+### Changed
+- **Shelf badge colors** — Top Shelf blue (keeper), The Collector gray (neutral),
+  Yard Sale amber (needs review).
+
+### Fixed
+- App icon rendered generic — regenerated a complete `.icns` (all sizes).
+- Clicking felt slow — the clone lookup is now a cached index (O(1)), not a
+  filesystem walk per row.
+- The "updates available" row dot now clears immediately after a pull.
+
+### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 

@@ -10,7 +10,7 @@ repo, `UserDefaults`, SwiftData, or GRDB.
 
 Please **do not** open a public issue for security problems.
 
-Instead, report privately via **[GitHub Security Advisories](https://github.com/dot-RealityTest/reshelf/security/advisories/new)**
+Instead, report privately via **[GitHub Security Advisories](https://github.com/aka-kika/reshelf/security/advisories/new)**
 (Security → Report a vulnerability). Include steps to reproduce and the affected
 version/commit. We'll acknowledge and work on a fix before any public disclosure.
 
