@@ -119,7 +119,36 @@ Close every recommendation by offering both paths, then go as deep as they want:
 If they haven't said which, ask — or infer from context (mid-build → likely Use;
 exploring → likely Learn).
 
-### 6. When the shelf can't answer
+### Source as context: ground new code in a cloned repo
+
+The strongest form of **Use** — when the user is writing code against a library or
+framework that reshelf has already cloned, lean on the **real source**, not your
+memory of its API. Local source beats stale docs: it stops you inventing functions
+that don't exist and keeps you to the library's actual conventions.
+
+When they're building against a cloned dependency:
+
+1. **Find the clone** for that library (`shelf-map.sh "<Category>"`, or by name).
+2. **Search the source before writing** — grep for the real API, type signatures, and
+   a working example; read the files that matter, not just the README.
+3. **Implement the minimal change** — the smallest service function plus one caller;
+   keep the diff small.
+4. **Cite your sources** — name the exact files/functions you took the pattern from,
+   so the user can verify against the real code.
+5. **Don't install a substitute** — if the real source is on the shelf, use it. If a
+   needed library *isn't* cloned, say so (and suggest cloning it) rather than guessing
+   the API or pulling in a different package.
+
+A prompt you can hand to another agent (or follow yourself):
+
+```
+Build <feature>. We use <library>, cloned at ~/reshelf/repos/<Category>/<library>.
+Before coding: search that clone for the correct API and patterns, then implement
+only the minimal function + one caller. Keep the diff small, and tell me which
+source files/functions you referenced.
+```
+
+### When the shelf can't answer
 
 If the category is empty, missing, or has no good fit, say so and suggest **what to
 add** — specific repos or search terms worth cloning into reshelf — so the library

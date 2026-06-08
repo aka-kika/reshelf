@@ -108,7 +108,9 @@ Resolves **GRDB** via Swift Package Manager on first build.
 reshelf keeps your clones in a predictable, scriptable layout —
 `~/reshelf/repos/<Category>/<repo>` — and your catalog as plain JSON in
 `~/reshelf/backups/`. That makes it easy to point AI agents and tools at the library
-you've curated.
+you've curated. In effect, your cloned shelf doubles as a **source-as-context**
+reference: when a coding agent is unsure of a library's API, it can search the *real*
+cloned source instead of guessing from stale docs.
 
 We ship a **Claude Code skill** in [`extras/reshelf-skill/`](extras/reshelf-skill) that
 turns your shelf into a working reference: it maps your cloned repos by category,
