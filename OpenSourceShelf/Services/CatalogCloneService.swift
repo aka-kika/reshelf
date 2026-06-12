@@ -127,7 +127,16 @@ enum CatalogCloneService {
     /// per row during list rendering.
     static func existingClone(for project: ToolProject) -> URL? {
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
-        return cloneIndex()["\(owner)/\(repo)".lowercased()]
+        guard let cached = cloneIndex()["\(owner)/\(repo)".lowercased()] else { return nil }
+        // Self-heal: if the user deleted the folder in Finder, the cached entry is
+        // stale — drop the index and rescan once so the Cloned badge clears without
+        // an app restart. (One cheap stat per hit; the rescan only happens when a
+        // stale entry is actually found.)
+        guard FileManager.default.fileExists(atPath: cached.appendingPathComponent(".git").path) else {
+            invalidateCloneIndex()
+            return cloneIndex()["\(owner)/\(repo)".lowercased()]
+        }
+        return cached
     }
 
     /// Where a project is/would be cloned: the existing clone, else the first free
@@ -199,6 +208,22 @@ enum CatalogCloneService {
         try await GitClient().clone(repositoryURL: url, destinationURL: dest, blobless: false)
         invalidateCloneIndex()
         return dest
+    }
+
+    /// Remove a project's local clone. The folder is moved to the Trash (not
+    /// deleted outright) so the user can recover it; an emptied category folder is
+    /// tidied away too. The catalog entry itself is untouched.
+    static func removeClone(_ project: ToolProject) throws {
+        guard let dir = existingClone(for: project) else { return }
+        let fm = FileManager.default
+        try fm.trashItem(at: dir, resultingItemURL: nil)
+        let parent = dir.deletingLastPathComponent()
+        if parent.path != CloneLocation.rootURL.path,
+           let leftovers = try? fm.contentsOfDirectory(atPath: parent.path),
+           leftovers.allSatisfy({ $0 == ".DS_Store" }) {
+            try? fm.removeItem(at: parent)
+        }
+        invalidateCloneIndex()
     }
 
     // MARK: - Updates (plain git — no AI)

@@ -2,232 +2,46 @@ import Foundation
 
 /// Deterministic classifier that maps GitHub repo info → meaningful category.
 /// Categories align with sidebar filters: Database, AI / Agent, macOS, etc.
+///
+/// Precision strategy: every category collects a weighted score from topics,
+/// description, and repo name — word-boundary matched, never raw substrings
+/// (so "storage" can't hit "rag", "maintain" can't hit "ai") — and the highest
+/// score wins. Strong signals ("airtable-alternative", "menubar") outweigh
+/// broad ones ("api", "dashboard"), instead of whichever rule was checked first.
 enum CategoryClassifier {
 
     /// Classify from GitHub fetch info (used during Quick Capture).
     static func classify(language: String?, topics: [String]?, description: String?, name: String?) -> String {
-        let topicSet = Set((topics ?? []).map { $0.lowercased() })
-        let desc = (description ?? "").lowercased()
-        let repoName = (name ?? "").lowercased()
-
-        // Check topic-based rules first (most reliable signal)
-        if let category = classifyFromTopics(topicSet) {
+        if let category = scoredCategory(topics: topics ?? [], description: description ?? "", name: name ?? "") {
             return category
         }
-
-        // Check description-based rules
-        if let category = classifyFromDescription(desc, repoName: repoName) {
-            return category
-        }
-
-        // Fallback: language-aware heuristics
         if let lang = language {
-            return classifyFromLanguage(lang, topics: topicSet, description: desc)
+            return classifyFromLanguage(lang, description: (description ?? "").lowercased())
         }
-
         return ""
     }
 
     /// Re-classify an existing ToolProject from its stored tags, description, category, and name.
-    static func reclassify(tags: [String], description: String, currentCategory: String, name: String, language: String?) -> String {
+    /// With `force`, an existing meaningful category is re-scored too (used by the
+    /// one-time migration after a classifier upgrade) — but it's only replaced
+    /// when the classifier actually has an answer, never blanked.
+    static func reclassify(tags: [String], description: String, currentCategory: String, name: String, language: String?, force: Bool = false) -> String {
         // If the current category is already a meaningful one, keep it
-        if isMeaningfulCategory(currentCategory) {
+        if !force, isMeaningfulCategory(currentCategory) {
             return currentCategory
         }
-
-        // Try classifying from tags (which are often GitHub topics)
-        let topicSet = Set(tags.map { $0.lowercased() })
-        if let category = classifyFromTopics(topicSet) {
+        if let category = scoredCategory(topics: tags, description: description, name: name) {
             return category
         }
-
-        // Try from description + name
-        let desc = description.lowercased()
-        let repoName = name.lowercased()
-        if let category = classifyFromDescription(desc, repoName: repoName) {
-            return category
+        // Try language heuristic (currentCategory might be a raw language name)
+        let lang = language ?? currentCategory
+        let fromLanguage = lang.isEmpty ? "" : classifyFromLanguage(lang, description: description.lowercased())
+        if !fromLanguage.isEmpty {
+            return fromLanguage
         }
-
-        // Try language heuristic
-        let lang = language ?? currentCategory  // currentCategory might be a language name
-        if !lang.isEmpty {
-            return classifyFromLanguage(lang, topics: topicSet, description: desc)
-        }
-
-        return currentCategory
-    }
-
-    // MARK: - Private
-
-    private static func classifyFromTopics(_ topics: Set<String>) -> String? {
-        // Database
-        let dbTopics: Set<String> = ["database", "sql", "nosql", "sqlite", "postgresql", "mysql",
-                                      "airtable", "spreadsheet", "airtable-alternative", "data-management",
-                                      "firebase-alternative", "supabase"]
-        if !topics.isDisjoint(with: dbTopics) { return "Database" }
-
-        // AI / Agent — match compound topics too ("ai-agent", "ai-coworker",
-        // "personal-ai", "coding-agent"), not just exact keywords.
-        if topics.contains(where: { t in
-            t == "ai" || t.hasPrefix("ai-") || t.hasSuffix("-ai")
-                || t.contains("agent") || t.contains("llm") || t.contains("gpt")
-                || t.contains("chatbot") || t.contains("langchain") || t.contains("rag")
-                || t.contains("artificial-intelligence") || t.contains("machine-learning")
-                || t.contains("deep-learning") || t.contains("generative")
-                || t.contains("openai") || t.contains("ollama") || t.contains("copilot")
-        }) { return "AI / Agent" }
-
-        // macOS
-        let macTopics: Set<String> = ["macos", "macos-app", "mac", "mac-app", "menubar", "menu-bar",
-                                       "swift", "swiftui", "cocoa", "appkit", "mac-os-x"]
-        if !topics.isDisjoint(with: macTopics) { return "macOS" }
-
-        // Workspace / Productivity
-        let workspaceTopics: Set<String> = ["workspace", "notion", "notion-alternative", "wiki",
-                                             "collaboration", "project-management", "task-management",
-                                             "productivity", "team-collaboration", "kanban"]
-        if !topics.isDisjoint(with: workspaceTopics) { return "Workspace" }
-
-        // Internal Tools / Low-Code
-        let toolsTopics: Set<String> = ["internal-tools", "low-code", "no-code", "admin-panel",
-                                         "dashboard", "admin-dashboard", "retool", "retool-alternative",
-                                         "app-builder", "form-builder"]
-        if !topics.isDisjoint(with: toolsTopics) { return "Internal Tools" }
-
-        // Backend / API
-        let backendTopics: Set<String> = ["backend", "headless-cms", "cms", "api", "rest-api",
-                                           "graphql", "baas", "backend-as-a-service"]
-        if !topics.isDisjoint(with: backendTopics) { return "Backend" }
-
-        // Knowledge / Docs
-        let knowledgeTopics: Set<String> = ["knowledge", "documentation", "note-taking", "notes",
-                                             "knowledge-base", "knowledge-management", "markdown",
-                                             "second-brain", "pkm", "zettelkasten"]
-        if !topics.isDisjoint(with: knowledgeTopics) { return "Knowledge" }
-
-        // CLI / Terminal
-        let cliTopics: Set<String> = ["cli", "command-line", "terminal", "tui", "shell"]
-        if !topics.isDisjoint(with: cliTopics) { return "CLI" }
-
-        // DevOps / Infrastructure
-        let devopsTopics: Set<String> = ["devops", "ci-cd", "docker", "kubernetes", "infrastructure",
-                                          "deployment", "monitoring", "observability", "self-hosted"]
-        if !topics.isDisjoint(with: devopsTopics) { return "DevOps" }
-
-        // Media / Image / Video
-        let mediaTopics: Set<String> = ["media", "video", "image", "image-processing", "gif",
-                                         "ffmpeg", "video-editing", "image-editing", "photo",
-                                         "screenshot", "screen-recording"]
-        if !topics.isDisjoint(with: mediaTopics) { return "Media" }
-
-        // Design
-        let designTopics: Set<String> = ["design", "figma", "illustration", "design-system",
-                                          "ui-design", "design-tools", "graphics"]
-        if !topics.isDisjoint(with: designTopics) { return "Design" }
-
-        // Automation / Workflow
-        let automationTopics: Set<String> = ["automation", "workflow", "workflow-automation",
-                                              "n8n", "zapier", "pipelines", "etl"]
-        if !topics.isDisjoint(with: automationTopics) { return "Automation" }
-
-        // Security
-        let securityTopics: Set<String> = ["security", "authentication", "encryption", "auth",
-                                            "oauth", "password-manager", "vpn", "privacy"]
-        if !topics.isDisjoint(with: securityTopics) { return "Security" }
-
-        // Download / File
-        let downloadTopics: Set<String> = ["download", "download-manager", "file-manager",
-                                            "file-sharing", "file-transfer", "torrent"]
-        if !topics.isDisjoint(with: downloadTopics) { return "Utility" }
-
-        // Editor / IDE
-        let editorTopics: Set<String> = ["editor", "text-editor", "code-editor", "ide",
-                                          "markdown-editor", "rich-text-editor"]
-        if !topics.isDisjoint(with: editorTopics) { return "Editor" }
-
-        return nil
-    }
-
-    private static func classifyFromDescription(_ desc: String, repoName: String) -> String? {
-        // Database signals
-        if desc.contains("database") || desc.contains("airtable alternative") || desc.contains("spreadsheet") {
-            return "Database"
-        }
-
-        // AI signals
-        if desc.contains("ai agent") || desc.contains("coding agent") || desc.contains("ai assistant")
-            || desc.contains("ai co") || desc.contains("copilot") || desc.contains("autonomous agent")
-            || desc.contains("llm") || desc.contains("language model")
-            || desc.contains("chatbot") || desc.contains("machine learning") {
-            return "AI / Agent"
-        }
-
-        // macOS signals
-        if desc.contains("macos") || desc.contains("mac app") || desc.contains("menu bar")
-            || desc.contains("for mac") || desc.contains("native macos") {
-            return "macOS"
-        }
-
-        // Workspace
-        if desc.contains("notion alternative") || desc.contains("project management")
-            || desc.contains("collaboration") || desc.contains("workspace") {
-            return "Workspace"
-        }
-
-        // Internal tools
-        if desc.contains("internal tool") || desc.contains("low-code") || desc.contains("no-code")
-            || desc.contains("admin panel") || desc.contains("app builder") {
-            return "Internal Tools"
-        }
-
-        // Download manager
-        if desc.contains("download manager") || desc.contains("download accelerator") {
-            return "Utility"
-        }
-
-        // Image processing
-        if desc.contains("image") && (desc.contains("processing") || desc.contains("editing") || desc.contains("conversion")) {
-            return "Media"
-        }
-
-        // Editor
-        if desc.contains("text editor") || desc.contains("markdown editor") || desc.contains("code editor") {
-            return "Editor"
-        }
-
-        // Input source / keyboard
-        if desc.contains("input source") || desc.contains("keyboard") || desc.contains("clipboard") {
-            return "Utility"
-        }
-
-        return nil
-    }
-
-    private static func classifyFromLanguage(_ language: String, topics: Set<String>, description: String) -> String {
-        let lang = language.lowercased()
-
-        // Swift projects on macOS are likely macOS tools
-        if lang == "swift" || lang == "objective-c" {
-            if description.contains("macos") || description.contains("mac ") || description.contains("for mac")
-                || topics.contains("macos") || topics.contains("swiftui") || topics.contains("appkit") {
-                return "macOS"
-            }
-            // Default for Swift is still macOS since this is a macOS app catalog
-            return "macOS"
-        }
-
-        // Python with AI-related description
-        if lang == "python" {
-            if description.contains("ai") || description.contains("agent") || description.contains("llm")
-                || description.contains("machine learning") || description.contains("model") {
-                return "AI / Agent"
-            }
-        }
-
-        // No meaningful signal: stay uncategorized rather than leaking a raw
-        // language name ("TypeScript", "Go") as a fake category — languages
-        // aren't browsable categories and orphan the repo from the sidebar.
-        return ""
+        // No signal at all: keep a meaningful category (force mode found nothing
+        // better), but still blank a raw language name rather than keep it.
+        return isMeaningfulCategory(currentCategory) ? currentCategory : ""
     }
 
     /// Check if a category is a meaningful classification vs just a language name.
@@ -238,5 +52,231 @@ enum CategoryClassifier {
             "Automation", "Security", "Utility", "Editor"
         ]
         return meaningful.contains(category)
+    }
+
+    // MARK: - Scoring
+
+    private struct Rule {
+        let category: String
+        /// Topics that on their own identify the category (matched against whole
+        /// topics and their hyphen-split tokens).
+        let strongTopics: Set<String>
+        /// Broad topics that only hint at the category.
+        let weakTopics: Set<String>
+        /// Description phrases that identify the category (word-boundary matched,
+        /// pre-normalized: lowercase, alphanumerics + single spaces).
+        let strongPhrases: [String]
+        /// Broad description words — one alone is never enough to classify.
+        let weakPhrases: [String]
+    }
+
+    private static let strongTopicWeight = 4
+    private static let weakTopicWeight = 2
+    private static let strongPhraseWeight = 3
+    private static let weakPhraseWeight = 1
+    private static let nameTokenWeight = 2
+    /// Minimum winning score: a single broad description word (weight 1) stays
+    /// uncategorized; a single topic or strong phrase is enough.
+    private static let minimumScore = 2
+
+    /// Rules in tie-break order (earlier wins on equal score) — mirrors the old
+    /// first-match priority so existing shelves don't reshuffle on ties.
+    private static let rules: [Rule] = [
+        Rule(category: "Database",
+             strongTopics: ["database", "sqlite", "postgresql", "postgres", "mysql", "nosql",
+                            "airtable", "airtable-alternative", "supabase", "firebase-alternative",
+                            "duckdb", "redis", "mongodb", "clickhouse", "vector-database", "orm",
+                            "spreadsheet", "data-management"],
+             weakTopics: ["sql", "storage"],
+             strongPhrases: ["database", "airtable alternative", "vector database", "sql engine"],
+             weakPhrases: ["spreadsheet", "sql"]),
+
+        Rule(category: "AI / Agent",
+             strongTopics: ["ai", "llm", "llms", "agent", "agents", "ai-agent", "chatgpt", "gpt",
+                            "ollama", "langchain",
+                            "llamaindex", "rag", "chatbot", "copilot", "machine-learning",
+                            "deep-learning", "artificial-intelligence", "generative-ai",
+                            "transformers", "embeddings", "mlx", "whisper", "stable-diffusion",
+                            "mcp", "model-context-protocol", "prompt-engineering", "genai"],
+             // Provider names are weak on purpose: a terminal or editor tagged
+             // "claude"/"gemini" usually just integrates AI, it isn't an AI tool.
+             weakTopics: ["inference", "neural-network", "openai", "anthropic", "claude", "gemini"],
+             strongPhrases: ["ai agent", "coding agent", "ai assistant", "autonomous agent",
+                             "language model", "llm", "machine learning", "deep learning",
+                             "chatbot", "copilot", "ai powered", "generative ai", "ai coworker"],
+             weakPhrases: ["ai", "agent", "rag"]),
+
+        Rule(category: "macOS",
+             strongTopics: ["macos", "macos-app", "mac-app", "menubar", "menu-bar", "menubar-app",
+                            "swiftui", "appkit", "cocoa", "mac-os-x", "osx"],
+             weakTopics: ["swift", "mac", "apple"],
+             strongPhrases: ["macos", "mac app", "menu bar", "for mac", "native macos",
+                             "status bar app"],
+             weakPhrases: ["mac"]),
+
+        Rule(category: "Workspace",
+             strongTopics: ["workspace", "notion", "notion-alternative", "wiki",
+                            "project-management", "task-management", "team-collaboration",
+                            "kanban", "todo-list", "calendar", "anytype", "affine", "appflowy"],
+             weakTopics: ["collaboration", "productivity", "todo"],
+             strongPhrases: ["notion alternative", "project management", "task management",
+                             "kanban"],
+             weakPhrases: ["collaboration", "workspace", "productivity"]),
+
+        Rule(category: "Internal Tools",
+             strongTopics: ["internal-tools", "low-code", "no-code", "admin-panel",
+                            "admin-dashboard", "retool", "retool-alternative", "app-builder",
+                            "form-builder"],
+             weakTopics: ["dashboard"],
+             strongPhrases: ["internal tool", "internal tools", "low code", "no code",
+                             "admin panel", "app builder", "form builder"],
+             weakPhrases: ["dashboard"]),
+
+        Rule(category: "Backend",
+             strongTopics: ["backend", "headless-cms", "cms", "baas", "backend-as-a-service",
+                            "rest-api", "graphql", "web-framework"],
+             weakTopics: ["api", "server", "framework"],
+             strongPhrases: ["headless cms", "backend as a service", "rest api", "graphql api",
+                             "web framework"],
+             weakPhrases: ["backend", "api", "server"]),
+
+        Rule(category: "Knowledge",
+             strongTopics: ["note-taking", "notes", "knowledge-base", "knowledge-management",
+                            "second-brain", "pkm", "zettelkasten", "obsidian", "documentation",
+                            "logseq", "joplin", "trilium", "notebook", "memos"],
+             weakTopics: ["markdown", "knowledge", "writing"],
+             strongPhrases: ["note taking", "knowledge base", "knowledge management",
+                             "second brain", "personal knowledge", "note tool", "notes app"],
+             weakPhrases: ["notes", "note", "markdown", "documentation", "wiki"]),
+
+        Rule(category: "CLI",
+             strongTopics: ["cli", "command-line", "command-line-tool", "tui", "terminal"],
+             weakTopics: ["shell", "zsh", "bash"],
+             strongPhrases: ["command line", "cli", "terminal ui", "terminal app", "tui"],
+             weakPhrases: ["terminal", "shell"]),
+
+        Rule(category: "DevOps",
+             strongTopics: ["devops", "ci-cd", "kubernetes", "docker", "infrastructure",
+                            "observability", "monitoring", "deployment", "terraform", "helm",
+                            "ansible", "containers"],
+             weakTopics: ["self-hosted", "cloud"],
+             strongPhrases: ["continuous integration", "ci cd", "kubernetes", "observability",
+                             "infrastructure as code", "monitoring"],
+             weakPhrases: ["deploy", "docker", "self hosted", "devops"]),
+
+        Rule(category: "Media",
+             strongTopics: ["ffmpeg", "video-editing", "image-editing", "image-processing",
+                            "screen-recording", "screenshot", "gif", "photo", "media"],
+             weakTopics: ["video", "image", "audio", "music", "camera"],
+             strongPhrases: ["video editing", "video editor", "image processing", "image editing",
+                             "screen recording", "screenshot", "media player"],
+             weakPhrases: ["video", "image", "audio", "music", "media", "photo"]),
+
+        Rule(category: "Design",
+             strongTopics: ["figma", "design-system", "ui-design", "design-tools", "illustration",
+                            "design", "icons", "typography"],
+             weakTopics: ["graphics", "fonts", "ui"],
+             strongPhrases: ["design system", "ui design", "design tool", "vector graphics"],
+             weakPhrases: ["design", "illustration", "icons"]),
+
+        Rule(category: "Automation",
+             strongTopics: ["automation", "workflow-automation", "n8n", "zapier", "etl",
+                            "web-scraping", "scraper", "web-crawler"],
+             weakTopics: ["workflow", "pipelines", "cron", "scheduler"],
+             strongPhrases: ["workflow automation", "automation", "web scraping", "web scraper"],
+             weakPhrases: ["workflow", "pipeline", "scheduler"]),
+
+        Rule(category: "Security",
+             strongTopics: ["security", "password-manager", "encryption", "authentication",
+                            "oauth", "vpn", "2fa", "secrets-management", "auth"],
+             weakTopics: ["privacy", "passwords", "firewall"],
+             strongPhrases: ["password manager", "encryption", "authentication", "two factor",
+                             "end to end encrypted"],
+             weakPhrases: ["security", "privacy", "vpn", "encrypted"]),
+
+        Rule(category: "Utility",
+             strongTopics: ["download-manager", "file-manager", "file-sharing", "file-transfer",
+                            "torrent", "clipboard-manager", "launcher", "window-manager",
+                            "hotkey", "uninstaller"],
+             weakTopics: ["utility", "files"],
+             strongPhrases: ["download manager", "file manager", "clipboard manager",
+                             "window management", "app launcher", "download accelerator"],
+             weakPhrases: ["clipboard", "keyboard", "input source", "file transfer", "launcher"]),
+
+        Rule(category: "Editor",
+             strongTopics: ["editor", "text-editor", "code-editor", "markdown-editor",
+                            "rich-text-editor", "ide", "vim", "neovim", "wysiwyg"],
+             weakTopics: [],
+             strongPhrases: ["text editor", "code editor", "markdown editor", "rich text editor"],
+             weakPhrases: ["editor", "ide"]),
+    ]
+
+    /// Highest-scoring category across all rules, or nil when nothing clears the
+    /// minimum score (better to leave a repo uncategorized than to guess).
+    private static func scoredCategory(topics: [String], description: String, name: String) -> String? {
+        // Each topic both as a whole ("note-taking") and as its tokens ("note",
+        // "taking") so compound topics match without substring false positives.
+        var topicTerms = Set<String>()
+        for topic in topics {
+            let lowered = topic.lowercased()
+            topicTerms.insert(lowered)
+            topicTerms.formUnion(tokens(of: lowered))
+        }
+        let nameTokens = Set(tokens(of: name.lowercased()))
+        let descWords = normalizedWords(description)
+
+        var best: (category: String, score: Int)?
+        for rule in rules {
+            var score = 0
+            score += rule.strongTopics.intersection(topicTerms).count * strongTopicWeight
+            score += rule.weakTopics.intersection(topicTerms).count * weakTopicWeight
+            score += rule.strongTopics.intersection(nameTokens).count * nameTokenWeight
+            for phrase in rule.strongPhrases where descWords.contains(" \(phrase) ") {
+                score += strongPhraseWeight
+            }
+            for phrase in rule.weakPhrases where descWords.contains(" \(phrase) ") {
+                score += weakPhraseWeight
+            }
+            if score >= minimumScore, score > (best?.score ?? 0) {
+                best = (rule.category, score)
+            }
+        }
+        return best?.category
+    }
+
+    /// Lowercased text reduced to alphanumeric words separated (and surrounded)
+    /// by single spaces, so ` phrase ` containment is a word-boundary match.
+    private static func normalizedWords(_ text: String) -> String {
+        let mapped = text.lowercased().map { $0.isLetter || $0.isNumber ? $0 : " " }
+        let collapsed = String(mapped).split(separator: " ").joined(separator: " ")
+        return " \(collapsed) "
+    }
+
+    /// Alphanumeric tokens of a topic or repo name ("ai-agent" → ["ai", "agent"]).
+    private static func tokens(of text: String) -> [String] {
+        text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
+    }
+
+    private static func classifyFromLanguage(_ language: String, description: String) -> String {
+        let lang = language.lowercased()
+
+        // Swift projects are likely macOS tools in a macOS app catalog.
+        if lang == "swift" || lang == "objective-c" {
+            return "macOS"
+        }
+
+        // Python with AI-ish wording (word-boundary — "ai" must not hit "maintain").
+        if lang == "python" {
+            let words = normalizedWords(description)
+            for hint in ["ai", "agent", "llm", "machine learning", "model"]
+            where words.contains(" \(hint) ") {
+                return "AI / Agent"
+            }
+        }
+
+        // No meaningful signal: stay uncategorized rather than leaking a raw
+        // language name ("TypeScript", "Go") as a fake category — languages
+        // aren't browsable categories and orphan the repo from the sidebar.
+        return ""
     }
 }

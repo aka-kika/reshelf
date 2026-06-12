@@ -36,6 +36,12 @@ struct ContentView: View {
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
 
+    /// Bump when CategoryClassifier gets meaningfully smarter: the next launch
+    /// re-scores every repo once (backup first; categories are only replaced when
+    /// the classifier has a confident answer, never blanked).
+    private static let classifierVersion = 2
+    @AppStorage("reshelf.classifierVersion") private var storedClassifierVersion = 1
+
     var body: some View {
         catalogRootStack
             .sheet(isPresented: $showingAddSheet) {
@@ -184,6 +190,7 @@ struct ContentView: View {
         // forces an otherwise-empty title bar band. Our own toggle lives in the
         // list header instead, so the header row can rise to the very top.
         .toolbar(removing: .sidebarToggle)
+        .hidesTopScrollEdgeEffect()
         .background {
             Color(nsColor: .windowBackgroundColor)
                 .ignoresSafeArea()
@@ -223,6 +230,13 @@ struct ContentView: View {
         }
         .animation(isResizingInspector ? nil : .easeInOut(duration: 0.2), value: showsTrailingColumn)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Mirror the sidebar: the column headers are the title bar, so the detail
+        // area lays out from the window's top edge (keeps all header dividers on
+        // one line and leaves no exposed title-bar band above the content).
+        .ignoresSafeArea(.container, edges: .top)
+        // Must be applied inside the column, not on the NavigationSplitView —
+        // the pocket is driven per split item.
+        .hidesTopScrollEdgeEffect()
     }
 
     /// Bridges the @AppStorage Double width to the CGFloat binding ResizeDivider expects.
@@ -332,6 +346,7 @@ struct ContentView: View {
                 searchText: $searchText,
                 sidebarSelection: $sidebarSelection,
                 showingAddSheet: $showingAddSheet,
+                needsTrafficLightInset: !isSidebarVisible,
                 onQuickCapture: {
                     quickCaptureRequest = QuickCaptureRequest(url: "")
                 },
@@ -477,16 +492,23 @@ struct ContentView: View {
     }
 
     /// Re-classify projects whose category is empty or just a language name.
+    /// After a classifier upgrade (version bump), one forced pass re-scores every
+    /// repo — snapshotting a backup first so the previous categories are recoverable.
     private func reclassifyProjectsIfNeeded() {
+        let force = storedClassifierVersion < Self.classifierVersion
+        if force {
+            CatalogBackupService.writeSnapshot(allProjects)
+        }
         var changed = false
         for project in allProjects {
-            guard !CategoryClassifier.isMeaningfulCategory(project.category) else { continue }
+            guard force || !CategoryClassifier.isMeaningfulCategory(project.category) else { continue }
             let newCategory = CategoryClassifier.reclassify(
                 tags: project.tags,
                 description: project.shortDescription.isEmpty ? project.longDescription : project.shortDescription,
                 currentCategory: project.category,
                 name: project.name,
-                language: nil
+                language: nil,
+                force: force
             )
             if newCategory != project.category {
                 project.category = newCategory
@@ -496,6 +518,7 @@ struct ContentView: View {
         if changed {
             try? modelContext.save()
         }
+        storedClassifierVersion = Self.classifierVersion
     }
 }
 

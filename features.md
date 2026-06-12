@@ -96,6 +96,7 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 - **Update check** — opening a cloned repo's inspector runs a cheap `git ls-remote origin HEAD` (one read-only round-trip, no fetch, no objects downloaded) and shows **✓ Up to date** or **↑ Updates available**. On-demand only — no background polling.
 - **Pull** — when behind, a one-click **Pull** does a fast-forward pull, then flips back to up-to-date.
 - **Check Clones for Updates** (**File** menu, ⌘⇧U) — sweeps every cloned repo at once and flags the ones that are behind with an **orange dot** on their disk badge. Pair it with the **Cloned** sidebar filter to see exactly what needs pulling.
+- **Remove Local Clone** — right-click a cloned repo → **Remove Local Clone…** (confirm dialog) moves the cloned folder to the **Trash** (recoverable) and removes an emptied category folder. The catalog entry stays; you can clone again anytime. Deleting a clone folder yourself in Finder is also fine — the disk badge and Cloned count notice and update on their own.
 
 ## Runbooks
 

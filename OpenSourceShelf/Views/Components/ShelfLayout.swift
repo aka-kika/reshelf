@@ -6,6 +6,9 @@ enum ShelfLayout {
     /// so it must be tall enough to comfortably clear the traffic-light controls.
     static let splitColumnHeaderHeight: CGFloat = 38
     static let splitColumnHeaderHorizontalPadding: CGFloat = 16
+    /// Extra leading inset for a header that sits at the window's top-left,
+    /// where the traffic-light buttons live (they end ~69pt from the left edge).
+    static let trafficLightHeaderInset: CGFloat = 64
 
     static let sidebarWidth = (min: 200.0, ideal: 220.0, max: 320.0)
     static let collapsedSidebarRailWidth: CGFloat = 52
@@ -13,6 +16,20 @@ enum ShelfLayout {
     static let discoveryListWidth = (min: 360.0, ideal: 480.0, max: 680.0)
     static let inspectorWidth = (min: 280.0, ideal: 320.0, max: 420.0)
     static let panelWidth: CGFloat = 260
+}
+
+extension View {
+    /// macOS 26+ draws a "scroll pocket" glass band over the title-bar region of
+    /// each split column. Our column headers ARE the title bar, so that band just
+    /// paints a gray/dark overlay on top of them — hide it where available.
+    @ViewBuilder
+    func hidesTopScrollEdgeEffect() -> some View {
+        if #available(macOS 26.0, *) {
+            scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            self
+        }
+    }
 }
 
 /// Minimal icon button used in the merged title-bar/header row.

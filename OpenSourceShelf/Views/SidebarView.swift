@@ -27,13 +27,6 @@ struct SidebarView: View {
         SidebarFilterCounts(projects: allProjects)
     }
 
-    /// The sidebar column's content origin sits ~10pt lower than the detail
-    /// column's (measured: sidebar top 42pt vs detail 32pt), so its header and
-    /// divider would render 10pt below the list/inspector dividers. This negative
-    /// nudge lifts the sidebar content to align all three header dividers into one
-    /// continuous line.
-    private static let headerTopAlignmentNudge: CGFloat = -10
-
     var body: some View {
         // Build the counts once per render (the struct rebuilds on each access).
         let counts = filterCounts
@@ -41,10 +34,11 @@ struct SidebarView: View {
             counts.count(for: $0) > 0 || selection == $0
         }
         return VStack(spacing: 0) {
-            AlignedSplitColumnHeader {
+            // Leading inset clears the traffic lights, which share this row now
+            // that the header is the title bar.
+            AlignedSplitColumnHeader(leadingInset: ShelfLayout.trafficLightHeaderInset) {
                 ReshelfBrandHeader()
             }
-            .padding(.top, Self.headerTopAlignmentNudge)
 
             List(selection: $selection) {
                 Section(SidebarSection.library.rawValue) {
@@ -72,6 +66,22 @@ struct SidebarView: View {
             .contentMargins(.top, 11, for: .scrollContent)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        // The sidebar/list split divider: NavigationSplitView's own divider
+        // renders zero-width on macOS 26+, so draw the same 1px separatorColor
+        // hairline the inspector's ResizeDivider uses — full height, flush with
+        // the sidebar's trailing edge.
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(Color(nsColor: .separatorColor))
+                .frame(width: 1)
+                .ignoresSafeArea()
+        }
+        // The header row IS the title bar: lay the column out from the window's
+        // top edge instead of below the system title-bar inset. All three columns
+        // do this, so their header dividers align by construction — no measured
+        // nudge constants (which broke whenever macOS changed its insets).
+        .ignoresSafeArea(.container, edges: .top)
+        .hidesTopScrollEdgeEffect()
     }
 }
 
