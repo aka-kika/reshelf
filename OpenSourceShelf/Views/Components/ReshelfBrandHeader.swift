@@ -18,13 +18,8 @@ struct ReshelfBrandHeader: View {
             .frame(width: 28, height: 28)
             .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text("reshelf")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("repo shelf")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-            }
+            Text("reshelf")
+                .font(.system(size: 15, weight: .semibold))
 
             Spacer(minLength: 0)
         }

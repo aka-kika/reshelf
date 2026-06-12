@@ -7,6 +7,9 @@ struct ProjectListView: View {
     @Binding var searchText: String
     @Binding var sidebarSelection: SidebarItem?
     @Binding var showingAddSheet: Bool
+    /// With the sidebar collapsed, this column is at the window's top-left where
+    /// the traffic lights sit — inset the header so they don't cover the buttons.
+    var needsTrafficLightInset: Bool = false
     var onQuickCapture: () -> Void
     var onCompareRepositoryIDs: ([String]) -> Void
 
@@ -23,6 +26,7 @@ struct ProjectListView: View {
     @State private var isBatchRunbookActionRunning = false
     @State private var runbookFilter: CatalogRunbookFilter = .all
     @State private var pendingDeleteProject: ToolProject?
+    @State private var pendingRemoveCloneProject: ToolProject?
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
     @State private var isCheckingCloneUpdates = false
@@ -36,7 +40,9 @@ struct ProjectListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AlignedSplitColumnHeader {
+            AlignedSplitColumnHeader(
+                leadingInset: needsTrafficLightInset ? ShelfLayout.trafficLightHeaderInset : 0
+            ) {
                 HStack(spacing: 8) {
                     HeaderChromeButton(systemImage: "sidebar.left", help: "Toggle Sidebar") {
                         NotificationCenter.default.post(name: .toggleSidebarColumn, object: nil)
@@ -203,6 +209,21 @@ struct ProjectListView: View {
             Text("“\(project.name)” will be removed from your catalog. This can’t be undone. Cloned files and intelligence data are left untouched.")
         }
         .confirmationDialog(
+            "Remove the local clone of \(pendingRemoveCloneProject?.name ?? "this repo")?",
+            isPresented: Binding(
+                get: { pendingRemoveCloneProject != nil },
+                set: { if !$0 { pendingRemoveCloneProject = nil } }
+            ),
+            presenting: pendingRemoveCloneProject
+        ) { project in
+            Button("Move Clone to Trash", role: .destructive) {
+                removeClone(for: project)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { project in
+            Text("The cloned folder is moved to the Trash — you can recover it from there. “\(project.name)” stays in your catalog and can be cloned again anytime.")
+        }
+        .confirmationDialog(
             "Remove duplicate repos?",
             isPresented: Binding(
                 get: { pendingDuplicateRemoval != nil },
@@ -337,6 +358,9 @@ struct ProjectListView: View {
                 Button("Reveal Clone in Finder") {
                     CatalogCloneService.revealInFinder(dest)
                 }
+                Button("Remove Local Clone…", role: .destructive) {
+                    pendingRemoveCloneProject = project
+                }
             } else if cloningProjectIDs.contains(project.id) {
                 Button("Cloning…") {}.disabled(true)
             } else {
@@ -401,6 +425,16 @@ struct ProjectListView: View {
                     compareNotice = "Clone failed: \(error.localizedDescription)"
                 }
             }
+        }
+    }
+
+    private func removeClone(for project: ToolProject) {
+        do {
+            try CatalogCloneService.removeClone(project)
+            behindProjectIDs.remove(project.id)
+            compareNotice = "Moved the \(project.name) clone to the Trash."
+        } catch {
+            compareNotice = "Couldn't remove clone: \(error.localizedDescription)"
         }
     }
 

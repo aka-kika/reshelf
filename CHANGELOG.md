@@ -6,6 +6,9 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Added
+- **Remove Local Clone** — right-click a cloned repo → *Remove Local Clone…* moves
+  the cloned folder to the Trash (recoverable, with a confirm dialog) and tidies an
+  emptied category folder. The catalog entry stays and can be cloned again anytime.
 - **Quick shelf moves** — ⌘T → Top Shelf, ⌘Y → Yard Sale, ⌘⇧G → The Collector for
   the selected repo (plus a **Shelf** menu), so you can sort right after capturing.
 - **List sorting** — header sort menu: Recently Added (default), Name (A–Z), Most Stars.
@@ -27,8 +30,27 @@ All notable changes to **reshelf** are documented here. This project follows
 ### Changed
 - **Shelf badge colors** — Top Shelf blue (keeper), The Collector gray (neutral),
   Yard Sale amber (needs review).
+- **More precise auto-categories** — the classifier now scores weighted signals
+  from topics, description, and repo name (word-boundary matched) instead of
+  taking the first keyword hit, so strong signals ("airtable-alternative",
+  "menubar") beat broad ones ("api", "dashboard"). Fixes misfires like the topic
+  "storage" landing in AI / Agent.
+- **Sidebar brand header** — just the owl + "reshelf", no "repo shelf" subtitle.
 
 ### Fixed
+- **Header dividers align again** — on macOS 26+ ("Liquid Glass") the system
+  re-imposed a top inset per split column, pushing the list/detail headers below
+  the title bar and breaking the one-line divider. All three columns now lay out
+  from the window top by construction (no measured nudge constants).
+- **Dark mode gray band** — the macOS 26+ title-bar backdrop (`NSScrollPocket`)
+  painted a gray strip over the header row; it's now hidden and kept hidden, in
+  both appearances and across light/dark switches.
+- **Sidebar divider line is back** — macOS 26+ renders the split view's own
+  divider zero-width, leaving no line between sidebar and list; the sidebar now
+  draws the same 1px hairline the inspector divider uses.
+- **Deleting a clone in Finder updates the app** — the Cloned badge, count, and
+  sidebar filter now notice a manually deleted clone folder right away (stale
+  clone-index entries self-heal) instead of waiting for a relaunch.
 - App icon rendered generic — regenerated a complete `.icns` (all sizes).
 - Clicking felt slow — the clone lookup is now a cached index (O(1)), not a
   filesystem walk per row.

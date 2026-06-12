@@ -20,7 +20,7 @@ enum ShelfWindowChrome {
     /// with a clean 1px hairline so it matches the inspector's ResizeDivider.
     /// The NSSplitView backing NavigationSplitView can appear a few frames after
     /// the window is first configured, so retry across a short window.
-    static func flattenSidebarDivider(in window: NSWindow, attemptsRemaining: Int = 8) {
+    static func flattenSidebarDivider(in window: NSWindow, attemptsRemaining: Int = 20) {
         // Re-assert each pass: SwiftUI rebuilds the toolbar after the one-time
         // apply() and can restore the system title-bar separator line.
         window.titlebarSeparatorStyle = .none
@@ -42,6 +42,7 @@ enum ShelfWindowChrome {
         }
 
         flattenChromeMaterials(in: window)
+        hideTitlebarBackdrops(in: window)
 
         // Keep re-applying briefly: SwiftUI rebuilds can restore the shadow.
         if attemptsRemaining > 0 {
@@ -69,6 +70,32 @@ enum ShelfWindowChrome {
                 // that's what bled a light line along the top edge.
                 effectView.blendingMode = .withinWindow
                 effectView.state = .followsWindowActiveState
+            }
+        }
+    }
+
+    /// macOS 26+ ("Liquid Glass") draws the title-bar band with private
+    /// `NSTitlebarBackgroundView` layers (hosting an `NSScrollPocket`) added as
+    /// direct subviews of the NSSplitView — they are NOT NSVisualEffectViews, so
+    /// the material pass above misses them. They dim/gray the top strip where our
+    /// column headers live (verified live: hiding them restores the headers).
+    /// AppKit creates them lazily and re-shows them, so this runs cheaply on every
+    /// window draw (the backdrops are direct split-view children — no deep walk)
+    /// and each found view gets a KVO guard that instantly reverts re-shows.
+    private static var backdropGuards: [ObjectIdentifier: NSKeyValueObservation] = [:]
+
+    static func hideTitlebarBackdrops(in window: NSWindow) {
+        guard let contentView = window.contentView else { return }
+        for splitView in contentView.descendantSplitViews() {
+            for view in splitView.subviews
+            where String(describing: type(of: view)).contains("NSTitlebarBackgroundView") {
+                view.isHidden = true
+                let key = ObjectIdentifier(view)
+                if backdropGuards[key] == nil {
+                    backdropGuards[key] = view.observe(\.isHidden) { view, _ in
+                        if !view.isHidden { view.isHidden = true }
+                    }
+                }
             }
         }
     }
@@ -121,29 +148,58 @@ private extension NSView {
 
 /// One-time main window chrome (title bar). The sidebar divider is left
 /// free-dragging — width bounds come from `navigationSplitViewColumnWidth`.
+///
+/// Configuration hangs off `viewDidMoveToWindow`, NOT `updateNSView`: this
+/// representable has no SwiftUI inputs, so on macOS 26+ SwiftUI never calls
+/// `updateNSView` again after the initial (window-less) pass — the old
+/// updateNSView-based configuration silently stopped running there.
 struct MainWindowChromeConfigurator: NSViewRepresentable {
-    final class Coordinator: NSObject {
-        var configuredWindowID: ObjectIdentifier?
-    }
+    final class ChromeConfiguringView: NSView {
+        private var configuredWindowID: ObjectIdentifier?
+        private var appearanceObservation: NSKeyValueObservation?
+        private var windowNotificationTokens: [NSObjectProtocol] = []
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+        deinit {
+            windowNotificationTokens.forEach(NotificationCenter.default.removeObserver)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            let windowID = ObjectIdentifier(window)
+            guard configuredWindowID != windowID else { return }
+            configuredWindowID = windowID
+            ShelfWindowChrome.apply(to: window)
+            // Defer the divider pass: the NSSplitView backing NavigationSplitView
+            // isn't in the hierarchy yet during the first configuration pass.
+            DispatchQueue.main.async {
+                ShelfWindowChrome.flattenSidebarDivider(in: window)
+            }
+            // Switching light/dark rebuilds the system chrome (titlebar backdrop,
+            // glass materials) — re-flatten whenever the appearance flips.
+            appearanceObservation = window.observe(\.effectiveAppearance) { [weak window] _, _ in
+                guard let window else { return }
+                DispatchQueue.main.async {
+                    ShelfWindowChrome.flattenSidebarDivider(in: window, attemptsRemaining: 4)
+                }
+            }
+            // The backdrop layers are created lazily, well after launch — re-assert
+            // the hide on every window draw (cheap: direct split-view children only).
+            windowNotificationTokens.forEach(NotificationCenter.default.removeObserver)
+            windowNotificationTokens = [
+                NotificationCenter.default.addObserver(
+                    forName: NSWindow.didUpdateNotification, object: window, queue: .main
+                ) { [weak window] _ in
+                    guard let window else { return }
+                    ShelfWindowChrome.hideTitlebarBackdrops(in: window)
+                }
+            ]
+        }
     }
 
     func makeNSView(context: Context) -> NSView {
-        NSView(frame: .zero)
+        ChromeConfiguringView(frame: .zero)
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        guard let window = nsView.window else { return }
-        let windowID = ObjectIdentifier(window)
-        guard context.coordinator.configuredWindowID != windowID else { return }
-        context.coordinator.configuredWindowID = windowID
-        ShelfWindowChrome.apply(to: window)
-        // Defer the divider pass: the NSSplitView backing NavigationSplitView
-        // isn't in the hierarchy yet during the first configuration pass.
-        DispatchQueue.main.async {
-            ShelfWindowChrome.flattenSidebarDivider(in: window)
-        }
-    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
