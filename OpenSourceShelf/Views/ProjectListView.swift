@@ -464,7 +464,7 @@ struct ProjectListView: View {
                 if behind.isEmpty {
                     compareNotice = "All clones are up to date."
                 } else {
-                    compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Open a repo to pull."
+                    compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Press ⌘U to pull all."
                 }
             }
         }

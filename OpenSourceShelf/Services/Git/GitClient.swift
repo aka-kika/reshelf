@@ -124,10 +124,12 @@ struct GitClient {
     }
 
     /// True when the clone has no *tracked* modifications. Untracked files are
-    /// ignored — they neither block a sync nor get removed by it.
+    /// ignored — they neither block a sync nor get removed by it. LFS-bypassed:
+    /// without it, `git status` on an LFS repo spawns `git-lfs filter-process`,
+    /// which fails ("git-lfs: command not found") when git-lfs isn't installed.
     func workingTreeIsClean(repositoryURL: URL) async throws -> Bool {
         let output = try await trimmedOutput(
-            arguments: ["status", "--porcelain", "--untracked-files=no"],
+            arguments: Self.lfsBypass + ["status", "--porcelain", "--untracked-files=no"],
             workingDirectory: repositoryURL)
         return output.isEmpty
     }
