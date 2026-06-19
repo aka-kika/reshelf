@@ -174,6 +174,11 @@ struct OpenSourceShelfApp: App {
                 }
                 .keyboardShortcut("u", modifiers: [.command, .shift])
 
+                Button("Pull Clones with Updates") {
+                    NotificationCenter.default.post(name: .pullCloneUpdates, object: nil)
+                }
+                .keyboardShortcut("u", modifiers: .command)
+
                 Button("Remove Duplicate Repos…") {
                     NotificationCenter.default.post(name: .removeDuplicateRepos, object: nil)
                 }
@@ -467,6 +472,7 @@ extension Notification.Name {
     static let importURLs = Notification.Name("importURLs")
     static let restoreBackup = Notification.Name("restoreBackup")
     static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
+    static let pullCloneUpdates = Notification.Name("pullCloneUpdates")
     /// Move the currently selected repo to a shelf; object is the ProjectStatus rawValue.
     static let moveSelectedToShelf = Notification.Name("moveSelectedToShelf")
     /// A clone's update status became known (object: project id string, userInfo["behind"]: Bool)

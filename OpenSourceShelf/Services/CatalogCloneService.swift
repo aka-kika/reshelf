@@ -250,10 +250,14 @@ enum CatalogCloneService {
         }
     }
 
-    /// Fast-forward pull (LFS-bypassed, like clone).
+    /// Sync the clone to its upstream default branch (LFS-bypassed, like clone).
+    /// Fast-forwards when possible; resets to upstream when the clone has diverged
+    /// (e.g. the project force-pushed/rebased its default branch) so updates don't
+    /// get stuck. Throws `GitClientError.localChangesPresent` — leaving the clone
+    /// untouched — if the working tree has local edits.
     static func pull(_ project: ToolProject) async throws {
         guard let dir = existingClone(for: project) else { throw CloneError.invalidURL }
-        try await GitClient().pullFastForward(repositoryURL: dir)
+        try await GitClient().syncToUpstream(repositoryURL: dir)
     }
 
     // MARK: - Opening
