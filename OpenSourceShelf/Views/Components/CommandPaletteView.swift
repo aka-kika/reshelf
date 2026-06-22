@@ -12,7 +12,6 @@ struct CommandPaletteView: View {
     @State private var query: String = ""
     @FocusState private var isSearchFocused: Bool
 
-    @AppStorage("commandPaletteRecentSearches") private var recentSearchesData: Data = Data()
     @State private var escapeMonitor: Any?
 
     var body: some View {
@@ -73,10 +72,6 @@ struct CommandPaletteView: View {
                     captureRow
                 }
 
-                if query.isEmpty {
-                    recentSearchesSection
-                }
-
                 let matches = filteredProjects
                 if !matches.isEmpty {
                     Section {
@@ -84,7 +79,7 @@ struct CommandPaletteView: View {
                             paletteProjectRow(project)
                         }
                     } header: {
-                        sectionHeader(query.isEmpty ? "Projects" : "\(matches.count) result\(matches.count == 1 ? "" : "s")")
+                        sectionHeader(query.isEmpty ? "Recently Added" : "\(matches.count) result\(matches.count == 1 ? "" : "s")")
                     }
                 } else if !query.isEmpty && !isGitHubURL(query) {
                     VStack(spacing: 8) {
@@ -132,37 +127,6 @@ struct CommandPaletteView: View {
         .background(Color.accentColor.opacity(0.06))
     }
 
-    @ViewBuilder
-    private var recentSearchesSection: some View {
-        let recents = recentSearches
-        if !recents.isEmpty {
-            Section {
-                ForEach(recents, id: \.self) { term in
-                    Button {
-                        query = term
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "clock")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
-                                .frame(width: 20)
-                            Text(term)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.primary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            } header: {
-                sectionHeader("Recent")
-            }
-        }
-    }
-
     private func paletteProjectRow(_ project: ToolProject) -> some View {
         Button {
             selectProject(project)
@@ -206,7 +170,11 @@ struct CommandPaletteView: View {
     }
 
     private var filteredProjects: [ToolProject] {
-        guard !query.isEmpty else { return Array(allProjects.prefix(20)) }
+        guard !query.isEmpty else {
+            // Empty query → the repos you added most recently (a more useful empty
+            // state than the first 20 alphabetically).
+            return Array(allProjects.sorted { $0.addedDate > $1.addedDate }.prefix(8))
+        }
         let term = query.lowercased()
         return allProjects.filter { $0.matchesSearch(term) }
     }
@@ -219,7 +187,6 @@ struct CommandPaletteView: View {
             quickCaptureURL = trimmed
             isPresented = false
         } else {
-            saveRecentSearch(trimmed)
             searchText = trimmed
             isPresented = false
         }
@@ -228,22 +195,6 @@ struct CommandPaletteView: View {
     private func selectProject(_ project: ToolProject) {
         selectedProjectID = project.id
         isPresented = false
-    }
-
-    // MARK: - Recent searches persistence
-
-    private var recentSearches: [String] {
-        (try? JSONDecoder().decode([String].self, from: recentSearchesData)) ?? []
-    }
-
-    private func saveRecentSearch(_ term: String) {
-        var recents = recentSearches
-        recents.removeAll { $0.lowercased() == term.lowercased() }
-        recents.insert(term, at: 0)
-        if recents.count > 8 { recents = Array(recents.prefix(8)) }
-        if let data = try? JSONEncoder().encode(recents) {
-            recentSearchesData = data
-        }
     }
 }
 

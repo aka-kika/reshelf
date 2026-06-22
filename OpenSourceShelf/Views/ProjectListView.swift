@@ -30,6 +30,7 @@ struct ProjectListView: View {
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
     @State private var isCheckingCloneUpdates = false
+    @State private var isPullingClones = false
     /// Number of duplicate entries pending removal (drives the confirm dialog); nil = no dialog.
     @State private var pendingDuplicateRemoval: Int?
     @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
@@ -189,6 +190,7 @@ struct ProjectListView: View {
             onCompareSelected: { compareSelectedProjects() },
             onCancelCompareMode: { cancelCompareMode() },
             onCheckCloneUpdates: { checkAllClonesForUpdates() },
+            onPullCloneUpdates: { pullFlaggedClones() },
             onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) },
             onCloneStatusKnown: { note in syncBehindBadge(note) },
             onRemoveDuplicates: { requestRemoveDuplicates() }
@@ -462,10 +464,60 @@ struct ProjectListView: View {
                 if behind.isEmpty {
                     compareNotice = "All clones are up to date."
                 } else {
-                    compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Open a repo to pull."
+                    compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Press ⌘U to pull all."
                 }
             }
         }
+    }
+
+    /// Pulls only the clones currently flagged behind (by a prior ⌘⇧U check) — ⌘U.
+    /// Each is synced to upstream; its row dot clears on success. Clones with local
+    /// edits are skipped and reported, never clobbered.
+    private func pullFlaggedClones() {
+        guard !isPullingClones else { return }
+        let flagged = allProjects.filter { behindProjectIDs.contains($0.id) }
+        guard !flagged.isEmpty else {
+            compareNotice = "No clones flagged — run Check Clones for Updates (⌘⇧U) first."
+            return
+        }
+        isPullingClones = true
+        compareNotice = "Pulling \(flagged.count) clone\(flagged.count == 1 ? "" : "s")…"
+        Task {
+            var updated = 0
+            var skipped = 0
+            var failed: [String] = []
+            var pulledIDs: Set<UUID> = []
+            for project in flagged {
+                do {
+                    try await CatalogCloneService.pull(project)
+                    updated += 1
+                    pulledIDs.insert(project.id)
+                } catch let error as GitClientError {
+                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(project.name) }
+                } catch {
+                    failed.append(project.name)
+                }
+            }
+            await MainActor.run {
+                behindProjectIDs.subtract(pulledIDs)
+                isPullingClones = false
+                compareNotice = pullSummary(updated: updated, skipped: skipped, failed: failed)
+            }
+        }
+    }
+
+    /// One-line result for a Pull All run, e.g.
+    /// "Updated 2 · 1 skipped (local changes) · 1 failed (zotero)".
+    private func pullSummary(updated: Int, skipped: Int, failed: [String]) -> String {
+        var parts: [String] = []
+        if updated > 0 { parts.append("Updated \(updated)") }
+        if skipped > 0 { parts.append("\(skipped) skipped (local changes)") }
+        if !failed.isEmpty {
+            let names = failed.prefix(3).joined(separator: ", ")
+            let overflow = failed.count > 3 ? " +\(failed.count - 3)" : ""
+            parts.append("\(failed.count) failed (\(names)\(overflow))")
+        }
+        return parts.isEmpty ? "Nothing to pull." : parts.joined(separator: " · ") + "."
     }
 
     /// Keep a row's "updates available" dot in sync with what the inspector found
@@ -983,6 +1035,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onCompareSelected: () -> Void
     let onCancelCompareMode: () -> Void
     let onCheckCloneUpdates: () -> Void
+    let onPullCloneUpdates: () -> Void
     let onMoveSelectedToShelf: (Notification) -> Void
     let onCloneStatusKnown: (Notification) -> Void
     let onRemoveDuplicates: () -> Void
@@ -996,6 +1049,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .catalogCompareSelected)) { _ in onCompareSelected() }
             .onReceive(NotificationCenter.default.publisher(for: .catalogCancelCompareMode)) { _ in onCancelCompareMode() }
             .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in onCheckCloneUpdates() }
+            .onReceive(NotificationCenter.default.publisher(for: .pullCloneUpdates)) { _ in onPullCloneUpdates() }
             .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)
             .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown), perform: onCloneStatusKnown)
             .onReceive(NotificationCenter.default.publisher(for: .removeDuplicateRepos)) { _ in onRemoveDuplicates() }

@@ -37,6 +37,7 @@ final class GitProcessRegistry {
 enum GitClientError: LocalizedError {
     case commandFailed(arguments: [String], exitCode: Int32, standardError: String)
     case outputDecodingFailed
+    case localChangesPresent(repository: String)
 
     var errorDescription: String? {
         switch self {
@@ -46,6 +47,8 @@ enum GitClientError: LocalizedError {
             return "\(command) failed with exit code \(exitCode). \(message)"
         case .outputDecodingFailed:
             return "Could not decode Git command output."
+        case let .localChangesPresent(repository):
+            return "\(repository) has local changes — skipped to protect them."
         }
     }
 }
@@ -81,10 +84,73 @@ struct GitClient {
                           cancellationID: cancellationID)
     }
 
+    /// Fast-forward-only pull (LFS-bypassed). Used by the intelligence ingestion
+    /// pipeline, which manages its own divergence handling. The catalog's
+    /// user-facing update path uses `syncToUpstream` instead, which also recovers
+    /// from diverged clones.
     func pullFastForward(repositoryURL: URL, cancellationID: String? = nil) async throws {
         _ = try await run(arguments: Self.lfsBypass + ["pull", "--ff-only"],
                           workingDirectory: repositoryURL,
                           cancellationID: cancellationID)
+    }
+
+    /// Sync a read-only reference clone to its upstream default branch. Fetches,
+    /// then resets the clone to the remote default tip — a no-op fast-forward when
+    /// already current, and the fix when upstream rewrote history (force-push /
+    /// rebase) so a plain `pull --ff-only` would abort with "Not possible to
+    /// fast-forward". Refuses (throws `.localChangesPresent`) if the working tree
+    /// has *tracked* edits, so a hand-modified clone is never clobbered. Untracked
+    /// files are left in place. LFS-bypassed like clone.
+    func syncToUpstream(repositoryURL: URL, cancellationID: String? = nil) async throws {
+        _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--prune", "--tags"],
+                          workingDirectory: repositoryURL,
+                          cancellationID: cancellationID)
+
+        guard try await workingTreeIsClean(repositoryURL: repositoryURL) else {
+            throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
+        }
+
+        guard let branch = try await remoteDefaultBranch(repositoryURL: repositoryURL) else {
+            throw GitClientError.outputDecodingFailed
+        }
+
+        // `checkout -B` lands HEAD on the default branch and points it at the
+        // upstream tip in one step — covers an already-on-branch fast-forward, a
+        // diverged reset, and a detached/other-branch checkout. Safe because the
+        // tracked tree is clean.
+        _ = try await run(arguments: Self.lfsBypass + ["checkout", "-B", branch, "origin/\(branch)"],
+                          workingDirectory: repositoryURL,
+                          cancellationID: cancellationID)
+    }
+
+    /// True when the clone has no *tracked* modifications. Untracked files are
+    /// ignored — they neither block a sync nor get removed by it. LFS-bypassed:
+    /// without it, `git status` on an LFS repo spawns `git-lfs filter-process`,
+    /// which fails ("git-lfs: command not found") when git-lfs isn't installed.
+    func workingTreeIsClean(repositoryURL: URL) async throws -> Bool {
+        let output = try await trimmedOutput(
+            arguments: Self.lfsBypass + ["status", "--porcelain", "--untracked-files=no"],
+            workingDirectory: repositoryURL)
+        return output.isEmpty
+    }
+
+    /// The upstream default branch name (e.g. `master` / `main`), read fresh from
+    /// the remote so it survives a default-branch rename. Parses the symref line of
+    /// `git ls-remote --symref origin HEAD` ("ref: refs/heads/<name>\tHEAD").
+    func remoteDefaultBranch(repositoryURL: URL, cancellationID: String? = nil) async throws -> String? {
+        let result = try await run(arguments: ["ls-remote", "--symref", "origin", "HEAD"],
+                                   workingDirectory: repositoryURL,
+                                   cancellationID: cancellationID)
+        let headsPrefix = "refs/heads/"
+        for rawLine in result.standardOutput.split(whereSeparator: \.isNewline) {
+            let line = String(rawLine)
+            guard line.hasPrefix("ref:") else { continue }
+            let afterRef = line.dropFirst(4).trimmingCharacters(in: .whitespaces)
+            guard let refToken = afterRef.split(whereSeparator: { $0 == "\t" || $0 == " " }).first else { continue }
+            let ref = String(refToken)
+            if ref.hasPrefix(headsPrefix) { return String(ref.dropFirst(headsPrefix.count)) }
+        }
+        return nil
     }
 
     func currentHead(repositoryURL: URL) async throws -> String? {
