@@ -47,7 +47,8 @@ enum CategoryClassifier {
     /// Check if a category is a meaningful classification vs just a language name.
     static func isMeaningfulCategory(_ category: String) -> Bool {
         let meaningful: Set<String> = [
-            "Database", "AI / Agent", "macOS", "Workspace", "Internal Tools",
+            "Database", "MCP", "AI / Agent", "Coding Agents", "Computer Use", "AI Memory",
+            "macOS", "Workspace", "Internal Tools",
             "Backend", "Knowledge", "CLI", "DevOps", "Media", "Design",
             "Automation", "Security", "Utility", "Editor"
         ]
@@ -91,20 +92,57 @@ enum CategoryClassifier {
              strongPhrases: ["database", "airtable alternative", "vector database", "sql engine"],
              weakPhrases: ["spreadsheet", "sql"]),
 
+        Rule(category: "MCP",
+             strongTopics: ["mcp", "model-context-protocol", "mcp-server", "mcp-servers",
+                            "mcp-client", "mcp-clients", "mcp-tools"],
+             weakTopics: [],
+             strongPhrases: ["model context protocol", "mcp server", "mcp client", "mcp"],
+             weakPhrases: []),
+
+        Rule(category: "Coding Agents",
+             strongTopics: ["coding-agent", "code-agent", "ai-coding", "code-generation",
+                            "codegen", "pair-programming", "code-assistant", "ai-pair-programmer",
+                            "swe-agent", "agentic-coding"],
+             weakTopics: ["copilot"],
+             strongPhrases: ["coding agent", "code agent", "coding assistant", "ai coding",
+                             "autonomous coding", "ai pair programmer", "software engineering agent",
+                             "agentic coding", "code editor for the ai"],
+             weakPhrases: []),
+
+        Rule(category: "Computer Use",
+             strongTopics: ["computer-use", "computer-using-agent", "gui-agent", "browser-use",
+                            "browser-automation", "desktop-automation", "rpa", "web-automation",
+                            "ui-automation"],
+             weakTopics: [],
+             strongPhrases: ["computer use", "computer using agent", "control the computer",
+                             "control your computer", "browser automation", "gui agent",
+                             "screen mouse and keyboard", "desktop automation"],
+             weakPhrases: []),
+
+        Rule(category: "AI Memory",
+             strongTopics: ["memory", "rag", "long-term-memory", "context-management",
+                            "context-engineering", "retrieval-augmented-generation",
+                            "vector-memory", "semantic-memory"],
+             weakTopics: ["retrieval"],
+             strongPhrases: ["memory layer", "memory engine", "ai memory", "memory for ai",
+                             "context management", "long term memory", "retrieval augmented",
+                             "persistent memory"],
+             weakPhrases: ["rag"]),
+
         Rule(category: "AI / Agent",
              strongTopics: ["ai", "llm", "llms", "agent", "agents", "ai-agent", "chatgpt", "gpt",
                             "ollama", "langchain",
-                            "llamaindex", "rag", "chatbot", "copilot", "machine-learning",
+                            "llamaindex", "chatbot", "machine-learning",
                             "deep-learning", "artificial-intelligence", "generative-ai",
                             "transformers", "embeddings", "mlx", "whisper", "stable-diffusion",
-                            "mcp", "model-context-protocol", "prompt-engineering", "genai"],
+                            "prompt-engineering", "genai"],
              // Provider names are weak on purpose: a terminal or editor tagged
              // "claude"/"gemini" usually just integrates AI, it isn't an AI tool.
              weakTopics: ["inference", "neural-network", "openai", "anthropic", "claude", "gemini"],
-             strongPhrases: ["ai agent", "coding agent", "ai assistant", "autonomous agent",
+             strongPhrases: ["ai agent", "ai assistant", "autonomous agent",
                              "language model", "llm", "machine learning", "deep learning",
-                             "chatbot", "copilot", "ai powered", "generative ai", "ai coworker"],
-             weakPhrases: ["ai", "agent", "rag"]),
+                             "chatbot", "ai powered", "generative ai", "ai coworker"],
+             weakPhrases: ["ai", "agent"]),
 
         Rule(category: "macOS",
              strongTopics: ["macos", "macos-app", "mac-app", "menubar", "menu-bar", "menubar-app",

@@ -12,6 +12,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case databaseTools = "databaseTools"
     case backendTools = "backendTools"
     case agentTools = "agentTools"
+    case codingAgentTools = "codingAgentTools"
+    case computerUseTools = "computerUseTools"
+    case aiMemoryTools = "aiMemoryTools"
+    case mcpTools = "mcpTools"
     case internalTools = "internalTools"
     case workspaceTools = "workspaceTools"
     case knowledgeTools = "knowledgeTools"
@@ -48,6 +52,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .databaseTools: "Database"
         case .backendTools: "Backend"
         case .agentTools: "AI / Agent"
+        case .codingAgentTools: "Coding Agents"
+        case .computerUseTools: "Computer Use"
+        case .aiMemoryTools: "AI Memory"
+        case .mcpTools: "MCP"
         case .internalTools: "Internal Tools"
         case .workspaceTools: "Workspace"
         case .knowledgeTools: "Knowledge"
@@ -80,6 +88,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .databaseTools: "cylinder"
         case .backendTools: "server.rack"
         case .agentTools: "brain"
+        case .codingAgentTools: "chevron.left.forwardslash.chevron.right"
+        case .computerUseTools: "cursorarrow.click.2"
+        case .aiMemoryTools: "memorychip"
+        case .mcpTools: "puzzlepiece.extension"
         case .internalTools: "rectangle.grid.2x2"
         case .workspaceTools: "rectangle.3.group"
         case .knowledgeTools: "book"
@@ -106,7 +118,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         switch self {
         case .allProjects, .topShelf, .collector, .yardSale, .cloned:
             return .library
-        case .databaseTools, .backendTools, .agentTools, .internalTools,
+        case .databaseTools, .backendTools, .agentTools, .codingAgentTools,
+             .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
              .workspaceTools, .knowledgeTools, .macOSTools, .cliTools,
              .editorTools, .devopsTools, .automationTools, .mediaTools,
              .designTools, .securityTools, .utilityTools, .localFirst:
@@ -120,7 +133,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     /// Top category filters shown in the sidebar (full taxonomy stays in CategoryClassifier).
     static let sidebarCategoryItems: [SidebarItem] = [
-        .databaseTools, .backendTools, .agentTools, .internalTools,
+        .databaseTools, .backendTools, .agentTools, .codingAgentTools,
+        .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
         .workspaceTools, .knowledgeTools, .macOSTools, .cliTools, .editorTools,
         .devopsTools, .automationTools, .mediaTools, .designTools,
         .securityTools, .utilityTools, .localFirst,
@@ -159,8 +173,15 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .backendTools:
             return project.category.localizedStandardContains("Backend")
         case .agentTools:
-            return project.category.localizedStandardContains("Agent")
-                || project.category.localizedStandardContains("AI")
+            return project.category == "AI / Agent"
+        case .codingAgentTools:
+            return project.category == "Coding Agents"
+        case .computerUseTools:
+            return project.category == "Computer Use"
+        case .aiMemoryTools:
+            return project.category == "AI Memory"
+        case .mcpTools:
+            return project.category == "MCP"
         case .internalTools:
             return project.category.localizedStandardContains("Internal Tools")
         case .workspaceTools:
@@ -200,7 +221,11 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .cloned: return nil
         case .databaseTools: return #Predicate { $0.category.localizedStandardContains("Database") }
         case .backendTools: return #Predicate { $0.category.localizedStandardContains("Backend") }
-        case .agentTools: return #Predicate { $0.category.localizedStandardContains("Agent") || $0.category.localizedStandardContains("AI") }
+        case .agentTools: return #Predicate { $0.category == "AI / Agent" }
+        case .codingAgentTools: return #Predicate { $0.category == "Coding Agents" }
+        case .computerUseTools: return #Predicate { $0.category == "Computer Use" }
+        case .aiMemoryTools: return #Predicate { $0.category == "AI Memory" }
+        case .mcpTools: return #Predicate { $0.category == "MCP" }
         case .internalTools: return #Predicate { $0.category.localizedStandardContains("Internal Tools") }
         case .workspaceTools: return #Predicate { $0.category.localizedStandardContains("Workspace") }
         case .knowledgeTools: return #Predicate { $0.category.localizedStandardContains("Knowledge") }
