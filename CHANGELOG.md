@@ -9,6 +9,26 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.2.0] — 2026-07-03
+
+### Added
+- **Third Claude Code skill: `reshelf-collector`**
+  ([`extras/reshelf-collector-skill/`](extras/reshelf-collector-skill)) — completes
+  the trio: `reshelf` reads cloned source, `reshelf-catalog` indexes the whole
+  shelf, and this one resurfaces **the rest** — The Collector middle (Yard Sale
+  always excluded), with clone status and shelf age, leading with the
+  longest-shelved picks you never cloned.
+
+### Changed
+- **Quick Capture redesigned** — after Fetch you get a repo identity card (owner
+  avatar, name, ★ stars, license in plain words with the ⓘ explainer, language
+  chip, one description, website link) plus the only two capture-time decisions
+  (Shelf — never truncates — and Category); everything else collapses behind a
+  full-row **More details** toggle. Short sheet before fetch, card-sized after.
+  Paste → Enter → Enter unchanged.
+- The ⌘K command palette closes on a click anywhere outside it (not just Escape).
+- Quick Capture header dropped the bolt icon.
+
 ## [1.1.0] — 2026-07-03
 
 ### Added

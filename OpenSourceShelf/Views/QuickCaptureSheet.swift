@@ -37,14 +37,14 @@ struct QuickCaptureSheet: View {
     @State private var license: String = ""
     @State private var isLocalFirst: Bool = false
     @State private var isSelfHosted: Bool = false
+    /// The rarely-touched fields live behind this disclosure — capture is
+    /// paste → Enter → Enter, so the default view is just the card + two decisions.
+    @State private var showsMoreDetails: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Image(systemName: "bolt.fill")
-                    .foregroundStyle(.yellow)
-                    .font(.system(size: 14))
                 Text("Quick Capture")
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
@@ -108,83 +108,224 @@ struct QuickCaptureSheet: View {
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.08)))
                     }
 
-                    if fetchedInfo != nil {
-                        Divider()
+                    if let info = fetchedInfo {
+                        repoCard(info)
 
-                        // Auto-filled fields
-                        Group {
-                            // AI suggestions are a v2 (Labs) capability — hidden in
-                            // the catalog-only default so capture stays zero-setup.
-                            if labsFeaturesEnabled {
-                                aiSuggestionsSection
-                            }
-                            field("Name") { TextField("", text: $name) }
-                            field("Links") {
-                                TextField("GitHub URL", text: $urlText)
-                                TextField("Website URL", text: $websiteURL)
-                            }
-                            HStack(spacing: 16) {
-                                field("Category") { TextField("e.g. Database, AI", text: $category) }
-                                field("Status") {
-                                    Picker("", selection: $status) {
-                                        ForEach(ProjectStatus.allCases, id: \.self) { s in
-                                            Text(s.displayName).tag(s)
-                                        }
-                                    }.pickerStyle(.menu).labelsHidden().frame(width: 110)
-                                }
-                            }
-                            field("Description") {
-                                TextField("Short description", text: $shortDescription)
-                                TextEditor(text: $longDescription).frame(height: 60)
-                                    .overlay(alignment: .topLeading) {
-                                        if longDescription.isEmpty {
-                                            Text("Long description…").font(.system(size: 12))
-                                                .foregroundStyle(.tertiary).padding(.top, 8).padding(.leading, 4)
-                                                .allowsHitTesting(false)
-                                        }
+                        // The only two decisions worth making at capture time.
+                        HStack(alignment: .top, spacing: 16) {
+                            field("Shelf") {
+                                Picker("", selection: $status) {
+                                    ForEach(ProjectStatus.allCases, id: \.self) { s in
+                                        Text(s.displayName).tag(s)
                                     }
-                            }
-                            field("Metadata") {
-                                TextField("Stars", text: $stars)
-                                TextField("License", text: $license)
-                            }
-                            field("Use Cases") {
-                                Text("One per line — AI will suggest ideas below.")
-                                    .font(.system(size: 11)).foregroundStyle(.tertiary)
-                                TextEditor(text: $useCasesText).frame(height: 60)
-                            }
-                            field("Tags") {
-                                TextField("Comma-separated", text: $tagsText)
-                            }
-                            field("Quick Flags") {
-                                Toggle("Self-Hosted", isOn: $isSelfHosted)
-                                Toggle("Local-First", isOn: $isLocalFirst)
-                            }
-                            field("Personal Fit") {
-                                HStack(spacing: 4) {
-                                    ForEach(1...5, id: \.self) { i in
-                                        Image(systemName: i <= fitScore ? "star.fill" : "star")
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(i <= fitScore ? .yellow : .secondary.opacity(0.3))
-                                            .onTapGesture { fitScore = i }
-                                    }
-                                    Text(fitLabel(fitScore)).font(.system(size: 11))
-                                        .foregroundStyle(.secondary).padding(.leading, 6)
                                 }
+                                .pickerStyle(.menu).labelsHidden().fixedSize()
+                            }
+                            field("Category") {
+                                TextField("e.g. Database, AI", text: $category)
                             }
                         }
+
+                        moreDetailsDisclosure
                     }
                 }
                 .padding(20)
             }
         }
-        .frame(width: 520, height: 680)
+        .frame(width: 520, height: sheetHeight)
+        .animation(.easeInOut(duration: 0.2), value: sheetHeight)
         .onAppear {
             if !initialURL.isEmpty {
                 urlText = initialURL
                 fetchRepo()
             }
         }
+    }
+
+    /// Short before fetch, card-sized after, taller when details are expanded.
+    private var sheetHeight: CGFloat {
+        if fetchedInfo == nil { return 240 }
+        return showsMoreDetails ? 700 : 560
+    }
+
+    /// The repo the way the shelf will remember it: identity + facts, not fields.
+    private func repoCard(_ info: GitHubRepoInfo) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                AsyncImage(url: ownerAvatarURL) { image in
+                    image.resizable().interpolation(.high)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color.primary.opacity(0.06))
+                        .overlay {
+                            Image(systemName: "shippingbox")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.tertiary)
+                        }
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 9))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name.isEmpty ? "Repository" : name)
+                        .font(.system(size: 17, weight: .semibold))
+                        .lineLimit(1)
+                    if let owner = repoOwner {
+                        Text(owner)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 14) {
+                if !stars.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                        Text(stars)
+                    }
+                }
+                HStack(spacing: 4) {
+                    Text(displayLicense)
+                    LicenseInfoButton(license: license)
+                }
+                if let language = info.language, !language.isEmpty {
+                    Text(language)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.06)))
+                }
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+
+            if !shortDescription.isEmpty {
+                Text(shortDescription)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let site = URL(string: websiteURL), !websiteURL.isEmpty {
+                Link(destination: site) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "link").font(.system(size: 9))
+                        Text(websiteURL
+                            .replacingOccurrences(of: "https://", with: "")
+                            .replacingOccurrences(of: "http://", with: ""))
+                            .lineLimit(1)
+                    }
+                    .font(.system(size: 11))
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.035)))
+    }
+
+    /// "owner" from the fetched full name (or the pasted URL as a fallback).
+    private var repoOwner: String? {
+        if let full = fetchedInfo?.fullName, full.contains("/") {
+            return full.components(separatedBy: "/").first
+        }
+        let parts = urlText
+            .replacingOccurrences(of: "https://github.com/", with: "")
+            .split(separator: "/")
+        return parts.first.map(String.init)
+    }
+
+    private var ownerAvatarURL: URL? {
+        repoOwner.flatMap { URL(string: "https://github.com/\($0).png?size=64") }
+    }
+
+    /// The card shows a human license, never raw SPDX noise.
+    private var displayLicense: String {
+        let cleaned = license.trimmingCharacters(in: .whitespaces)
+        if cleaned.isEmpty || cleaned.uppercased() == "NOASSERTION" { return "No license" }
+        return cleaned
+    }
+
+    /// Rarely-touched fields, collapsed by default — capture stays two Enters.
+    /// A plain button + chevron instead of DisclosureGroup: on macOS the group
+    /// only toggles from its tiny chevron, and the whole row should be tappable.
+    private var moreDetailsDisclosure: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { showsMoreDetails.toggle() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(showsMoreDetails ? 90 : 0))
+                    Text("More details")
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if showsMoreDetails {
+                detailFields
+            }
+        }
+    }
+
+    private var detailFields: some View {
+            VStack(alignment: .leading, spacing: 14) {
+                // AI suggestions are a v2 (Labs) capability — hidden in
+                // the catalog-only default so capture stays zero-setup.
+                if labsFeaturesEnabled {
+                    aiSuggestionsSection
+                }
+                field("Name") { TextField("", text: $name) }
+                field("Links") {
+                    TextField("GitHub URL", text: $urlText)
+                    TextField("Website URL", text: $websiteURL)
+                }
+                field("Description") {
+                    TextField("Short description", text: $shortDescription)
+                    TextEditor(text: $longDescription).frame(height: 60)
+                        .overlay(alignment: .topLeading) {
+                            if longDescription.isEmpty {
+                                Text("Long description…").font(.system(size: 12))
+                                    .foregroundStyle(.tertiary).padding(.top, 8).padding(.leading, 4)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                }
+                field("Use Cases") {
+                    Text("One per line.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                    TextEditor(text: $useCasesText).frame(height: 60)
+                }
+                field("Tags") {
+                    TextField("Comma-separated", text: $tagsText)
+                }
+                field("Quick Flags") {
+                    Toggle("Self-Hosted", isOn: $isSelfHosted)
+                    Toggle("Local-First", isOn: $isLocalFirst)
+                }
+                field("Personal Fit") {
+                    HStack(spacing: 4) {
+                        ForEach(1...5, id: \.self) { i in
+                            Image(systemName: i <= fitScore ? "star.fill" : "star")
+                                .font(.system(size: 14))
+                                .foregroundStyle(i <= fitScore ? .yellow : .secondary.opacity(0.3))
+                                .onTapGesture { fitScore = i }
+                        }
+                        Text(fitLabel(fitScore)).font(.system(size: 11))
+                            .foregroundStyle(.secondary).padding(.leading, 6)
+                    }
+                }
+            }
+            .padding(.top, 10)
     }
 
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
