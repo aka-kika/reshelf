@@ -45,9 +45,6 @@ struct QuickCaptureSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Image(systemName: "bolt.fill")
-                    .foregroundStyle(.yellow)
-                    .font(.system(size: 14))
                 Text("Quick Capture")
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
