@@ -14,6 +14,32 @@ enum ShelfWindowChrome {
         // Opaque dark base so nothing translucent samples the bright desktop and
         // bleeds a light line along the top edge.
         window.backgroundColor = .windowBackgroundColor
+        installTitlebarClickRouter(in: window)
+    }
+
+    /// The header row is overlaid by the system title-bar view, which claims real
+    /// mouse clicks as window drags before they can reach the SwiftUI controls
+    /// underneath (keyboard shortcuts are unaffected). Views hosted inside a
+    /// titlebar accessory DO receive real clicks, so a transparent router
+    /// accessory covers the band and forwards clicks over interactive controls
+    /// (marked with `.titlebarClickable()`) down to the content. Everywhere else
+    /// it stays hit-transparent so the header still drags the window.
+    /// SwiftUI can rebuild the toolbar and drop foreign accessories — re-assert
+    /// on every call (cheap contains check).
+    static func installTitlebarClickRouter(in window: NSWindow) {
+        let installed = window.titlebarAccessoryViewControllers.contains {
+            $0.view is TitlebarClickRouterView
+        }
+        guard !installed else { return }
+        let controller = NSTitlebarAccessoryViewController()
+        let router = TitlebarClickRouterView(
+            frame: NSRect(x: 0, y: 0, width: window.frame.width, height: 28)
+        )
+        router.autoresizingMask = [.width]
+        controller.view = router
+        controller.layoutAttribute = .right
+        controller.fullScreenMinHeight = 0
+        window.addTitlebarAccessoryViewController(controller)
     }
 
     /// Replace the heavy macOS sidebar split divider (shadowed, "Finder" look)
@@ -192,6 +218,7 @@ struct MainWindowChromeConfigurator: NSViewRepresentable {
                 ) { [weak window] _ in
                     guard let window else { return }
                     ShelfWindowChrome.hideTitlebarBackdrops(in: window)
+                    ShelfWindowChrome.installTitlebarClickRouter(in: window)
                 }
             ]
         }
@@ -202,4 +229,278 @@ struct MainWindowChromeConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+// MARK: - Title-bar click routing
+
+/// Weak registry of the invisible anchors that mark interactive header controls.
+/// The router accessory resolves their live window frames at hit-test time, so
+/// divider drags, sidebar collapse, and screen switches need no bookkeeping.
+final class TitlebarClickAnchorRegistry {
+    static let shared = TitlebarClickAnchorRegistry()
+    private let anchors = NSHashTable<TitlebarClickAnchorView>.weakObjects()
+
+    func register(_ anchor: TitlebarClickAnchorView) {
+        anchors.add(anchor)
+    }
+
+    /// The live anchors currently attached in `window`.
+    func liveAnchors(in window: NSWindow) -> [TitlebarClickAnchorView] {
+        anchors.allObjects.filter { anchor in
+            anchor.window === window && anchor.superview != nil
+                && !anchor.convert(anchor.bounds, to: nil).isEmpty
+        }
+    }
+
+    /// Window-coordinate frames of the registered controls in `window`.
+    func controlFrames(in window: NSWindow) -> [NSRect] {
+        liveAnchors(in: window).map { $0.convert($0.bounds, to: nil) }
+    }
+}
+
+/// Invisible, hit-transparent view overlaid on an interactive header control:
+/// publishes that control's frame to the registry and carries the action the
+/// click-router should fire when a real click lands there. (Replaying raw
+/// mouse events into SwiftUI's hosting view does nothing — SwiftUI routes
+/// events at the window level — so the anchor triggers semantics directly.)
+final class TitlebarClickAnchorView: NSView {
+    /// Fired on click for plain buttons. nil → menu-style control: the router
+    /// finds the AppKit control under the point and `performClick`s it.
+    var clickAction: (() -> Void)?
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            TitlebarClickAnchorRegistry.shared.register(self)
+        }
+    }
+}
+
+private struct TitlebarClickAnchor: NSViewRepresentable {
+    var action: (() -> Void)?
+
+    func makeNSView(context: Context) -> TitlebarClickAnchorView {
+        let view = TitlebarClickAnchorView()
+        view.clickAction = action
+        return view
+    }
+
+    func updateNSView(_ nsView: TitlebarClickAnchorView, context: Context) {
+        nsView.clickAction = action
+    }
+}
+
+extension View {
+    /// Mark an interactive control that sits in the merged title-bar/header row.
+    /// Without this, the system title-bar view claims real mouse clicks on the
+    /// control as window drags (keyboard equivalents still work). Pass the
+    /// control's action for plain buttons; omit it for menus (the router opens
+    /// the underlying AppKit popup natively). See
+    /// `ShelfWindowChrome.installTitlebarClickRouter`.
+    func titlebarClickable(action: (() -> Void)? = nil) -> some View {
+        overlay(TitlebarClickAnchor(action: action).allowsHitTesting(false))
+    }
+}
+
+/// Transparent accessory view spanning the title-bar band. Claims hits only
+/// over registered control frames (via `TitlebarClickHoleView`s, which are also
+/// carved out of the window-drag region by `mouseDownCanMoveWindow == false`);
+/// everywhere else it returns nil so the title bar keeps dragging the window.
+final class TitlebarClickRouterView: NSView {
+    private var holes: [TitlebarClickHoleView] = []
+    /// Clones of AppKit's own `NSTitlebarContainerBlockingView` — the private
+    /// primitive AppKit plants over the sidebar split divider to carve a spot
+    /// out of the window-drag region. The drag decision is made from standing
+    /// view geometry (hitTest is never consulted for it), so we place one over
+    /// each interactive control, exactly like AppKit does for the divider.
+    private var blockingViews: [NSView] = []
+    private static let blockingViewClass: NSView.Type? =
+        NSClassFromString("NSTitlebarContainerBlockingView") as? NSView.Type
+    private var syncTimer: Timer?
+
+    override var mouseDownCanMoveWindow: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        syncTimer?.invalidate()
+        syncTimer = nil
+        blockingViews.forEach { $0.removeFromSuperview() }
+        blockingViews.removeAll()
+        guard window != nil else { return }
+        // The window-drag decision is made from STANDING view geometry, so the
+        // hole/blocker frames must be correct at rest, not just at click time.
+        // AppKit repositions the accessory after any notification we could hook,
+        // so a cheap watchdog keeps the standing frames true (4 rect conversions
+        // per tick; writes only when a frame actually changed).
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            self?.syncHoles(syncBlockingViews: true)
+        }
+        timer.tolerance = 0.1
+        RunLoop.main.add(timer, forMode: .common)
+        syncTimer = timer
+        syncHoles(syncBlockingViews: true)
+    }
+
+    override func layout() {
+        super.layout()
+        syncHoles(syncBlockingViews: true)
+    }
+
+    override func setFrameOrigin(_ newOrigin: NSPoint) {
+        super.setFrameOrigin(newOrigin)
+        syncHoles(syncBlockingViews: false)
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        syncHoles(syncBlockingViews: false)
+    }
+
+    deinit {
+        syncTimer?.invalidate()
+        blockingViews.forEach { $0.removeFromSuperview() }
+    }
+
+    /// NSTitlebarContainerView, where AppKit parks its own blocking views.
+    private var titlebarContainer: NSView? {
+        var view: NSView? = superview
+        while let v = view {
+            if String(describing: type(of: v)).contains("NSTitlebarContainerView") {
+                return v
+            }
+            view = v.superview
+        }
+        return nil
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let superview, window != nil else { return nil }
+        syncHoles(syncBlockingViews: false)
+        let windowPoint = superview.convert(point, to: nil)
+        let localPoint = convert(windowPoint, from: nil)
+        return holes.first { !$0.frame.isEmpty && $0.frame.contains(localPoint) }
+    }
+
+    private func syncHoles(syncBlockingViews: Bool) {
+        guard let window else { return }
+        let anchors = TitlebarClickAnchorRegistry.shared.liveAnchors(in: window)
+        let frames = anchors.map { $0.convert($0.bounds, to: nil) }
+        while holes.count < anchors.count {
+            let hole = TitlebarClickHoleView()
+            addSubview(hole)
+            holes.append(hole)
+        }
+        while holes.count > anchors.count {
+            holes.removeLast().removeFromSuperview()
+        }
+        for (hole, (anchor, frame)) in zip(holes, zip(anchors, frames)) {
+            hole.anchor = anchor
+            let local = convert(frame, from: nil).intersection(bounds)
+            let clipped = local.isNull ? .zero : local
+            if hole.frame != clipped {
+                hole.frame = clipped
+            }
+        }
+        if syncBlockingViews {
+            syncDragRegionBlockers(controlFrames: frames)
+        }
+    }
+
+    /// Mirror the control frames with AppKit's own drag-region carve-out views,
+    /// parked at the same level of the hierarchy AppKit uses for its own.
+    /// Never called from `hitTest` (no hierarchy mutation mid-hit-testing).
+    private func syncDragRegionBlockers(controlFrames: [NSRect]) {
+        guard let blockingClass = Self.blockingViewClass,
+              let container = titlebarContainer else { return }
+        while blockingViews.count < controlFrames.count {
+            let blocker = blockingClass.init(frame: .zero)
+            // Bottom of the container: carves the drag region (that's standing
+            // geometry, z-independent) without ever winning hit-testing — the
+            // router's holes above stay the event handler.
+            container.addSubview(blocker, positioned: .below, relativeTo: nil)
+            blockingViews.append(blocker)
+        }
+        while blockingViews.count > controlFrames.count {
+            blockingViews.removeLast().removeFromSuperview()
+        }
+        for (blocker, frame) in zip(blockingViews, controlFrames) {
+            if blocker.superview !== container {
+                container.addSubview(blocker, positioned: .below, relativeTo: nil)
+            }
+            let local = container.convert(frame, from: nil)
+            if blocker.frame != local {
+                blocker.frame = local
+            }
+        }
+    }
+}
+
+/// One transparent "hole" per interactive header control. Receives the real
+/// mouse events in the title-bar layer and triggers the control's semantics:
+/// the anchor's action closure for plain buttons (replaying raw events into
+/// SwiftUI is a no-op — it routes events at the window level), or a native
+/// `performClick` on the AppKit popup that backs a SwiftUI Menu. An NSButton
+/// (not a plain NSView) so the window-drag region builder recognizes it as an
+/// interactive control; it draws nothing and never runs button tracking (no
+/// super calls in the mouse handlers).
+final class TitlebarClickHoleView: NSButton {
+    weak var anchor: TitlebarClickAnchorView?
+    private var isPressed = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        title = ""
+        isBordered = false
+        isTransparent = true
+        refusesFirstResponder = true
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// Invisible catcher: don't let the system show its control/button pointer —
+    /// the plain arrow, as over the visible SwiftUI controls underneath.
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .arrow)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if anchor?.clickAction != nil {
+            // Plain button: fire on mouse-up inside, like a real button.
+            isPressed = true
+            return
+        }
+        // Menu-style control: open the backing AppKit popup now (native feel).
+        underlyingControl(at: event.locationInWindow)?.performClick(nil)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer { isPressed = false }
+        guard isPressed, let action = anchor?.clickAction else { return }
+        let local = convert(event.locationInWindow, from: nil)
+        if bounds.insetBy(dx: -4, dy: -4).contains(local) {
+            action()
+        }
+    }
+
+    /// Nearest AppKit control in the content hierarchy under a window point
+    /// (e.g. the SwiftUIPopupButton backing a SwiftUI Menu).
+    private func underlyingControl(at locationInWindow: NSPoint) -> NSControl? {
+        guard let window, let contentView = window.contentView else { return nil }
+        let root = contentView.superview ?? contentView
+        var view = contentView.hitTest(root.convert(locationInWindow, from: nil))
+        while let current = view {
+            if let control = current as? NSControl {
+                return control
+            }
+            view = current.superview
+        }
+        return nil
+    }
 }

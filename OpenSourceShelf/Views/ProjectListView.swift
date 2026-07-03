@@ -72,6 +72,7 @@ struct ProjectListView: View {
                                     .font(.system(size: 10))
                             }
                             .buttonStyle(.plain)
+                            .titlebarClickable { searchText = "" }
                         }
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
@@ -822,6 +823,7 @@ struct ProjectListView: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help("Sort: \(sortOrder.displayName)")
+        .titlebarClickable()
     }
 
     private func applySidebarFilter(_ projects: [ToolProject]) -> [ToolProject] {
