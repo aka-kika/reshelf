@@ -37,9 +37,10 @@ struct ContentView: View {
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
 
     /// Bump when CategoryClassifier gets meaningfully smarter: the next launch
-    /// re-scores every repo once (backup first; categories are only replaced when
-    /// the classifier has a confident answer, never blanked).
-    private static let classifierVersion = 2
+    /// takes a backup and re-runs the fill pass once. Only empty / raw-language
+    /// categories are ever (re)scored — existing assignments, whether classifier-
+    /// produced or hand-sorted, are never overwritten (they're indistinguishable).
+    private static let classifierVersion = 4
     @AppStorage("reshelf.classifierVersion") private var storedClassifierVersion = 1
 
     var body: some View {
@@ -501,7 +502,9 @@ struct ContentView: View {
         }
         var changed = false
         for project in allProjects {
-            guard force || !CategoryClassifier.isMeaningfulCategory(project.category) else { continue }
+            // Empty / raw-language categories are always re-scored; classifier-
+            // produced ones only on a version bump; user-typed labels never.
+            guard CategoryClassifier.shouldReclassify(project.category, force: force) else { continue }
             let newCategory = CategoryClassifier.reclassify(
                 tags: project.tags,
                 description: project.shortDescription.isEmpty ? project.longDescription : project.shortDescription,

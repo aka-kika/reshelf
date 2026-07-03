@@ -22,37 +22,65 @@ enum CategoryClassifier {
     }
 
     /// Re-classify an existing ToolProject from its stored tags, description, category, and name.
-    /// With `force`, an existing meaningful category is re-scored too (used by the
-    /// one-time migration after a classifier upgrade) — but it's only replaced
-    /// when the classifier actually has an answer, never blanked.
+    /// Any existing non-empty category that isn't a leaked raw language name is kept
+    /// — whether the classifier produced it or the user sorted it by hand — because
+    /// the two are indistinguishable. Only empty/language rows are (re)scored.
     static func reclassify(tags: [String], description: String, currentCategory: String, name: String, language: String?, force: Bool = false) -> String {
-        // If the current category is already a meaningful one, keep it
-        if !force, isMeaningfulCategory(currentCategory) {
+        let current = currentCategory.trimmingCharacters(in: .whitespaces)
+        if !current.isEmpty, !isLanguageName(current) {
             return currentCategory
         }
         if let category = scoredCategory(topics: tags, description: description, name: name) {
             return category
         }
         // Try language heuristic (currentCategory might be a raw language name)
-        let lang = language ?? currentCategory
+        let lang = language ?? current
         let fromLanguage = lang.isEmpty ? "" : classifyFromLanguage(lang, description: description.lowercased())
         if !fromLanguage.isEmpty {
             return fromLanguage
         }
         // No signal at all: keep a meaningful category (force mode found nothing
         // better), but still blank a raw language name rather than keep it.
-        return isMeaningfulCategory(currentCategory) ? currentCategory : ""
+        return isLanguageName(current) ? "" : currentCategory
     }
 
-    /// Check if a category is a meaningful classification vs just a language name.
+    /// Check if a category is one the classifier itself produces.
     static func isMeaningfulCategory(_ category: String) -> Bool {
         let meaningful: Set<String> = [
             "Database", "MCP", "AI / Agent", "Coding Agents", "Computer Use", "AI Memory",
             "macOS", "Workspace", "Internal Tools",
             "Backend", "Knowledge", "CLI", "DevOps", "Media", "Design",
-            "Automation", "Security", "Utility", "Editor"
+            "Automation", "Security", "Utility", "Editor", "Frontend", "Games"
         ]
         return meaningful.contains(category)
+    }
+
+    /// Raw language names that older captures leaked into the category field —
+    /// besides empty values, the ONLY stored categories reclassification may
+    /// overwrite without `force`. Anything else a user typed is theirs to keep.
+    private static let languageNames: Set<String> = [
+        "swift", "objective-c", "objective c", "python", "typescript", "javascript",
+        "go", "golang", "rust", "c", "c++", "c#", "java", "kotlin", "ruby", "php",
+        "shell", "bash", "zsh", "html", "css", "scss", "lua", "zig", "dart",
+        "elixir", "haskell", "scala", "perl", "r", "vue", "svelte",
+        "jupyter notebook", "makefile", "dockerfile", "cmake", "assembly",
+        "clojure", "ocaml", "nim", "crystal"
+    ]
+
+    static func isLanguageName(_ category: String) -> Bool {
+        languageNames.contains(category.trimmingCharacters(in: .whitespaces).lowercased())
+    }
+
+    /// Whether the launch pass may touch this stored category at all: ONLY empty
+    /// and raw-language values. A stored meaningful category may be the user's own
+    /// manual sorting — indistinguishable from classifier output — so classifier
+    /// upgrades never overwrite it, `force` or not. (Learned the hard way: a force
+    /// re-score once flattened dozens of hand-sorted Coding Agents / Computer Use /
+    /// AI Memory rows into AI / Agent.) Rule improvements apply to new captures and
+    /// to still-uncategorized rows; existing assignments are corrected by hand.
+    static func shouldReclassify(_ category: String, force: Bool) -> Bool {
+        let trimmed = category.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty || isLanguageName(trimmed)
     }
 
     // MARK: - Scoring
@@ -88,9 +116,9 @@ enum CategoryClassifier {
                             "airtable", "airtable-alternative", "supabase", "firebase-alternative",
                             "duckdb", "redis", "mongodb", "clickhouse", "vector-database", "orm",
                             "spreadsheet", "data-management"],
-             weakTopics: ["sql", "storage"],
+             weakTopics: ["sql"],
              strongPhrases: ["database", "airtable alternative", "vector database", "sql engine"],
-             weakPhrases: ["spreadsheet", "sql"]),
+             weakPhrases: ["sql"]),
 
         Rule(category: "MCP",
              strongTopics: ["mcp", "model-context-protocol", "mcp-server", "mcp-servers",
@@ -141,8 +169,9 @@ enum CategoryClassifier {
              weakTopics: ["inference", "neural-network", "openai", "anthropic", "claude", "gemini"],
              strongPhrases: ["ai agent", "ai assistant", "autonomous agent",
                              "language model", "llm", "machine learning", "deep learning",
-                             "chatbot", "ai powered", "generative ai", "ai coworker"],
-             weakPhrases: ["ai", "agent"]),
+                             "chatbot", "ai powered", "generative ai", "ai coworker",
+                             "speech to text"],
+             weakPhrases: ["ai", "agent", "dictation", "transcription"]),
 
         Rule(category: "macOS",
              strongTopics: ["macos", "macos-app", "mac-app", "menubar", "menu-bar", "menubar-app",
@@ -155,11 +184,12 @@ enum CategoryClassifier {
         Rule(category: "Workspace",
              strongTopics: ["workspace", "notion", "notion-alternative", "wiki",
                             "project-management", "task-management", "team-collaboration",
-                            "kanban", "todo-list", "calendar", "anytype", "affine", "appflowy"],
+                            "kanban", "todo-list", "calendar", "anytype", "affine", "appflowy",
+                            "trello", "trello-alternative"],
              weakTopics: ["collaboration", "productivity", "todo"],
              strongPhrases: ["notion alternative", "project management", "task management",
-                             "kanban"],
-             weakPhrases: ["collaboration", "workspace", "productivity"]),
+                             "kanban", "trello alternative", "task tracker", "office suite"],
+             weakPhrases: ["collaboration", "workspace", "productivity", "todo", "tasks"]),
 
         Rule(category: "Internal Tools",
              strongTopics: ["internal-tools", "low-code", "no-code", "admin-panel",
@@ -181,30 +211,33 @@ enum CategoryClassifier {
         Rule(category: "Knowledge",
              strongTopics: ["note-taking", "notes", "knowledge-base", "knowledge-management",
                             "second-brain", "pkm", "zettelkasten", "obsidian", "documentation",
-                            "logseq", "joplin", "trilium", "notebook", "memos"],
+                            "logseq", "joplin", "trilium", "notebook", "memos",
+                            "journal", "journaling"],
              weakTopics: ["markdown", "knowledge", "writing"],
-             strongPhrases: ["note taking", "knowledge base", "knowledge management",
-                             "second brain", "personal knowledge", "note tool", "notes app"],
-             weakPhrases: ["notes", "note", "markdown", "documentation", "wiki"]),
+             strongPhrases: ["note taking", "knowledge base", "knowledge bases",
+                             "knowledge management", "second brain", "personal knowledge",
+                             "note tool", "notes app", "journaling", "journal app"],
+             weakPhrases: ["notes", "note", "markdown", "documentation", "wiki", "journal"]),
 
         Rule(category: "CLI",
              strongTopics: ["cli", "command-line", "command-line-tool", "tui", "terminal"],
              weakTopics: ["shell", "zsh", "bash"],
-             strongPhrases: ["command line", "cli", "terminal ui", "terminal app", "tui"],
+             strongPhrases: ["command line", "cli", "terminal ui", "terminal app", "tui",
+                             "terminal emulator"],
              weakPhrases: ["terminal", "shell"]),
 
         Rule(category: "DevOps",
              strongTopics: ["devops", "ci-cd", "kubernetes", "docker", "infrastructure",
                             "observability", "monitoring", "deployment", "terraform", "helm",
                             "ansible", "containers"],
-             weakTopics: ["self-hosted", "cloud"],
+             weakTopics: ["self-hosted"],
              strongPhrases: ["continuous integration", "ci cd", "kubernetes", "observability",
                              "infrastructure as code", "monitoring"],
              weakPhrases: ["deploy", "docker", "self hosted", "devops"]),
 
         Rule(category: "Media",
              strongTopics: ["ffmpeg", "video-editing", "image-editing", "image-processing",
-                            "screen-recording", "screenshot", "gif", "photo", "media"],
+                            "screen-recording", "screenshot", "gif", "photo"],
              weakTopics: ["video", "image", "audio", "music", "camera"],
              strongPhrases: ["video editing", "video editor", "image processing", "image editing",
                              "screen recording", "screenshot", "media player"],
@@ -212,16 +245,18 @@ enum CategoryClassifier {
 
         Rule(category: "Design",
              strongTopics: ["figma", "design-system", "ui-design", "design-tools", "illustration",
-                            "design", "icons", "typography"],
+                            "design", "icons", "typography", "css", "tailwind", "tailwindcss"],
              weakTopics: ["graphics", "fonts", "ui"],
-             strongPhrases: ["design system", "ui design", "design tool", "vector graphics"],
+             strongPhrases: ["design system", "ui design", "design tool", "vector graphics",
+                             "css framework", "styling system"],
              weakPhrases: ["design", "illustration", "icons"]),
 
         Rule(category: "Automation",
              strongTopics: ["automation", "workflow-automation", "n8n", "zapier", "etl",
-                            "web-scraping", "scraper", "web-crawler"],
+                            "web-scraping", "scraper", "web-crawler", "social-media"],
              weakTopics: ["workflow", "pipelines", "cron", "scheduler"],
-             strongPhrases: ["workflow automation", "automation", "web scraping", "web scraper"],
+             strongPhrases: ["workflow automation", "automation", "web scraping", "web scraper",
+                             "social media scheduling"],
              weakPhrases: ["workflow", "pipeline", "scheduler"]),
 
         Rule(category: "Security",
@@ -238,7 +273,8 @@ enum CategoryClassifier {
                             "hotkey", "uninstaller"],
              weakTopics: ["utility", "files"],
              strongPhrases: ["download manager", "file manager", "clipboard manager",
-                             "window management", "app launcher", "download accelerator"],
+                             "window management", "app launcher", "download accelerator",
+                             "file management"],
              weakPhrases: ["clipboard", "keyboard", "input source", "file transfer", "launcher"]),
 
         Rule(category: "Editor",
@@ -247,6 +283,26 @@ enum CategoryClassifier {
              weakTopics: [],
              strongPhrases: ["text editor", "code editor", "markdown editor", "rich text editor"],
              weakPhrases: ["editor", "ide"]),
+
+        // Last in tie-break order on purpose: web libraries often carry broad
+        // topics (ui, javascript) that shouldn't outrank the categories above.
+        // Framework names are weak: apps are routinely topic-tagged with their
+        // stack ("react", "nextjs") without BEING frontend libraries.
+        Rule(category: "Frontend",
+             strongTopics: ["frontend", "component-library", "ui-components",
+                            "web-components"],
+             weakTopics: ["react", "reactjs", "vuejs", "nextjs", "javascript",
+                          "typescript", "web"],
+             strongPhrases: ["frontend", "component library", "ui library",
+                             "animation library", "react component"],
+             weakPhrases: ["react", "web app"]),
+
+        Rule(category: "Games",
+             strongTopics: ["game-engine", "game-development", "gamedev", "game", "games",
+                            "godot", "unity"],
+             weakTopics: [],
+             strongPhrases: ["game engine", "game development", "2d and 3d game"],
+             weakPhrases: ["game"]),
     ]
 
     /// Highest-scoring category across all rules, or nil when nothing clears the

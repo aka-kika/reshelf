@@ -5,6 +5,20 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+- **Frontend and Games categories** — motion-style web libraries and game engines
+  (godot) finally have shelves, in the sidebar and the classifier.
+
+### Changed
+- **Auto-categorization got smarter and safer.** New signals: terminal emulators
+  → CLI, journaling → Knowledge, task trackers / Trello alternatives / office
+  suites → Workspace, speech-to-text → AI / Agent, CSS frameworks & styling
+  systems → Design, social-media scheduling → Automation, file management →
+  Utility; plus fewer stack-tag misfires (a Postgres-backed app is no longer
+  "Database", a React-built app is no longer "Frontend"). And the important one:
+  **the classifier never overwrites an existing category** — your manual sorting
+  is untouchable; upgrades only fill uncategorized rows (backup taken first).
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
