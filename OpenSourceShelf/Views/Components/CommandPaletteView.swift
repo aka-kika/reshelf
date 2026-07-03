@@ -12,7 +12,7 @@ struct CommandPaletteView: View {
     @State private var query: String = ""
     @FocusState private var isSearchFocused: Bool
 
-    @State private var escapeMonitor: Any?
+    @State private var dismissMonitors: [Any] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,19 +24,31 @@ struct CommandPaletteView: View {
         .onAppear {
             query = ""
             isSearchFocused = true
-            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                if event.keyCode == 53 {
-                    isPresented = false
-                    return nil
+            dismissMonitors = [
+                NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                    if event.keyCode == 53 {
+                        isPresented = false
+                        return nil
+                    }
+                    return event
+                },
+                // Menu-style dismissal: a click anywhere outside the palette's
+                // sheet window closes it (the main window is blocked by sheet
+                // modality anyway, so the click is swallowed, not re-targeted).
+                NSEvent.addLocalMonitorForEvents(
+                    matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+                ) { event in
+                    if event.window?.isSheet != true {
+                        isPresented = false
+                        return nil
+                    }
+                    return event
                 }
-                return event
-            }
+            ].compactMap { $0 }
         }
         .onDisappear {
-            if let monitor = escapeMonitor {
-                NSEvent.removeMonitor(monitor)
-                escapeMonitor = nil
-            }
+            dismissMonitors.forEach(NSEvent.removeMonitor)
+            dismissMonitors = []
         }
     }
 
