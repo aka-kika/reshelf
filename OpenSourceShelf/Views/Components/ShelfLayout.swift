@@ -56,6 +56,7 @@ struct HeaderChromeButton: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .help(help)
+        .titlebarClickable(action: action)
     }
 }
 

@@ -30,6 +30,10 @@ struct EcosystemDiscoveryView: View {
                     .buttonStyle(.borderless)
                     .help("Refresh \(title.lowercased())")
                     .disabled(isRefreshing)
+                    .titlebarClickable {
+                        guard !isRefreshing else { return }
+                        refresh()
+                    }
                 }
             }
 

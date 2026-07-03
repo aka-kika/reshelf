@@ -5,6 +5,12 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.1.0] — 2026-07-03
+
 ### Added
 - **Remove Local Clone** — right-click a cloned repo → *Remove Local Clone…* moves
   the cloned folder to the Trash (recoverable, with a confirm dialog) and tidies an
@@ -38,6 +44,13 @@ All notable changes to **reshelf** are documented here. This project follows
 - **Sidebar brand header** — just the owl + "reshelf", no "repo shelf" subtitle.
 
 ### Fixed
+- **Header buttons finally click** — the merged title-bar/header row looked right
+  but its controls (sidebar toggle, sort, search, inspector toggle) ignored real
+  mouse clicks: the system title-bar layer claimed them as window drags before
+  they could reach the buttons (keyboard shortcuts always worked). An invisible
+  click-router now lives in the title-bar layer itself — transparent catchers
+  over each control fire the button's own action (menus open natively), empty
+  header space still drags the window, and the design didn't move a pixel.
 - **Header dividers align again** — on macOS 26+ ("Liquid Glass") the system
   re-imposed a top inset per split column, pushing the list/detail headers below
   the title bar and breaking the one-line divider. All three columns now lay out
@@ -55,10 +68,6 @@ All notable changes to **reshelf** are documented here. This project follows
 - Clicking felt slow — the clone lookup is now a cached index (O(1)), not a
   filesystem walk per row.
 - The "updates available" row dot now clears immediately after a pull.
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.0] — 2026-06-03 (v1: the Catalog)
 

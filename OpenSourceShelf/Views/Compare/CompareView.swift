@@ -251,6 +251,7 @@ struct CompareView: View {
                         }
                         .buttonStyle(.borderless)
                         .help("Favorite this comparison")
+                        .titlebarClickable { model.toggleCurrentSessionFavorite() }
 
                         Menu {
                             Button("Copy Summary") { model.copySummary() }
@@ -267,6 +268,7 @@ struct CompareView: View {
                         }
                         .menuStyle(.borderlessButton)
                         .help("Export comparison")
+                        .titlebarClickable()
                     }
 
                     if model.isLoading {
@@ -279,6 +281,11 @@ struct CompareView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(model.selectedRepositoryIDs.count < RepositoryCompareService.minRepositories)
                         .controlSize(.small)
+                        .titlebarClickable {
+                            guard model.selectedRepositoryIDs.count >= RepositoryCompareService.minRepositories else { return }
+                            editingSelection = false
+                            Task { await model.runComparison() }
+                        }
                     } else {
                         Button {
                             editingSelection = true
@@ -287,6 +294,7 @@ struct CompareView: View {
                         }
                         .controlSize(.small)
                         .help("Change the repositories being compared")
+                        .titlebarClickable { editingSelection = true }
                     }
                 }
             }

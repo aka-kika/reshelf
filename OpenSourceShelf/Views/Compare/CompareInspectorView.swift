@@ -16,6 +16,7 @@ struct CompareInspectorView: View {
                     if result != nil {
                         Button("Copy Summary", action: { onCopySummary?() })
                             .controlSize(.small)
+                            .titlebarClickable { onCopySummary?() }
                     }
                 }
             }
