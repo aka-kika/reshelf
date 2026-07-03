@@ -5,6 +5,12 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.2.1] — 2026-07-03
+
 ### Added
 - **Frontend and Games categories** — motion-style web libraries and game engines
   (godot) finally have shelves, in the sidebar and the classifier.
@@ -18,10 +24,6 @@ All notable changes to **reshelf** are documented here. This project follows
   "Database", a React-built app is no longer "Frontend"). And the important one:
   **the classifier never overwrites an existing category** — your manual sorting
   is untouchable; upgrades only fill uncategorized rows (backup taken first).
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.2.0] — 2026-07-03
 
