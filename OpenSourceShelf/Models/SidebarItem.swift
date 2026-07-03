@@ -28,6 +28,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case designTools = "designTools"
     case securityTools = "securityTools"
     case utilityTools = "utilityTools"
+    case frontendTools = "frontendTools"
+    case gamesTools = "gamesTools"
     case localFirst = "localFirst"
 
     // Intelligence (v2 — Labs) destinations
@@ -68,6 +70,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .designTools: "Design"
         case .securityTools: "Security"
         case .utilityTools: "Utility"
+        case .frontendTools: "Frontend"
+        case .gamesTools: "Games"
         case .localFirst: "Local-First"
         case .queue: "Queue"
         case .compare: "Compare"
@@ -104,6 +108,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .designTools: "paintbrush"
         case .securityTools: "lock.shield"
         case .utilityTools: "wrench.and.screwdriver"
+        case .frontendTools: "globe"
+        case .gamesTools: "gamecontroller"
         case .localFirst: "house"
         case .queue: "tray.full"
         case .compare: "arrow.left.arrow.right"
@@ -122,7 +128,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
              .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
              .workspaceTools, .knowledgeTools, .macOSTools, .cliTools,
              .editorTools, .devopsTools, .automationTools, .mediaTools,
-             .designTools, .securityTools, .utilityTools, .localFirst:
+             .designTools, .securityTools, .utilityTools, .frontendTools,
+             .gamesTools, .localFirst:
             return .categories
         case .queue, .compare, .ecosystems, .workflows, .myStack:
             return .library
@@ -137,7 +144,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
         .workspaceTools, .knowledgeTools, .macOSTools, .cliTools, .editorTools,
         .devopsTools, .automationTools, .mediaTools, .designTools,
-        .securityTools, .utilityTools, .localFirst,
+        .securityTools, .utilityTools, .frontendTools, .gamesTools, .localFirst,
     ]
 
     /// Items shown in the sidebar list (catalog filters only).
@@ -206,6 +213,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return project.category.localizedStandardContains("Security")
         case .utilityTools:
             return project.category.localizedStandardContains("Utility")
+        case .frontendTools:
+            return project.category.localizedStandardContains("Frontend")
+        case .gamesTools:
+            return project.category.localizedStandardContains("Games")
         case .localFirst:
             return project.isLocalFirst
         }
@@ -238,6 +249,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .designTools: return #Predicate { $0.category.localizedStandardContains("Design") }
         case .securityTools: return #Predicate { $0.category.localizedStandardContains("Security") }
         case .utilityTools: return #Predicate { $0.category.localizedStandardContains("Utility") }
+        case .frontendTools: return #Predicate { $0.category.localizedStandardContains("Frontend") }
+        case .gamesTools: return #Predicate { $0.category.localizedStandardContains("Games") }
         case .localFirst: return #Predicate { $0.isLocalFirst == true }
         case .queue, .compare, .ecosystems, .workflows, .myStack, .settings: return nil
         }
