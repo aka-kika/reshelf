@@ -112,7 +112,7 @@ you've curated. In effect, your cloned shelf doubles as a **source-as-context**
 reference: when a coding agent is unsure of a library's API, it can search the *real*
 cloned source instead of guessing from stale docs.
 
-We ship two **Claude Code skills** in [`extras/`](extras) — two lenses on the same shelf:
+We ship three **Claude Code skills** in [`extras/`](extras) — three lenses on the same shelf:
 
 - [`reshelf-skill/`](extras/reshelf-skill) — the **source**: maps your *cloned* repos by
   category, reads their source/READMEs, recommends the best fit for a goal, and suggests
@@ -122,6 +122,10 @@ We ship two **Claude Code skills** in [`extras/`](extras) — two lenses on the 
   *whole* catalog (the live store + JSON backups), including repos you shelved but never
   cloned, and highlights the not-cloned gap — so a top-shelf pick you forgot to clone
   never gets lost. ([README](extras/reshelf-catalog-skill/README.md))
+- [`reshelf-collector-skill/`](extras/reshelf-collector-skill) — the **rest**: resurfaces
+  The Collector's forgotten middle (Yard Sale excluded) with clone status and shelf age,
+  leading with the longest-shelved picks you never cloned — and suggests what to
+  promote, clone, or let go. ([README](extras/reshelf-collector-skill/README.md))
 
 **Built something that talks to reshelf?** A skill, script, or integration — feeding a
 category's clones to a coding agent, generating a "what to learn next" digest, syncing

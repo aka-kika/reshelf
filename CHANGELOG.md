@@ -5,6 +5,12 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.2.0] — 2026-07-03
+
 ### Added
 - **Third Claude Code skill: `reshelf-collector`**
   ([`extras/reshelf-collector-skill/`](extras/reshelf-collector-skill)) — completes
@@ -22,10 +28,6 @@ All notable changes to **reshelf** are documented here. This project follows
   Paste → Enter → Enter unchanged.
 - The ⌘K command palette closes on a click anywhere outside it (not just Escape).
 - Quick Capture header dropped the bolt icon.
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.1.0] — 2026-07-03
 
