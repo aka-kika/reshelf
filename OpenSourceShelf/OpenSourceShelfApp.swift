@@ -76,8 +76,34 @@ private enum CatalogStoreLocation {
     }
 }
 
+/// SwiftUI's `CommandGroup(replacing: .textFormatting) {}` empties the Format
+/// menu but leaves the empty menu itself in the menu bar. Prune it at the AppKit
+/// level — and keep pruning, because SwiftUI rebuilds the main menu whenever the
+/// `commands` re-evaluate (e.g. toggling Labs).
+final class FormatMenuPruner: NSObject, NSApplicationDelegate {
+    private var observer: NSObjectProtocol?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.prune()
+        observer = NotificationCenter.default.addObserver(
+            forName: NSApplication.didUpdateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Self.prune()
+        }
+    }
+
+    private static func prune() {
+        guard let menu = NSApp.mainMenu,
+              let format = menu.items.first(where: { $0.title == "Format" }) else { return }
+        menu.removeItem(format)
+    }
+}
+
 @main
 struct OpenSourceShelfApp: App {
+    @NSApplicationDelegateAdaptor(FormatMenuPruner.self) private var formatMenuPruner
     let container: ModelContainer
     @StateObject private var appRefreshStore = AppRefreshStore()
     @StateObject private var catalogStateStore = CatalogIntelligenceStateStore()
@@ -268,21 +294,19 @@ struct OpenSourceShelfApp: App {
                     NotificationCenter.default.post(name: .catalogFetchAllIntelligence, object: nil)
                 }
 
-                if labsFeaturesEnabled {
-                    Divider()
+                Divider()
 
-                    Button("Select Projects to Compare") {
-                        NotificationCenter.default.post(name: .toggleCatalogCompareMode, object: nil)
-                    }
+                Button("Select Projects to Compare") {
+                    NotificationCenter.default.post(name: .toggleCatalogCompareMode, object: nil)
+                }
 
-                    Button("Compare Checked Projects") {
-                        NotificationCenter.default.post(name: .catalogCompareSelected, object: nil)
-                    }
-                    .keyboardShortcut("c", modifiers: [.command, .option])
+                Button("Compare Checked Projects") {
+                    NotificationCenter.default.post(name: .catalogCompareSelected, object: nil)
+                }
+                .keyboardShortcut("c", modifiers: [.command, .option])
 
-                    Button("Cancel Compare Selection") {
-                        NotificationCenter.default.post(name: .catalogCancelCompareMode, object: nil)
-                    }
+                Button("Cancel Compare Selection") {
+                    NotificationCenter.default.post(name: .catalogCancelCompareMode, object: nil)
                 }
             }
 
@@ -310,12 +334,10 @@ struct OpenSourceShelfApp: App {
                     AppQuickActionCenter.post(.showStaleRunbooks)
                 }
 
-                if labsFeaturesEnabled {
-                    Divider()
+                Divider()
 
-                    Button("Compare Current Project") {
-                        AppQuickActionCenter.post(.compareSelected)
-                    }
+                Button("Compare Current Project") {
+                    AppQuickActionCenter.post(.compareSelected)
                 }
 
                 Divider()

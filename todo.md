@@ -2,6 +2,22 @@
 
 Near-term work for **reshelf**. Check off as you go. Agents: do not recreate this list elsewhere — update here only.
 
+## To do (added 2026-06-13)
+
+- [ ] 🐞 **Fix the header toolbar icons (title-bar click bug)** — the sidebar-toggle, sort, search, and inspector icons in the column header don't respond to real mouse/trackpad clicks. The header is laid out flush in the macOS title-bar band (`titlebarAppearsTransparent` + `.fullSizeContentView` + `.ignoresSafeArea(.top)`), so the system `NSTitlebarView` sits in front and eats the clicks (turns them into window-drags). ⌘K works, so only click *delivery* is broken. **Note:** automated/accessibility clicks false-pass — test with a real click. Fix direction = render the header inside an `NSTitlebarAccessoryViewController` instead of fighting the title bar. Full diagnosis + dead ends captured in `../reshelf-claude/CLAUDE.md`. Keep the look (change only as much as needed to make it work).
+- [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
+- [ ] ⏳ *[later]* **Extend the reshelf skill beyond cloned repos** — a skill like the current one, but running across the whole **Collection** and **Top Shelf**, not just cloned repos. The current cloned-repo skill works great; this is an expansion for later.
+- [x] **Remove the empty "Format" menu** from the top macOS menu bar — done in 1.3.0: pruned at the AppKit level (`FormatMenuPruner`), survives menu-bar rebuilds.
+- [ ] 💡 *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits/changelog using plain git (no AI, like today) so you can see what changed. Not a must, but would be nice.
+
+## Done in 1.3.0 (2026-07-17)
+
+- [x] **Capture Assist** — on-device Apple Intelligence fills use cases / note / tags; auto-generate after every save (default on) + **Fill Missing Entries** backfill in Settings; strictly fill-only. Un-parked commit 489841a and built on it with guided generation into the capture form.
+- [x] **Inspector duplicate GitHub stats removed** — Metadata on top is the single source; GitHub section only shows unique topics/description; settings row renamed "GitHub Topics".
+- [x] **About tab in Settings** — icon, version, tagline, links (akakika.com / GitHub / X).
+- [x] **Install reshelf skill from Settings** — bundled in the app, copies to `~/.claude/skills/reshelf`.
+- [x] **Menu audit** — all 19 menu actions verified wired; empty Format menu removed.
+
 ## Next up (v2) — after v1 testing
 
 - [ ] ⭐️ **GitHub login inside the app** (FIRST v2 item) — in-app "Connect GitHub" flow: OAuth device flow (primary) + fine-grained PAT (fallback), token in **Keychain**, read-only. Full spec in [v2.0-roadmap.md](v2.0-roadmap.md).

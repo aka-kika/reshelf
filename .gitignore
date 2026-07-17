@@ -24,3 +24,6 @@ xcuserdata/
 .LSOverride
 
 # SPM checkouts inside DerivedData are already under .build/
+
+# AFM harness binary
+extras/afm-harness/afm-analyze

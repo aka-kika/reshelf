@@ -41,6 +41,24 @@ enum AIAnalysisPromptBuilder {
         """
     }
 
+    /// Prompt for guided generation (Apple FoundationModels): the output schema is
+    /// enforced by @Generable, so only scoring rules and evidence are needed.
+    static func buildGuidedPrompt(evidence: AIAnalysisEvidence) -> String {
+        """
+        Analyze this open source repository using only the evidence below.
+
+        Scoring rules:
+        - Scores are integers from 0 to 10.
+        - setupComplexity: 0 is trivial, 10 is difficult.
+        - localFirstScore: higher means more local/self-hosted/offline-friendly.
+        - experimentationPriority: higher means worth trying soon.
+        - personalRelevance: higher means useful for local AI, macOS tooling, agent workflows, developer productivity, or private local-first work.
+
+        Evidence:
+        \(evidenceBlock(evidence))
+        """
+    }
+
     private static func evidenceBlock(_ evidence: AIAnalysisEvidence) -> String {
         let repository = evidence.repository
         let metadata = evidence.metadata

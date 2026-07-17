@@ -11,6 +11,7 @@ enum AISettingsSnapshot {
     static let geminiModelKey = "reshelf.geminiSelectedModel"
     static let githubCopilotEnabledKey = "reshelf.githubCopilotEnabled"
     static let githubCopilotModelKey = "reshelf.githubCopilotSelectedModel"
+    static let appleIntelligenceEnabledKey = "reshelf.appleIntelligenceEnabled"
 
     static func sync(from settings: AppSettings) {
         let defaults = UserDefaults.standard
@@ -26,6 +27,7 @@ enum AISettingsSnapshot {
         defaults.set(settings.geminiSelectedModel, forKey: geminiModelKey)
         defaults.set(settings.githubCopilotEnabled, forKey: githubCopilotEnabledKey)
         defaults.set(settings.githubCopilotSelectedModel, forKey: githubCopilotModelKey)
+        defaults.set(settings.appleIntelligenceEnabled, forKey: appleIntelligenceEnabledKey)
     }
 
     static func preferredProvider() -> AIProviderKind {
@@ -40,7 +42,7 @@ enum AISettingsSnapshot {
             return defaults.bool(forKey: "reshelf.ollamaEnabled")
                 && !(defaults.string(forKey: "reshelf.ollamaSelectedModel") ?? "").isEmpty
         case .appleIntelligence:
-            return false
+            return defaults.bool(forKey: appleIntelligenceEnabledKey)
         case .openAI:
             return defaults.bool(forKey: openAIEnabledKey)
         case .anthropic:
@@ -58,7 +60,7 @@ enum AISettingsSnapshot {
         case .ollama:
             return defaults.string(forKey: "reshelf.ollamaSelectedModel") ?? ""
         case .appleIntelligence:
-            return ""
+            return AppleIntelligenceService.modelIdentifier
         case .openAI:
             return defaults.string(forKey: openAIModelKey) ?? AIProviderKind.openAI.defaultModel
         case .anthropic:
@@ -75,7 +77,7 @@ enum AISettingsSnapshot {
         case .ollama:
             return isEnabled(.ollama) && !(UserDefaults.standard.string(forKey: "reshelf.ollamaBaseURL") ?? "").isEmpty
         case .appleIntelligence:
-            return false
+            return isEnabled(.appleIntelligence) && AppleIntelligenceService.availability.isAvailable
         case .openAI, .anthropic, .gemini, .githubCopilot:
             return isEnabled(provider)
                 && !model(for: provider).isEmpty

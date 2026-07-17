@@ -20,7 +20,9 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         case .tags: "Tags"
         case .notes: "Notes"
         case .personalFit: "Personal Fit"
-        case .github: "GitHub Metadata"
+        // Stars/license live in the fixed Metadata section; this toggles the
+        // extras GitHub adds on top (topics, richer description).
+        case .github: "GitHub Topics"
         case .stack: "Stack"
         case .relationships: "Relationships"
         case .recommendations: "Recommendations"

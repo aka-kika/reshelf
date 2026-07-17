@@ -8,6 +8,8 @@ struct QuickCaptureSheet: View {
 
     @Environment(\.modelContext) private var modelContext
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
+    @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
+    @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @Query private var existingProjects: [ToolProject]
 
     @State private var urlText: String = ""
@@ -17,6 +19,10 @@ struct QuickCaptureSheet: View {
     @State private var isGeneratingAI: Bool = false
     @State private var aiSuggestion: String = ""
     @State private var hasGeneratedAISuggestion: Bool = false
+    /// Last values the on-device model wrote, so Re-generate can safely
+    /// overwrite its own fills without touching user edits.
+    @State private var lastAIUseCases: String = ""
+    @State private var lastAINote: String = ""
     /// Ollama reachability, only meaningful when the resolved provider is Ollama.
     /// nil = not checked / not applicable, true/false = last ping result.
     @State private var ollamaReachable: Bool? = nil
@@ -279,9 +285,12 @@ struct QuickCaptureSheet: View {
 
     private var detailFields: some View {
             VStack(alignment: .leading, spacing: 14) {
-                // AI suggestions are a v2 (Labs) capability — hidden in
-                // the catalog-only default so capture stays zero-setup.
-                if labsFeaturesEnabled {
+                // AI suggestions stay zero-setup: in the catalog-only default they
+                // appear only when Capture Assist is on and on-device Apple
+                // Intelligence is available (no keys, no config). Labs mode adds
+                // the configurable providers.
+                if labsFeaturesEnabled
+                    || (captureAssistEnabled && AppleIntelligenceService.availability.isAvailable) {
                     aiSuggestionsSection
                 }
                 field("Name") { TextField("", text: $name) }
@@ -373,6 +382,10 @@ struct QuickCaptureSheet: View {
                 Label(unavailable, systemImage: "exclamationmark.triangle")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+            } else if effectiveAIProvider == .appleIntelligence {
+                Text("Fills use cases, a note, and tags on-device with Apple Intelligence. Nothing leaves this Mac.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
             } else {
                 Text("Use AI for notes, use cases, and quick flag hints.")
                     .font(.system(size: 11))
@@ -446,6 +459,8 @@ struct QuickCaptureSheet: View {
     private func populateFields(from info: GitHubRepoInfo, url: String) {
         aiSuggestion = ""
         hasGeneratedAISuggestion = false
+        lastAIUseCases = ""
+        lastAINote = ""
         name = info.fullName?.components(separatedBy: "/").last ?? name
         shortDescription = info.description ?? ""
         longDescription = info.description ?? ""
@@ -480,34 +495,44 @@ struct QuickCaptureSheet: View {
     /// Whether "Generate with AI" can run with the user's current provider config.
     private var aiAvailable: Bool { aiUnavailableReason == nil }
 
-    /// User-facing reason the AI step is disabled, or `nil` when it's ready.
-    /// Provider-aware: covers "nothing configured", a not-yet-wired provider, and
-    /// (for Ollama) an unreachable local server.
-    private var aiUnavailableReason: String? {
-        let settings = AppSettings.current(in: modelContext)
-        guard !settings.configuredAIProviders.isEmpty else {
-            return "No AI provider is set up. Enable one in Settings → AI Providers."
+    /// The provider a "Generate" click will actually use. Catalog-only mode always
+    /// runs on-device Apple Intelligence; Labs mode uses the configured pick and
+    /// falls back to on-device when nothing is configured.
+    private var effectiveAIProvider: AIProviderKind {
+        if labsFeaturesEnabled {
+            let settings = AppSettings.current(in: modelContext)
+            if !settings.configuredAIProviders.isEmpty {
+                return AICompletionService.resolvedProvider(settings: settings)
+            }
         }
-        let provider = AICompletionService.resolvedProvider(settings: settings)
-        switch provider {
+        return .appleIntelligence
+    }
+
+    /// User-facing reason the AI step is disabled, or `nil` when it's ready.
+    /// Provider-aware: covers Apple Intelligence availability and (for Ollama)
+    /// an unreachable local server.
+    private var aiUnavailableReason: String? {
+        switch effectiveAIProvider {
+        case .appleIntelligence:
+            let status = AppleIntelligenceService.availability
+            return status.isAvailable ? nil : status.label
         case .ollama:
+            let settings = AppSettings.current(in: modelContext)
             if ollamaReachable == false {
                 return "Ollama isn't running at \(settings.ollamaBaseURL). Start it, or pick another provider in Settings."
             }
             return nil
-        case .appleIntelligence:
-            return "Apple Intelligence isn't wired to suggestions yet. Pick Ollama or a cloud provider in Settings."
         case .openAI, .anthropic, .gemini, .githubCopilot:
             return nil
         }
     }
 
     /// Pre-flights the active provider so the AI button reflects offline state
-    /// before the user clicks. Only Ollama needs a reachability ping; cloud
-    /// providers surface errors on use.
+    /// before the user clicks. Only Ollama needs a reachability ping; Apple
+    /// Intelligence and cloud providers surface errors on use.
     private func checkAIReachability() {
         let settings = AppSettings.current(in: modelContext)
-        guard AICompletionService.resolvedProvider(settings: settings) == .ollama,
+        guard effectiveAIProvider == .ollama,
               settings.isConfigured(.ollama) else {
             ollamaReachable = nil
             return
@@ -526,6 +551,11 @@ struct QuickCaptureSheet: View {
     private func generateAI() {
         guard !name.isEmpty, aiAvailable else { return }
         isGeneratingAI = true
+
+        if effectiveAIProvider == .appleIntelligence {
+            generateWithAppleIntelligence()
+            return
+        }
 
         let settings = AppSettings.current(in: modelContext)
         let prompt = buildAIPrompt()
@@ -547,6 +577,63 @@ struct QuickCaptureSheet: View {
                 isGeneratingAI = false
             }
         }
+    }
+
+    /// On-device path: guided generation fills the capture fields directly —
+    /// use cases, note, tags, and quick flags — instead of a text blob.
+    private func generateWithAppleIntelligence() {
+        let prompt = """
+        Project: \(name)
+        Description: \(shortDescription)
+        Long description: \(longDescription)
+        Category: \(category)
+        GitHub stars: \(stars)
+        License: \(license)
+        Existing tags: \(tagsText)
+        """
+        Task {
+            do {
+                let suggestion = try await AppleIntelligenceService.suggestCapture(prompt: prompt)
+                await MainActor.run {
+                    applyCaptureSuggestion(suggestion)
+                    isGeneratingAI = false
+                }
+            } catch {
+                await MainActor.run {
+                    aiSuggestion = "⚠️ Apple Intelligence: \(error.localizedDescription)"
+                    isGeneratingAI = false
+                }
+            }
+        }
+    }
+
+    /// Fills empty fields (or re-fills ones still holding the previous AI values,
+    /// so Re-generate works) without clobbering anything the user typed.
+    private func applyCaptureSuggestion(_ suggestion: AppleIntelligenceService.CaptureSuggestion) {
+        let currentUseCases = useCasesText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if currentUseCases.isEmpty || currentUseCases == lastAIUseCases {
+            useCasesText = suggestion.useCases.joined(separator: "\n")
+            lastAIUseCases = useCasesText
+        }
+        let currentNotes = notes.trimmingCharacters(in: .whitespaces)
+        if currentNotes.isEmpty || currentNotes == lastAINote {
+            notes = suggestion.note.trimmingCharacters(in: .whitespaces)
+            lastAINote = notes
+        }
+        let existingTags = Set(tagsText.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        let newTags = suggestion.tags
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !existingTags.contains($0.lowercased()) }
+        if !newTags.isEmpty {
+            let base = tagsText.trimmingCharacters(in: .whitespaces)
+            tagsText = base.isEmpty ? newTags.joined(separator: ", ")
+                                    : base + ", " + newTags.joined(separator: ", ")
+        }
+        if suggestion.isLocalFirst { isLocalFirst = true }
+        if suggestion.isSelfHosted { isSelfHosted = true }
+        hasGeneratedAISuggestion = true
+        aiSuggestion = "Filled use cases, note, and tags on-device. Edit anything before saving."
     }
 
     private func buildAIPrompt() -> String {
@@ -612,6 +699,12 @@ struct QuickCaptureSheet: View {
         try? modelContext.save()
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)
         IconFetcher.fetch(for: project, in: modelContext)
+        // Hands-free capture assist: fill use cases/note/tags in the background
+        // after the sheet closes, so saving stays instant.
+        if captureAssistEnabled, captureAutoGenerate, project.useCases.isEmpty {
+            let context = modelContext
+            Task { await CaptureAssistService.fillIfNeeded(project, context: context) }
+        }
         onSave(project)
         isPresented = false
     }

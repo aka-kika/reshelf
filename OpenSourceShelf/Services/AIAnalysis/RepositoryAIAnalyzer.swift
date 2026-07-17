@@ -46,9 +46,13 @@ enum RepositoryAIAnalyzer {
                         jobID: String? = nil) async throws -> RepositoryAIAnalysisResult {
         try database.initialize()
 
+        let usesAppleIntelligence = AISettingsSnapshot.resolvedProvider() == .appleIntelligence
+            && AppleIntelligenceService.availability.isAvailable
+        let effectiveModelName = usesAppleIntelligence ? AppleIntelligenceService.modelIdentifier : modelName
+
         let cacheKey = AIAnalysisCache.cacheKey(repositoryID: repository.id,
                                                 commitSHA: repository.latestCommitSHA,
-                                                modelName: modelName,
+                                                modelName: effectiveModelName,
                                                 promptVersion: promptVersion)
         if let cachedInsight = try database.fetchAIInsight(cacheKey: cacheKey),
            let cachedScore = try database.fetchRepositoryScore(cacheKey: cacheKey) {
@@ -88,22 +92,29 @@ enum RepositoryAIAnalyzer {
             let evidence = try collectEvidence(repository: repository,
                                                database: database,
                                                fileManager: fileManager)
-            let prompt = AIAnalysisPromptBuilder.buildPrompt(evidence: evidence)
 
             job.progress = 0.35
             try database.upsert(ingestionJob: job)
             try throwIfCancelled(jobID: job.id, database: database)
 
-            let rawJSON = try await OllamaService.generateJSONCompletion(baseURL: baseURL,
+            let payload: RepositoryAIAnalysisPayload
+            let rawJSON: String
+            if usesAppleIntelligence {
+                payload = try await analyzeWithAppleIntelligence(evidence: evidence)
+                rawJSON = encodePayloadJSON(payload)
+            } else {
+                let prompt = AIAnalysisPromptBuilder.buildPrompt(evidence: evidence)
+                rawJSON = try await OllamaService.generateJSONCompletion(baseURL: baseURL,
                                                                          model: modelName,
                                                                          prompt: prompt,
                                                                          timeout: 45,
                                                                          retries: 1)
+                payload = try parsePayload(from: rawJSON)
+            }
+
             job.progress = 0.75
             try database.upsert(ingestionJob: job)
             try throwIfCancelled(jobID: job.id, database: database)
-
-            let payload = try parsePayload(from: rawJSON)
             let completedAt = IntelligenceDatabase.iso8601String()
             let normalized = normalize(payload)
             let classificationsJSON = try encodeStringArray(normalized.classifications)
@@ -115,7 +126,7 @@ enum RepositoryAIAnalyzer {
             let insight = AIInsightRecord(id: UUID().uuidString,
                                           repositoryID: repository.id,
                                           cacheKey: cacheKey,
-                                          modelName: modelName,
+                                          modelName: effectiveModelName,
                                           promptVersion: promptVersion,
                                           commitSHA: repository.latestCommitSHA,
                                           summary: normalized.summary,
@@ -196,6 +207,29 @@ enum RepositoryAIAnalyzer {
             return String(text.prefix(5_000))
         }
         return nil
+    }
+
+    /// Guided generation via the on-device model; retries once with trimmed evidence
+    /// if the prompt exceeds the model's context window.
+    private static func analyzeWithAppleIntelligence(evidence: AIAnalysisEvidence) async throws -> RepositoryAIAnalysisPayload {
+        do {
+            let prompt = AIAnalysisPromptBuilder.buildGuidedPrompt(evidence: evidence)
+            return try await AppleIntelligenceService.analyzeRepository(prompt: prompt)
+        } catch AppleIntelligenceService.GenerationFailure.contextWindowExceeded {
+            var compact = evidence
+            compact.readmeExcerpt = evidence.readmeExcerpt.map { String($0.prefix(1_500)) }
+            compact.stackItems = Array(evidence.stackItems.prefix(12))
+            compact.manifests = Array(evidence.manifests.prefix(8))
+            let prompt = AIAnalysisPromptBuilder.buildGuidedPrompt(evidence: compact)
+            return try await AppleIntelligenceService.analyzeRepository(prompt: prompt)
+        }
+    }
+
+    private static func encodePayloadJSON(_ payload: RepositoryAIAnalysisPayload) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(payload) else { return "{}" }
+        return String(data: data, encoding: .utf8) ?? "{}"
     }
 
     private static func parsePayload(from rawOutput: String) throws -> RepositoryAIAnalysisPayload {

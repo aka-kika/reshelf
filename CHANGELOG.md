@@ -9,6 +9,42 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.3.0] — 2026-07-17
+
+### Added
+- **Capture Assist — the one AI feature in the main app, fully on-device.**
+  Quick Capture can now fill **use cases, a note, and tags** using **Apple
+  Intelligence** (FoundationModels guided generation). Zero setup, no API keys,
+  nothing leaves your Mac. Controlled from **Settings → General → Capture Assist**:
+  - **Auto-generate on every capture** (on by default) — runs in the background
+    right after you save, so capture stays paste → Enter → Enter; results appear
+    on the entry a couple of seconds later.
+  - **Fill Missing Entries** — backfills use cases for already-shelved entries
+    that have none. Strictly fill-only: entries with use cases are skipped, and
+    fields you typed are never overwritten.
+  - A manual **Generate** step stays in Quick Capture's More Details for
+    pre-save control. Requires a Mac with Apple Intelligence (macOS 26+);
+    the app runs fine without it — the section simply doesn't appear.
+- **About tab in Settings** — app icon, version, tagline, and links
+  (akakika.com, GitHub, X).
+- **Install the reshelf skill from Settings** — Settings → General → Agent Skill
+  copies the bundled `reshelf` Claude Code skill to `~/.claude/skills/reshelf`
+  (a previous install goes to the Trash first, never deleted).
+- **Apple Intelligence is a real AI provider** — the Labs provider stub is now
+  wired to on-device FoundationModels for suggestions and repo analysis
+  (guided generation, no JSON-parsing failure mode).
+
+### Changed
+- **Inspector de-duplicated** — stars/language/license no longer repeat in the
+  GitHub section; the Metadata section on top is the single source. The GitHub
+  section now only appears when it has something the catalog entry doesn't
+  (fresh topics, a distinct description), and its row in Inspector settings is
+  renamed **GitHub Topics**.
+
+### Fixed
+- **Empty Format menu removed** from the menu bar (pruned at the AppKit level,
+  and it stays gone when the menu bar rebuilds).
+
 ## [1.2.1] — 2026-07-03
 
 ### Added

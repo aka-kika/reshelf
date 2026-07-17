@@ -408,6 +408,13 @@
 			path = "OpenSourceShelf/Resources/ReshelfBrand.png";
 			sourceTree = SOURCE_ROOT;
 		};
+		SK1LF001234567890ABCDE01 /* reshelf-skill */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = folder;
+			name = "reshelf-skill";
+			path = "extras/reshelf-skill";
+			sourceTree = SOURCE_ROOT;
+		};
 		12114FB947EC0105FC94A269 /* QuickCaptureSheet.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -595,6 +602,13 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "AISettingsSnapshot.swift";
 			path = "OpenSourceShelf/Services/AI/AISettingsSnapshot.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "AppleIntelligenceService.swift";
+			path = "OpenSourceShelf/Services/AI/AppleIntelligenceService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		AIP6REF01234567890ABCDEF06 /* CloudAIProviderSettingsCard.swift */ = {
@@ -1029,6 +1043,7 @@
 				R9S2F001234567890ABCDEF05 /* ReshelfBrandImage.swift */,
 				R9R2F001234567890ABCDEF09 /* AppIcon.icns */,
 				R9R1F001234567890ABCDEF07 /* ReshelfBrand.png */,
+				SK1LF001234567890ABCDE01 /* reshelf-skill */,
 				35785C47030D8FBABA88AF9A /* CompareInspectorView.swift */,
 				D823DE0B56FBBE9EA46D8CB4 /* CompareMatrixView.swift */,
 				13E0CC7C9B7B221A827AD99F /* ComparePickerView.swift */,
@@ -1040,6 +1055,7 @@
 				AIP3REF01234567890ABCDEF03 /* CloudAICompletionService.swift */,
 				AIP4REF01234567890ABCDEF04 /* AICompletionService.swift */,
 				AIP5REF01234567890ABCDEF05 /* AISettingsSnapshot.swift */,
+				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
 				CE05F1A2B3C4D5E6F7080005 /* CatalogBackupService.swift */,
@@ -1340,6 +1356,10 @@
 			isa = PBXBuildFile;
 			fileRef = R9R1F001234567890ABCDEF07;
 		};
+		SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = SK1LF001234567890ABCDE01;
+		};
 		5E1C4978C31F9EFDF48EDF16 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 12114FB947EC0105FC94A269;
@@ -1431,6 +1451,10 @@
 		AIP5BUILD1234567890ABCDEF05 /* AISettingsSnapshot.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP5REF01234567890ABCDEF05;
+		};
+		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = AIP7REF01234567890ABCDEF07;
 		};
 		AIP6BUILD1234567890ABCDEF06 /* CloudAIProviderSettingsCard.swift in Sources */ = {
 			isa = PBXBuildFile;
@@ -1674,6 +1698,7 @@
 			files = (
 				R9R2B011234567890ABCDEF09 /* AppIcon.icns in Resources */,
 				R9R1B011234567890ABCDEF07 /* ReshelfBrand.png in Resources */,
+				SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1766,6 +1791,7 @@
 				AIP4BUILD1234567890ABCDEF04,
 				AIP5BUILD1234567890ABCDEF05,
 				AIP6BUILD1234567890ABCDEF06,
+				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,
 				857F7E93C32C47A1DC69444E,
 				04AC25DD035CDA826DF27EEB,
