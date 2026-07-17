@@ -5,6 +5,12 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+- **SwiftUI category** — a sidebar shelf for SwiftUI/iOS UI libraries (swift
+  icon, exact `SwiftUI` category match). Sidebar and Categories menu only; the
+  auto-classifier is untouched ("swiftui" stays a macOS signal — assign this
+  category manually via Edit).
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).

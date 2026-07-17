@@ -20,6 +20,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case workspaceTools = "workspaceTools"
     case knowledgeTools = "knowledgeTools"
     case macOSTools = "macOSTools"
+    case swiftUITools = "swiftUITools"
     case cliTools = "cliTools"
     case editorTools = "editorTools"
     case devopsTools = "devopsTools"
@@ -62,6 +63,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .workspaceTools: "Workspace"
         case .knowledgeTools: "Knowledge"
         case .macOSTools: "macOS"
+        case .swiftUITools: "SwiftUI"
         case .cliTools: "CLI"
         case .editorTools: "Editor"
         case .devopsTools: "DevOps"
@@ -100,6 +102,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .workspaceTools: "rectangle.3.group"
         case .knowledgeTools: "book"
         case .macOSTools: "macbook"
+        case .swiftUITools: "swift"
         case .cliTools: "terminal"
         case .editorTools: "doc.text"
         case .devopsTools: "gearshape.2"
@@ -126,7 +129,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return .library
         case .databaseTools, .backendTools, .agentTools, .codingAgentTools,
              .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
-             .workspaceTools, .knowledgeTools, .macOSTools, .cliTools,
+             .workspaceTools, .knowledgeTools, .macOSTools, .swiftUITools, .cliTools,
              .editorTools, .devopsTools, .automationTools, .mediaTools,
              .designTools, .securityTools, .utilityTools, .frontendTools,
              .gamesTools, .localFirst:
@@ -142,7 +145,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     static let sidebarCategoryItems: [SidebarItem] = [
         .databaseTools, .backendTools, .agentTools, .codingAgentTools,
         .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
-        .workspaceTools, .knowledgeTools, .macOSTools, .cliTools, .editorTools,
+        .workspaceTools, .knowledgeTools, .macOSTools, .swiftUITools, .cliTools, .editorTools,
         .devopsTools, .automationTools, .mediaTools, .designTools,
         .securityTools, .utilityTools, .frontendTools, .gamesTools, .localFirst,
     ]
@@ -197,6 +200,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return project.category.localizedStandardContains("Knowledge")
         case .macOSTools:
             return project.category.localizedStandardContains("macOS")
+        case .swiftUITools:
+            return project.category == "SwiftUI"
         case .cliTools:
             return project.category.localizedStandardContains("CLI")
         case .editorTools:
@@ -241,6 +246,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .workspaceTools: return #Predicate { $0.category.localizedStandardContains("Workspace") }
         case .knowledgeTools: return #Predicate { $0.category.localizedStandardContains("Knowledge") }
         case .macOSTools: return #Predicate { $0.category.localizedStandardContains("macOS") }
+        case .swiftUITools: return #Predicate { $0.category == "SwiftUI" }
         case .cliTools: return #Predicate { $0.category.localizedStandardContains("CLI") }
         case .editorTools: return #Predicate { $0.category.localizedStandardContains("Editor") }
         case .devopsTools: return #Predicate { $0.category.localizedStandardContains("DevOps") }
