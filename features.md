@@ -68,7 +68,8 @@ Stored fields you can view and edit:
 - **Auto-categorizes** the repo into a meaningful category (Database, AI / Agent, macOS, Workspace, Media, etc.) from its GitHub topics, description, and language — not just the raw language name
 - Edit fields, then save into the SwiftData catalog
 - **No-mouse flow** — from the command palette (⌘K): paste a URL → **Enter** fetches → **Enter** again saves (Save is the sheet's default button)
-- **Your configured AI provider** (Settings → AI Providers) can suggest notes / use cases — Ollama locally, or OpenAI, Anthropic, Gemini, GitHub Models when enabled with an API key
+- **Capture Assist (on-device)** — on Macs with Apple Intelligence, the AI Suggestions step (behind More Details) fills **use cases, a note, and tags** via guided generation; with **auto-generate** on (default) it runs by itself in the background right after save, so the keyboard-only flow is untouched. Fill-only: your typed fields always win
+- Under **Labs**, the configured AI provider (Settings → AI) can be used instead — Ollama locally, Apple Intelligence, or OpenAI, Anthropic, Gemini, GitHub Models with an API key
 
 Quick Capture uses a **solid sheet** (readable over any background), not a glass overlay.
 
@@ -109,9 +110,12 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 
 - **Appearance** — System / Light / Dark (System follows macOS); applies to every window and persists
 - **Warn about strict licenses** — when on (default), the inspector auto-shows a caution for copyleft/source-available licenses (GPL, AGPL, MPL, LGPL, BUSL…); the ⓘ license explainer is always available regardless
+- **Capture Assist** — the on-device Apple Intelligence fill (use cases / note / tags): master toggle, live model-availability status, **auto-generate on every capture** (default on), and **Fill Missing Entries** to backfill shelved entries that have none (fill-only, hand-edited data untouched)
+- **Agent Skill** — one-click install of the bundled `reshelf` Claude Code skill to `~/.claude/skills/reshelf` (a previous install is trashed, not deleted)
 - **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are grouped into **category subfolders** (`<Category>/<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
-- **AI Providers** — pick a **preferred provider** for suggestions; configure **Ollama** (local URL + model), **OpenAI**, **Anthropic**, **Gemini**, and **GitHub Copilot / Models** (API keys stored in Keychain, model picker, connection test). **Apple Intelligence** toggle remains placeholder until wired.
+- **AI Providers** (Labs) — pick a **preferred provider** for suggestions; configure **Ollama** (local URL + model), **Apple Intelligence** (on-device, live availability), **OpenAI**, **Anthropic**, **Gemini**, and **GitHub Copilot / Models** (API keys stored in Keychain, model picker, connection test)
 - **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders
+- **About** — app icon, version, tagline, and links (akakika.com, GitHub, X)
 - One `AppSettings` row in SwiftData (appearance is stored separately in `@AppStorage`)
 
 ## Intelligence database (foundation, not in UI yet)

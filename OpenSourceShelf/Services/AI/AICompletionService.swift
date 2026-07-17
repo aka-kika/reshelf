@@ -19,7 +19,14 @@ enum AICompletionService {
                                                           prompt: prompt)
 
         case .appleIntelligence:
-            return "⚠️ Apple Intelligence is enabled in Settings but not wired to text suggestions yet. Choose Ollama or a cloud provider for now."
+            guard settings.appleIntelligenceEnabled else {
+                return configurationHint(settings: settings)
+            }
+            do {
+                return try await AppleIntelligenceService.generateText(prompt: prompt)
+            } catch {
+                return "⚠️ Apple Intelligence: \(error.localizedDescription)"
+            }
 
         case .openAI, .anthropic, .gemini, .githubCopilot:
             guard settings.isEnabled(provider) else {
@@ -78,7 +85,12 @@ enum AICompletionService {
             return (text, .ollama)
 
         case .appleIntelligence:
-            return ("⚠️ Apple Intelligence is not wired to text suggestions yet.", nil)
+            do {
+                let text = try await AppleIntelligenceService.generateText(prompt: prompt)
+                return (text, .appleIntelligence)
+            } catch {
+                return ("⚠️ Apple Intelligence: \(error.localizedDescription)", nil)
+            }
 
         case .openAI, .anthropic, .gemini, .githubCopilot:
             guard AISettingsSnapshot.isEnabled(provider),

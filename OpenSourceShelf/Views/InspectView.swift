@@ -611,26 +611,8 @@ struct InspectView: View {
                         .lineSpacing(3)
                 }
 
-                if hasGitHubStatsRow(githubMetadata) {
-                    HStack(spacing: 8) {
-                        if let stars = githubMetadata.stars {
-                            Label("\(stars)", systemImage: "star.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        if let language = githubMetadata.primaryLanguage, !language.isEmpty {
-                            Text(language)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        if let license = githubMetadata.licenseSPDX, !license.isEmpty {
-                            Text(license)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
+                // Stars and license already show in the Metadata section up top —
+                // this section only carries what the catalog entry doesn't.
                 let extraTopics = githubTopicsNotInCatalog(from: githubMetadata)
                 if !extraTopics.isEmpty {
                     FlowLayout(spacing: 6) {
@@ -654,15 +636,8 @@ struct InspectView: View {
         guard let githubMetadata else { return false }
         let hasUniqueDescription = (githubMetadata.description ?? "").isEmpty == false
             && !descriptionDuplicatesCatalog(githubMetadata.description ?? "")
-        return hasGitHubStatsRow(githubMetadata)
-            || !githubTopicsNotInCatalog(from: githubMetadata).isEmpty
+        return !githubTopicsNotInCatalog(from: githubMetadata).isEmpty
             || hasUniqueDescription
-    }
-
-    private func hasGitHubStatsRow(_ metadata: RepositoryMetadataRecord) -> Bool {
-        metadata.stars != nil
-            || !(metadata.primaryLanguage ?? "").isEmpty
-            || !(metadata.licenseSPDX ?? "").isEmpty
     }
 
     private func descriptionDuplicatesCatalog(_ githubDescription: String) -> Bool {

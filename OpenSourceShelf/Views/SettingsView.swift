@@ -18,7 +18,19 @@ struct SettingsView: View {
     // Appearance (light / dark / system)
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
+    @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
+    @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
+
+    // Capture Assist backfill of entries without use cases
+    @State private var isBackfilling = false
+    @State private var backfillStatus = ""
+
+    // Agent skill install feedback
+    @State private var skillInstallStatus = ""
+
+    // About tab icon hover
+    @State private var aboutIconHovering = false
 
     // Repository clone location (empty = default ~/reshelf/repos)
     @AppStorage(CloneLocation.storageKey) private var cloneRootPath: String = ""
@@ -61,6 +73,8 @@ struct SettingsView: View {
             }
             inspectorTab
                 .tabItem { Label("Inspector", systemImage: "sidebar.right") }
+            aboutTab
+                .tabItem { Label("About", systemImage: "info.circle") }
         }
         .onAppear {
             urlText = settings.ollamaBaseURL
@@ -69,6 +83,29 @@ struct SettingsView: View {
             if settings.ollamaEnabled {
                 fetchModels()
             }
+        }
+    }
+
+    /// Fills use cases (plus empty notes/tags) for every entry that has none,
+    /// one at a time on the on-device model. Fill-only, hand-edited data is safe.
+    private func backfillMissingUseCases() {
+        let candidates = CaptureAssistService.projectsMissingUseCases(in: modelContext)
+        guard !candidates.isEmpty else {
+            backfillStatus = "All entries already have use cases."
+            return
+        }
+        isBackfilling = true
+        backfillStatus = "0 of \(candidates.count)…"
+        Task {
+            var filled = 0
+            for (index, project) in candidates.enumerated() {
+                if await CaptureAssistService.fillIfNeeded(project, context: modelContext) {
+                    filled += 1
+                }
+                backfillStatus = "\(index + 1) of \(candidates.count)…"
+            }
+            isBackfilling = false
+            backfillStatus = "Done — filled \(filled) of \(candidates.count) entries."
         }
     }
 
@@ -119,6 +156,68 @@ struct SettingsView: View {
                     Toggle("Warn about strict (copyleft) licenses", isOn: $warnOnStrictLicense)
 
                     Text("Shows a caution in the inspector when a repo uses a copyleft license (GPL, AGPL, MPL, LGPL…) that can require you to open-source your own project if you reuse its code. The ⓘ next to any license always explains what it allows — this just surfaces the caution automatically.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
+
+                // MARK: - Capture Assist (the one AI feature in the main app)
+                sectionHeader("Capture Assist")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Fill use cases, note, and tags with Apple Intelligence", isOn: $captureAssistEnabled)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "apple.intelligence")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text(AppleIntelligenceService.availability.label)
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppleIntelligenceService.availability.isAvailable ? .green : .secondary)
+                    }
+
+                    Text("Runs entirely on-device — nothing leaves this Mac and no setup is needed. Independent of Labs below.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Divider()
+
+                    Toggle("Generate automatically on every capture", isOn: $captureAutoGenerate)
+                        .disabled(!captureAssistEnabled)
+
+                    Text("Fills in the background right after you save a capture — no need to open More Details and press Generate.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Divider()
+
+                    HStack(spacing: 10) {
+                        Button(isBackfilling ? "Filling…" : "Fill Missing Entries") {
+                            backfillMissingUseCases()
+                        }
+                        .disabled(isBackfilling
+                                  || !captureAssistEnabled
+                                  || !AppleIntelligenceService.availability.isAvailable)
+
+                        if !backfillStatus.isEmpty {
+                            Text(backfillStatus)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text("Generates use cases for shelved entries that don't have any yet. Entries you already filled in are never touched.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -189,6 +288,59 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
+
+                // MARK: - Agent Skill
+                sectionHeader("Agent Skill")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Button("Install reshelf Skill…") {
+                            installReshelfSkill()
+                        }
+
+                        if !skillInstallStatus.isEmpty {
+                            Text(skillInstallStatus)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf, so your agent can browse the shelf — cloned repos, categories, catalog — as a curated code reference. Reinstalling replaces the previous copy (the old one goes to the Trash).")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
+        }
+    }
+
+    /// Copies the bundled reshelf skill folder to ~/.claude/skills/reshelf.
+    /// An existing install is moved to the Trash (recoverable) before the copy.
+    private func installReshelfSkill() {
+        guard let source = Bundle.main.url(forResource: "reshelf-skill", withExtension: nil) else {
+            skillInstallStatus = "Skill files are missing from this build."
+            return
+        }
+        let fm = FileManager.default
+        let skillsDir = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/skills", isDirectory: true)
+        let destination = skillsDir.appendingPathComponent("reshelf", isDirectory: true)
+        do {
+            try fm.createDirectory(at: skillsDir, withIntermediateDirectories: true)
+            if fm.fileExists(atPath: destination.path) {
+                try fm.trashItem(at: destination, resultingItemURL: nil)
+            }
+            try fm.copyItem(at: source, to: destination)
+            skillInstallStatus = "Installed to ~/.claude/skills/reshelf"
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+        } catch {
+            skillInstallStatus = "Install failed: \(error.localizedDescription)"
         }
     }
 
@@ -321,16 +473,17 @@ struct SettingsView: View {
                     isEnabled: $settings.appleIntelligenceEnabled
                 ) {
                     VStack(alignment: .leading, spacing: 8) {
+                        let availability = AppleIntelligenceService.availability
                         HStack(spacing: 6) {
-                            Image(systemName: "checkmark.circle.fill")
+                            Image(systemName: availability.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.green)
-                            Text("Available on macOS 15.2+")
+                                .foregroundStyle(availability.isAvailable ? Color.green : Color.orange)
+                            Text(availability.label)
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                         }
 
-                        Text("Apple Intelligence runs language and diffusion models entirely on-device. No API keys or internet required. Models include writing tools, image generation, and summarization APIs.")
+                        Text("Uses the on-device Apple Foundation model for Quick Capture suggestions and repository intelligence. No API keys or internet required — nothing leaves this Mac.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineSpacing(3)
@@ -427,6 +580,100 @@ struct SettingsView: View {
                 )
                 .padding(.bottom, 12)
         }
+    }
+
+    // MARK: - About tab
+
+    private var aboutTab: some View {
+        tabScroll {
+            VStack(spacing: 0) {
+                // Icon on a soft glow, with a gentle spring on hover.
+                ZStack {
+                    Circle()
+                        .fill(RadialGradient(colors: [Color.accentColor.opacity(0.20), .clear],
+                                             center: .center, startRadius: 10, endRadius: 85))
+                        .frame(width: 168, height: 168)
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 108, height: 108)
+                        .shadow(color: .black.opacity(0.25), radius: 14, y: 8)
+                        .scaleEffect(aboutIconHovering ? 1.05 : 1)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.65), value: aboutIconHovering)
+                        .onHover { aboutIconHovering = $0 }
+                }
+
+                Text("reshelf")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .padding(.top, 2)
+
+                Text("Version \(appVersionString)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+
+                Text("A local-first shelf for the open-source tools you want to remember.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 10)
+                    .padding(.horizontal, 40)
+
+                HStack(spacing: 10) {
+                    aboutLink("akakika.com", systemImage: "globe",
+                              url: "https://akakika.com")
+                    aboutLink("GitHub", systemImage: "chevron.left.forwardslash.chevron.right",
+                              url: "https://github.com/aka-kika/reshelf")
+                    aboutLink("Follow on X", glyph: "𝕏",
+                              url: "https://x.com/akakikaaa")
+                }
+                .padding(.top, 16)
+
+                Text("by KIKA — for people who think in systems")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 16)
+
+                Text("MIT License · © reshelf contributors")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.quaternary)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// Capsule link button for the About tab; `glyph` renders a text symbol
+    /// (e.g. 𝕏) where no SF Symbol exists.
+    private func aboutLink(_ title: String,
+                           systemImage: String? = nil,
+                           glyph: String? = nil,
+                           url: String) -> some View {
+        Button {
+            if let target = URL(string: url) {
+                NSWorkspace.shared.open(target)
+            }
+        } label: {
+            HStack(spacing: 5) {
+                if let systemImage {
+                    Image(systemName: systemImage).font(.system(size: 10, weight: .semibold))
+                }
+                if let glyph {
+                    Text(glyph).font(.system(size: 12, weight: .semibold))
+                }
+                Text(title).font(.system(size: 12, weight: .medium))
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+    }
+
+    private var appVersionString: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return build.isEmpty || build == version ? version : "\(version) (\(build))"
     }
 
     // MARK: - Bindings

@@ -97,7 +97,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
 
     /// Providers shown in the “Use for AI suggestions” picker.
     static var selectableProviders: [AIProviderKind] {
-        allCases.filter { $0 != .appleIntelligence }
+        allCases
     }
 }
 
@@ -156,7 +156,7 @@ extension AppSettings {
         case .ollama:
             return ollamaEnabled && !ollamaSelectedModel.isEmpty
         case .appleIntelligence:
-            return appleIntelligenceEnabled
+            return appleIntelligenceEnabled && AppleIntelligenceService.availability.isAvailable
         case .openAI, .anthropic, .gemini, .githubCopilot:
             guard isEnabled(provider) else { return false }
             let model = selectedModel(for: provider)

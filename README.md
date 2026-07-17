@@ -28,6 +28,11 @@ No account. No cloud. Your catalog and clones live on your Mac.
 
 - **Capture fast** — paste a GitHub URL (⌘K or ⌘⇧N); reshelf fetches the metadata
   and **auto-categorizes** it (Database, AI / Agent, macOS, …) — no AI required.
+- **Capture Assist (optional, fully on-device)** — on Macs with Apple Intelligence,
+  each capture can auto-fill **use cases, a note, and tags** right after you save,
+  and a one-click backfill fills entries that have none. No setup, no API keys,
+  nothing leaves your Mac — and it never overwrites anything you typed.
+  (Settings → General → Capture Assist.)
 - **Organize onto shelves** — **Top Shelf** (keepers), **The Collector** (default),
   **Yard Sale** (not sure / let go). Move with one keystroke (⌘T / ⌘Y).
 - **Browse by anything** — sidebar filters by shelf, **live category list**, or
@@ -112,7 +117,9 @@ you've curated. In effect, your cloned shelf doubles as a **source-as-context**
 reference: when a coding agent is unsure of a library's API, it can search the *real*
 cloned source instead of guessing from stale docs.
 
-We ship three **Claude Code skills** in [`extras/`](extras) — three lenses on the same shelf:
+We ship three **Claude Code skills** in [`extras/`](extras) — three lenses on the same
+shelf. The main one installs itself: **Settings → General → Agent Skill → Install
+reshelf Skill** copies it straight to `~/.claude/skills/reshelf`, no cloning needed.
 
 - [`reshelf-skill/`](extras/reshelf-skill) — the **source**: maps your *cloned* repos by
   category, reads their source/READMEs, recommends the best fit for a goal, and suggests
