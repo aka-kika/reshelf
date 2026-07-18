@@ -215,6 +215,14 @@ struct InspectView: View {
                     .lineSpacing(4)
             }
 
+        case .personalNote:
+            // Unlike other sections this renders even when empty — the collapsed
+            // row is the only affordance for adding the note from the inspector.
+            if inspectorSettings.showInspectorPersonalNote {
+                Divider().padding(.vertical, 16)
+                PersonalNoteSection(project: project)
+            }
+
         case .personalFit:
             if inspectorSettings.showInspectorPersonalFit {
                 Divider().padding(.vertical, 16)
@@ -1552,5 +1560,57 @@ struct EmptyInspectorView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+/// Collapsed "Why I saved this" note with inline editing. Edits write straight
+/// to the model; SwiftData autosave persists them without an explicit save.
+private struct PersonalNoteSection: View {
+    @Bindable var project: ToolProject
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("Why I saved this")
+                        .font(.system(size: 11, weight: .medium))
+                    if !isExpanded, !project.personalNote.isEmpty {
+                        Image(systemName: "text.alignleft")
+                            .font(.system(size: 9))
+                    }
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(.secondary.opacity(0.7))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                TextEditor(text: $project.personalNote)
+                    .font(.system(size: 12))
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 54)
+                    .padding(6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.primary.opacity(0.04))
+                    )
+                    .overlay(alignment: .topLeading) {
+                        if project.personalNote.isEmpty {
+                            Text("The reason you cloned this — future you will thank you.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 12)
+                                .padding(.leading, 11)
+                                .allowsHitTesting(false)
+                        }
+                    }
+            }
+        }
     }
 }
