@@ -9,6 +9,22 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.3.1] — 2026-07-18
+
+### Added
+- **"Why I saved this" — a personal note on every repo.** You clone things for a
+  reason; now the reason is saved with them. A quiet collapsed row in the
+  Inspector (click to read or edit inline — saves as you type), a **Why** field
+  in Quick Capture for the moment you shelve it, and a matching field in the
+  Edit sheet. Searchable, with its own visibility toggle in
+  **Settings → Inspector**. Yours alone: Capture Assist and every other
+  automated fill never touch it.
+
+### Fixed
+- Sheets (Quick Capture, Add/Edit, palette) now present after ending text
+  editing, avoiding a rare macOS ViewBridge freeze when a sheet opened while an
+  autofill popup was attached to a focused text field.
+
 ## [1.3.0] — 2026-07-17
 
 ### Added
