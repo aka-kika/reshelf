@@ -6,6 +6,7 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
     case useCases = "useCases"
     case tags = "tags"
     case notes = "notes"
+    case personalNote = "personalNote"
     case personalFit = "personalFit"
     case github = "github"
     case stack = "stack"
@@ -19,6 +20,7 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         case .useCases: "Use Cases"
         case .tags: "Tags"
         case .notes: "Notes"
+        case .personalNote: "Why I Saved This"
         case .personalFit: "Personal Fit"
         // Stars/license live in the fixed Metadata section; this toggles the
         // extras GitHub adds on top (topics, richer description).
@@ -34,6 +36,7 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         case .useCases: "list.bullet"
         case .tags: "tag"
         case .notes: "note.text"
+        case .personalNote: "quote.bubble"
         case .personalFit: "star"
         case .github: "chevron.left.forwardslash.chevron.right"
         case .stack: "square.stack.3d.up"
@@ -78,6 +81,7 @@ final class AppSettings {
     var showInspectorUseCases: Bool = true
     var showInspectorTags: Bool = true
     var showInspectorNotes: Bool = true
+    var showInspectorPersonalNote: Bool = true
     var showInspectorPersonalFit: Bool = true
     var showInspectorGitHub: Bool = true
     var showInspectorStack: Bool = true
@@ -120,6 +124,7 @@ final class AppSettings {
         case .useCases: return showInspectorUseCases
         case .tags: return showInspectorTags
         case .notes: return showInspectorNotes
+        case .personalNote: return showInspectorPersonalNote
         case .personalFit: return showInspectorPersonalFit
         case .github: return showInspectorGitHub
         case .stack: return showInspectorStack
@@ -134,6 +139,7 @@ final class AppSettings {
         case .useCases: showInspectorUseCases = value
         case .tags: showInspectorTags = value
         case .notes: showInspectorNotes = value
+        case .personalNote: showInspectorPersonalNote = value
         case .personalFit: showInspectorPersonalFit = value
         case .github: showInspectorGitHub = value
         case .stack: showInspectorStack = value
