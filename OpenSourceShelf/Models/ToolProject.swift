@@ -16,6 +16,8 @@ final class ToolProject {
     var tags: [String] = []
     var useCases: [String] = []
     var notes: String = ""
+    /// Kika's own "why I saved this" — never written by AI or automation.
+    var personalNote: String = ""
     var fitScore: Int = 0
     var addedDate: Date = Date()
     var lastCheckedDate: Date?
@@ -41,6 +43,7 @@ final class ToolProject {
          tags: [String] = [],
          useCases: [String] = [],
          notes: String = "",
+         personalNote: String = "",
          fitScore: Int = 0,
          addedDate: Date = Date(),
          isLocalFirst: Bool = false,
@@ -58,6 +61,7 @@ final class ToolProject {
         self.tags = tags
         self.useCases = useCases
         self.notes = notes
+        self.personalNote = personalNote
         self.fitScore = fitScore
         self.addedDate = addedDate
         self.isLocalFirst = isLocalFirst
@@ -72,6 +76,7 @@ final class ToolProject {
             || category.lowercased().contains(q)
             || tags.contains(where: { $0.lowercased().contains(q) })
             || notes.lowercased().contains(q)
+            || personalNote.lowercased().contains(q)
             || useCases.contains(where: { $0.lowercased().contains(q) })
     }
 }
