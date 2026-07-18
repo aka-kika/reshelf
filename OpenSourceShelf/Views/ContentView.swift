@@ -1,5 +1,25 @@
+import AppKit
 import SwiftUI
 import SwiftData
+
+/// Runs a sheet presentation only after tearing down any text-input remote views.
+///
+/// macOS attaches an autofill/completion popup (an `NSRemoteView` hosted by
+/// SafariPlatformSupport) to focused text fields. If that popup is still wired to
+/// a field when a sheet window orders on screen, ViewBridge fails an assertion and
+/// throws `NSInternalInconsistencyException` from inside
+/// `-[NSWindow _beginWindowBlockingModalSessionForSheet:...]`. AppKit catches the
+/// exception at the event loop, but the window is left inside a half-started
+/// blocking modal session and stops responding to input until force-quit. Ending
+/// editing in every window and deferring the presentation one runloop turn lets
+/// the remote view detach before the sheet window appears.
+@MainActor
+func presentSheetAfterEndingTextEditing(_ present: @escaping () -> Void) {
+    for window in NSApp.windows where window.firstResponder is NSTextView {
+        window.makeFirstResponder(nil)
+    }
+    DispatchQueue.main.async(execute: present)
+}
 
 // Layout model: 2-column NavigationSplitView (sidebar | detail).
 // The detail column contains an HStack[list + optional inspector].
@@ -93,13 +113,13 @@ struct ContentView: View {
                 CatalogExportService.presentExportPanel(projects: allProjects)
             }
             .onReceive(NotificationCenter.default.publisher(for: .importURLs)) { _ in
-                showingImportURLs = true
+                presentSheetAfterEndingTextEditing { showingImportURLs = true }
             }
             .sheet(isPresented: $showingImportURLs) {
                 ImportURLsSheet(isPresented: $showingImportURLs)
             }
             .onReceive(NotificationCenter.default.publisher(for: .restoreBackup)) { _ in
-                showingRestoreBackup = true
+                presentSheetAfterEndingTextEditing { showingRestoreBackup = true }
             }
             .sheet(isPresented: $showingRestoreBackup) {
                 RestoreBackupSheet(isPresented: $showingRestoreBackup)
@@ -129,7 +149,12 @@ struct ContentView: View {
         if !pendingCaptureURL.isEmpty {
             let url = pendingCaptureURL
             pendingCaptureURL = ""
-            quickCaptureRequest = QuickCaptureRequest(url: url)
+            // The palette sheet (with its focused search field) is tearing down
+            // right now — presenting the capture sheet synchronously is the
+            // hottest path for the ViewBridge modal-session freeze.
+            presentSheetAfterEndingTextEditing {
+                quickCaptureRequest = QuickCaptureRequest(url: url)
+            }
         }
     }
 
@@ -552,13 +577,15 @@ private struct ContentViewNotificationHandlers: ViewModifier {
                 onToggleInspector()
             }
             .onReceive(NotificationCenter.default.publisher(for: .addProject)) { _ in
-                showingAddSheet = true
+                presentSheetAfterEndingTextEditing { showingAddSheet = true }
             }
             .onReceive(NotificationCenter.default.publisher(for: .quickCapture)) { _ in
-                quickCaptureRequest = QuickCaptureRequest(url: "")
+                presentSheetAfterEndingTextEditing {
+                    quickCaptureRequest = QuickCaptureRequest(url: "")
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
-                showingCommandPalette = true
+                presentSheetAfterEndingTextEditing { showingCommandPalette = true }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openCompare)) { _ in
                 onSelectSidebarItem(.compare)

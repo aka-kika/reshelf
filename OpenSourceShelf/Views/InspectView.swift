@@ -121,7 +121,7 @@ struct InspectView: View {
                     }
 
                     HStack(spacing: 8) {
-                        Button(action: { isEditing = true }) {
+                        Button(action: { presentSheetAfterEndingTextEditing { isEditing = true } }) {
                             Label("Edit", systemImage: "pencil")
                                 .font(.system(size: 12))
                         }
