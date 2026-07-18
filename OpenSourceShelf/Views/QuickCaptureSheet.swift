@@ -38,6 +38,8 @@ struct QuickCaptureSheet: View {
     @State private var tagsText: String = ""
     @State private var useCasesText: String = ""
     @State private var notes: String = ""
+    /// Human-only; Capture Assist never fills this.
+    @State private var personalNote: String = ""
     @State private var fitScore: Int = 3
     @State private var stars: String = ""
     @State private var license: String = ""
@@ -132,6 +134,10 @@ struct QuickCaptureSheet: View {
                             }
                         }
 
+                        field("Why") {
+                            TextField("Why you're saving this (optional)", text: $personalNote)
+                        }
+
                         moreDetailsDisclosure
                     }
                 }
@@ -151,7 +157,7 @@ struct QuickCaptureSheet: View {
     /// Short before fetch, card-sized after, taller when details are expanded.
     private var sheetHeight: CGFloat {
         if fetchedInfo == nil { return 240 }
-        return showsMoreDetails ? 700 : 560
+        return showsMoreDetails ? 740 : 600
     }
 
     /// The repo the way the shelf will remember it: identity + facts, not fields.
@@ -691,6 +697,7 @@ struct QuickCaptureSheet: View {
             tags: tagsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
             useCases: useCasesText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
             notes: notes.trimmingCharacters(in: .whitespaces),
+            personalNote: personalNote.trimmingCharacters(in: .whitespaces),
             fitScore: fitScore,
             isLocalFirst: isLocalFirst,
             isSelfHosted: isSelfHosted
