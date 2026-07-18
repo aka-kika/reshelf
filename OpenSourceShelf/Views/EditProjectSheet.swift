@@ -16,6 +16,7 @@ struct EditProjectSheet: View {
     @State private var tagsText: String
     @State private var useCasesText: String
     @State private var notes: String
+    @State private var personalNote: String
     @State private var fitScore: Int
     @State private var stars: String
     @State private var license: String
@@ -35,6 +36,7 @@ struct EditProjectSheet: View {
         self._tagsText = State(initialValue: project.tags.joined(separator: ", "))
         self._useCasesText = State(initialValue: project.useCases.joined(separator: "\n"))
         self._notes = State(initialValue: project.notes)
+        self._personalNote = State(initialValue: project.personalNote)
         self._fitScore = State(initialValue: project.fitScore)
         self._stars = State(initialValue: project.stars)
         self._license = State(initialValue: project.license)
@@ -140,6 +142,20 @@ struct EditProjectSheet: View {
                                 }
                             }
                     }
+                    field("Why I Saved This") {
+                        TextEditor(text: $personalNote)
+                            .frame(height: 50)
+                            .overlay(alignment: .topLeading) {
+                                if personalNote.isEmpty {
+                                    Text("The reason you cloned this…")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.top, 8)
+                                        .padding(.leading, 4)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
                     field("Personal Fit") {
                         HStack(spacing: 4) {
                             ForEach(1...5, id: \.self) { i in
@@ -200,6 +216,7 @@ struct EditProjectSheet: View {
         project.tags = tagsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         project.useCases = useCasesText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         project.notes = notes.trimmingCharacters(in: .whitespaces)
+        project.personalNote = personalNote.trimmingCharacters(in: .whitespaces)
         project.fitScore = fitScore
         project.stars = stars.trimmingCharacters(in: .whitespaces)
         project.license = license.trimmingCharacters(in: .whitespaces)
