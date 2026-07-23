@@ -144,6 +144,12 @@ struct InspectView: View {
         .sheet(isPresented: $isEditing) {
             EditProjectSheet(project: project, isPresented: $isEditing)
         }
+        // See presentSheetAfterEndingTextEditing: clear a wedged (claims-presented
+        // but not-on-screen) Edit sheet so presentation recovers without a restart.
+        .onReceive(NotificationCenter.default.publisher(for: .verifyWedgedSheets)) { _ in
+            guard !NSApp.windows.contains(where: { $0.isVisible && $0.isSheet }) else { return }
+            isEditing = false
+        }
         .task(id: project.id) {
             await loadCloneStatus()
         }

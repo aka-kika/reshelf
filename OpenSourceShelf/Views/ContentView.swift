@@ -2,6 +2,15 @@ import AppKit
 import SwiftUI
 import SwiftData
 
+/// Posted by the sheet watchdog when a requested sheet never materialized — the
+/// caught ViewBridge exception left SwiftUI believing a sheet is presented, so
+/// every later presentation queues behind a phantom. Views that drive sheets
+/// listen and clear any sheet state that claims to be active without a visible
+/// sheet window, which un-wedges presentation for the next attempt.
+extension Notification.Name {
+    static let verifyWedgedSheets = Notification.Name("reshelf.verifyWedgedSheets")
+}
+
 /// Runs a sheet presentation only after tearing down any text-input remote views.
 ///
 /// macOS attaches an autofill/completion popup (an `NSRemoteView` hosted by
@@ -9,16 +18,61 @@ import SwiftData
 /// a field when a sheet window orders on screen, ViewBridge fails an assertion and
 /// throws `NSInternalInconsistencyException` from inside
 /// `-[NSWindow _beginWindowBlockingModalSessionForSheet:...]`. AppKit catches the
-/// exception at the event loop, but the window is left inside a half-started
-/// blocking modal session and stops responding to input until force-quit. Ending
-/// editing in every window and deferring the presentation one runloop turn lets
-/// the remote view detach before the sheet window appears.
+/// exception at the event loop, but SwiftUI is left believing a sheet is
+/// presented, and every subsequent sheet queues forever behind the phantom
+/// ("Currently, only presenting a single sheet is supported…").
+///
+/// Two defenses, both needed (1.3.1 shipped only a one-runloop-turn deferral and
+/// the wedge still occurred during rapid serial Quick Captures):
+/// 1. Prevention — end editing everywhere, then WAIT until no ViewBridge remote
+///    view is on screen (polling, bounded) before presenting; the popup detaches
+///    asynchronously over XPC, so a fixed one-turn delay is a race.
+/// 2. Recovery — after presenting, verify a sheet window actually appeared; if
+///    not, post `.verifyWedgedSheets` so state owners can reset (see above).
 @MainActor
 func presentSheetAfterEndingTextEditing(_ present: @escaping () -> Void) {
     for window in NSApp.windows where window.firstResponder is NSTextView {
         window.makeFirstResponder(nil)
     }
-    DispatchQueue.main.async(execute: present)
+    presentOnceRemoteViewsDetach(present, attemptsLeft: 12)
+}
+
+@MainActor
+private func presentOnceRemoteViewsDetach(_ present: @escaping () -> Void, attemptsLeft: Int) {
+    guard attemptsLeft > 0, textInputRemoteViewIsOnScreen() else {
+        DispatchQueue.main.async {
+            present()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                let sheetVisible = NSApp.windows.contains { $0.isVisible && $0.isSheet }
+                if !sheetVisible {
+                    NotificationCenter.default.post(name: .verifyWedgedSheets, object: nil)
+                }
+            }
+        }
+        return
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        presentOnceRemoteViewsDetach(present, attemptsLeft: attemptsLeft - 1)
+    }
+}
+
+/// Whether any visible window hosts a ViewBridge remote view (the autofill /
+/// text-completion popup). Class-name sniffing is the only handle we have on
+/// these private views; matching "RemoteView" covers NSRemoteView and the
+/// TUINSRemoteViewController-hosted variants.
+@MainActor
+private func textInputRemoteViewIsOnScreen() -> Bool {
+    func containsRemoteView(_ view: NSView, depth: Int) -> Bool {
+        if depth > 6 { return false }
+        if String(describing: type(of: view)).contains("RemoteView") { return true }
+        return view.subviews.contains { containsRemoteView($0, depth: depth + 1) }
+    }
+    return NSApp.windows.contains { window in
+        guard window.isVisible else { return false }
+        if String(describing: type(of: window)).contains("TUINS") { return true }
+        guard let content = window.contentView else { return false }
+        return containsRemoteView(content, depth: 0)
+    }
 }
 
 // Layout model: 2-column NavigationSplitView (sidebar | detail).
@@ -111,6 +165,19 @@ struct ContentView: View {
             ))
             .onReceive(NotificationCenter.default.publisher(for: .exportCatalog)) { _ in
                 CatalogExportService.presentExportPanel(projects: allProjects)
+            }
+            // Sheet-wedge recovery: a caught ViewBridge exception mid-presentation
+            // leaves SwiftUI believing a sheet is up when none is on screen, and
+            // every later sheet queues behind the phantom. Clear any state that
+            // claims to be presenting without a visible sheet window so the next
+            // attempt presents cleanly (previously required a force-quit).
+            .onReceive(NotificationCenter.default.publisher(for: .verifyWedgedSheets)) { _ in
+                guard !NSApp.windows.contains(where: { $0.isVisible && $0.isSheet }) else { return }
+                showingAddSheet = false
+                showingCommandPalette = false
+                showingImportURLs = false
+                showingRestoreBackup = false
+                quickCaptureRequest = nil
             }
             // Clone badges are derived from a per-launch disk index; returning to
             // the app is when out-of-app changes (Finder moves, Trash restores,
@@ -381,7 +448,9 @@ struct ContentView: View {
                 showingAddSheet: $showingAddSheet,
                 needsTrafficLightInset: !isSidebarVisible,
                 onQuickCapture: {
-                    quickCaptureRequest = QuickCaptureRequest(url: "")
+                    presentSheetAfterEndingTextEditing {
+                        quickCaptureRequest = QuickCaptureRequest(url: "")
+                    }
                 },
                 onCompareRepositoryIDs: { repositoryIDs in
                     guard labsFeaturesEnabled else { return }
