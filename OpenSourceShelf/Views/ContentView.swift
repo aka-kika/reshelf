@@ -112,6 +112,13 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .exportCatalog)) { _ in
                 CatalogExportService.presentExportPanel(projects: allProjects)
             }
+            // Clone badges are derived from a per-launch disk index; returning to
+            // the app is when out-of-app changes (Finder moves, Trash restores,
+            // CLI clones) can have happened — rescan so badges don't go stale.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                CatalogCloneService.invalidateCloneIndex()
+                appRefreshStore.handle(.catalogStateUpdated)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .importURLs)) { _ in
                 presentSheetAfterEndingTextEditing { showingImportURLs = true }
             }

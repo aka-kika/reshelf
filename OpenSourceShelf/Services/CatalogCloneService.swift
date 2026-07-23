@@ -146,8 +146,12 @@ enum CatalogCloneService {
         if let existing = existingClone(for: project) { return existing }
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
         let candidates = candidatePaths(owner: owner, repo: repo, category: categoryFolderName(for: project))
-        for path in candidates where !FileManager.default.fileExists(atPath: path.path) {
-            return path
+        for path in candidates {
+            // A candidate that already holds THIS repo's checkout (index missed
+            // it — e.g. restored from Trash or cloned outside the app) IS the
+            // destination; anything else occupying it means try the next name.
+            if originMatches(path, owner: owner, repo: repo) { return path }
+            if !FileManager.default.fileExists(atPath: path.path) { return path }
         }
         return candidates.last
     }
@@ -188,6 +192,12 @@ enum CatalogCloneService {
     /// path if already cloned. Clears an empty/failed leftover at the target first.
     static func clone(_ project: ToolProject) async throws -> URL {
         if let existing = existingClone(for: project) { return existing }
+        // The index only self-heals stale HITS (folder deleted behind its back),
+        // not stale MISSES (clone appeared behind its back). Before concluding a
+        // network clone is needed, rescan once — otherwise a repo that's already
+        // on disk shows un-cloned, and cloning it again errors or duplicates.
+        invalidateCloneIndex()
+        if let existing = existingClone(for: project) { return existing }
         guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL),
               let dest = destination(for: project) else {
             throw CloneError.invalidURL
@@ -195,6 +205,12 @@ enum CatalogCloneService {
         let fm = FileManager.default
 
         if fm.fileExists(atPath: dest.path) {
+            // Adopt a checkout of this exact repo that the index missed rather
+            // than failing on it.
+            if originMatches(dest, owner: owner, repo: repo) {
+                invalidateCloneIndex()
+                return dest
+            }
             let contents = (try? fm.contentsOfDirectory(atPath: dest.path)) ?? []
             if contents.isEmpty || contents.allSatisfy({ $0 == ".DS_Store" }) {
                 try? fm.removeItem(at: dest)
