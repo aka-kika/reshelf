@@ -9,6 +9,32 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.3.2] — 2026-07-23
+
+### Added
+- **SwiftUI is a category the classifier can actually produce.** The sidebar
+  has had a SwiftUI shelf all along, but every SwiftUI repo scored as macOS and
+  landed there instead. A new SwiftUI rule (ranked just above macOS) sends
+  SwiftUI component/animation/library repos to the SwiftUI shelf, while mac
+  *apps* that merely use SwiftUI still win macOS. Library-shaped wording
+  ("SwiftUI library", "for SwiftUI", renderer/component/framework) tips
+  cross-platform packages whose platform tags used to drag them into macOS.
+
+### Fixed
+- **Cloning several repos in a row no longer freezes the app.** Every git call
+  parked a Swift-concurrency thread for its whole run and read git's output
+  only after waiting for exit — so a chatty clone or fetch could deadlock on a
+  full pipe and each one ate a thread for good. Git output is now drained while
+  the process runs, off the concurrency pool, and exit is awaited without
+  blocking anything.
+- **Clone status can't silently go stale anymore.** The per-launch clone index
+  only self-healed when an indexed clone disappeared — a clone that *appeared*
+  behind its back (restored from the Trash, cloned outside the app) showed as
+  un-cloned, and re-cloning it failed with a confusing error. The index now
+  rescans when the app returns to the foreground, Clone re-checks the disk
+  before hitting the network, and a checkout of the same repo already sitting
+  at the destination is adopted instead of refused.
+
 ## [1.3.1] — 2026-07-18
 
 ### Added
