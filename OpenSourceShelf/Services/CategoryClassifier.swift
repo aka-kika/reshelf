@@ -48,7 +48,7 @@ enum CategoryClassifier {
     static func isMeaningfulCategory(_ category: String) -> Bool {
         let meaningful: Set<String> = [
             "Database", "MCP", "AI / Agent", "Coding Agents", "Computer Use", "AI Memory",
-            "macOS", "Workspace", "Internal Tools",
+            "macOS", "SwiftUI", "Workspace", "Internal Tools",
             "Backend", "Knowledge", "CLI", "DevOps", "Media", "Design",
             "Automation", "Security", "Utility", "Editor", "Frontend", "Games"
         ]
@@ -173,10 +173,27 @@ enum CategoryClassifier {
                              "speech to text"],
              weakPhrases: ["ai", "agent", "dictation", "transcription"]),
 
+        // Before macOS in tie-break order: a repo whose identity IS SwiftUI (a
+        // component/animation library, a SwiftUI example collection) should land
+        // in SwiftUI. A mac APP that merely uses SwiftUI still wins macOS,
+        // because its macos/menubar signals outscore the lone swiftui topic.
+        Rule(category: "SwiftUI",
+             strongTopics: ["swiftui", "swift-ui", "swiftui-components", "swiftui-library",
+                            "swiftui-animations", "swiftui-example", "swiftui-tutorial",
+                            "swiftui-framework"],
+             weakTopics: [],
+             strongPhrases: ["swiftui", "swift ui", "swiftui library", "for swiftui",
+                             "swiftui component", "swiftui components", "swiftui view"],
+             // Library-shape words: alone they can never classify (weight 1 <
+             // minimum 2) — they only tip a swiftui-tagged LIBRARY over the
+             // platform topics (macos/ios) that cross-platform packages carry,
+             // while apps ("menu bar app built with SwiftUI") still win macOS.
+             weakPhrases: ["library", "framework", "components", "renderer", "package"]),
+
         Rule(category: "macOS",
              strongTopics: ["macos", "macos-app", "mac-app", "menubar", "menu-bar", "menubar-app",
-                            "swiftui", "appkit", "cocoa", "mac-os-x", "osx"],
-             weakTopics: ["swift", "mac", "apple"],
+                            "appkit", "cocoa", "mac-os-x", "osx"],
+             weakTopics: ["swift", "mac", "apple", "swiftui"],
              strongPhrases: ["macos", "mac app", "menu bar", "for mac", "native macos",
                              "status bar app"],
              weakPhrases: ["mac"]),
