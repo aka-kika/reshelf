@@ -9,6 +9,19 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.3.3] — 2026-07-23
+
+### Fixed
+- **Sheets can no longer wedge the app.** The rare macOS ViewBridge exception
+  (an autofill popup still attached to a text field while a sheet presents)
+  could leave SwiftUI convinced a sheet was open when none was — after which
+  Quick Capture, Add, Edit, and the palette silently never appeared again until
+  a force-quit. Rapid serial Quick Captures could trigger it. Two-layer fix:
+  presentation now *waits until the autofill popup has actually detached*
+  (instead of hoping one runloop turn is enough), and a watchdog detects a
+  sheet that was requested but never appeared and resets the phantom state, so
+  the very next attempt works.
+
 ## [1.3.2] — 2026-07-23
 
 ### Added
