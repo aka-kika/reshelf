@@ -27,3 +27,6 @@ xcuserdata/
 
 # AFM harness binary
 extras/afm-harness/afm-analyze
+
+# Local xcodebuild output (release script uses .build/)
+/build/
