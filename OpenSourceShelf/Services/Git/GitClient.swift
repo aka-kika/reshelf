@@ -177,47 +177,73 @@ struct GitClient {
     }
 
     func run(arguments: [String], workingDirectory: URL? = nil, cancellationID: String? = nil) async throws -> GitCommandResult {
-        try await Task.detached(priority: .utility) {
-            let process = Process()
-            process.executableURL = executableURL
-            process.arguments = arguments
-            process.currentDirectoryURL = workingDirectory
+        let process = Process()
+        process.executableURL = executableURL
+        process.arguments = arguments
+        process.currentDirectoryURL = workingDirectory
 
-            let outputPipe = Pipe()
-            let errorPipe = Pipe()
-            process.standardOutput = outputPipe
-            process.standardError = errorPipe
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
 
+        if let cancellationID {
+            GitProcessRegistry.shared.register(process, for: cancellationID)
+        }
+        defer {
             if let cancellationID {
-                GitProcessRegistry.shared.register(process, for: cancellationID)
+                GitProcessRegistry.shared.unregister(id: cancellationID)
             }
-            defer {
-                if let cancellationID {
-                    GitProcessRegistry.shared.unregister(id: cancellationID)
-                }
+        }
+
+        // Drain both pipes WHILE git runs, off the cooperative pool, and wait for
+        // exit via the termination handler. Two freezes this prevents: reading
+        // only after waitUntilExit deadlocks as soon as git writes a pipe
+        // buffer's worth (~64KB — e.g. a fetch that updates many refs), and
+        // waitUntilExit inside a detached task parks a Swift-concurrency
+        // cooperative thread for the whole clone, so a few clones in a row
+        // starved the pool and hung every async task in the app.
+        async let outputData = Self.drain(outputPipe)
+        async let errorData = Self.drain(errorPipe)
+
+        let terminationStatus: Int32 = try await withCheckedThrowingContinuation { continuation in
+            process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
+            do {
+                try process.run()
+            } catch {
+                process.terminationHandler = nil
+                // Never launched: close our write ends so the drains hit EOF
+                // instead of waiting forever on a child that doesn't exist.
+                try? outputPipe.fileHandleForWriting.close()
+                try? errorPipe.fileHandleForWriting.close()
+                continuation.resume(throwing: error)
             }
+        }
 
-            try process.run()
-            process.waitUntilExit()
+        guard let standardOutput = String(data: await outputData, encoding: .utf8),
+              let standardError = String(data: await errorData, encoding: .utf8) else {
+            throw GitClientError.outputDecodingFailed
+        }
 
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        guard terminationStatus == 0 else {
+            throw GitClientError.commandFailed(
+                arguments: arguments,
+                exitCode: terminationStatus,
+                standardError: standardError
+            )
+        }
 
-            guard let standardOutput = String(data: outputData, encoding: .utf8),
-                  let standardError = String(data: errorData, encoding: .utf8) else {
-                throw GitClientError.outputDecodingFailed
+        return GitCommandResult(standardOutput: standardOutput, standardError: standardError)
+    }
+
+    /// Read a pipe to EOF on GCD so large or slow git output never occupies a
+    /// Swift-concurrency cooperative thread.
+    private static func drain(_ pipe: Pipe) async -> Data {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: pipe.fileHandleForReading.readDataToEndOfFile())
             }
-
-            guard process.terminationStatus == 0 else {
-                throw GitClientError.commandFailed(
-                    arguments: arguments,
-                    exitCode: process.terminationStatus,
-                    standardError: standardError
-                )
-            }
-
-            return GitCommandResult(standardOutput: standardOutput, standardError: standardError)
-        }.value
+        }
     }
 
     private func trimmedOutput(arguments: [String], workingDirectory: URL) async throws -> String {
