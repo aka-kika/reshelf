@@ -31,20 +31,10 @@ Ideas **not** built yet — a backlog, not a commitment. The headline next item
 - [ ] "Alternative to X" / related-projects links
 - [x] ~~**"Last updated" as first-class metadata + a sort option**~~ — shipped in
       1.6.0 (2026-07-27): `lastUpdatedDate` on `ToolProject`, a **Recently Updated**
-      sort, and a Settings action that backfills from each clone's git log (231 of
-      397 rows filled instantly, offline). Uncloned rows fill on next metadata
-      fetch. The date travels in the catalog JSON. Original note:
-- [ ] ~~"Last updated" as first-class metadata~~ *(kept for context)* — GitHub's
-      `pushed_at` is *already* fetched (`QuickCaptureService`) and already stored in
-      the intelligence DB (`RepositoryIngestionService` → metadata record). The gap
-      is that the list sorts on `ToolProject` (SwiftData) while the date lives in
-      GRDB. Needs: a `lastUpdatedDate: Date?` on `ToolProject`, filled on capture and
-      on metadata refresh; a fourth sort case beside Recently Added / Name / Stars;
-      and a backfill pass for existing rows (model it on Capture Assist's "Fill
-      Missing Entries"). For cloned repos there's a second, free, offline source —
-      the clone's own last commit date from `git log`. Note the schema hazard: adding
-      a field to `ToolProject` migrates the store, so an older build opened
-      afterwards can drop the column (same trap as `personalNote`).
+      sort, and a Settings action that backfills from each clone's own git log —
+      231 of 397 rows filled instantly, offline, no GitHub rate limit. Uncloned
+      rows fill on their next metadata fetch and sort to the bottom meanwhile.
+      The date rides along in the exported catalog JSON.
 
 ## Clones & workflow
 
