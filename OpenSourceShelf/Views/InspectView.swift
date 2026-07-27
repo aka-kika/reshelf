@@ -7,6 +7,7 @@ struct InspectView: View {
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
     @Query private var appSettingsQuery: [AppSettings]
+    @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
     @State private var isEditing: Bool = false
     @State private var githubMetadata: RepositoryMetadataRecord?
     @State private var isCloningLocally = false
@@ -15,6 +16,11 @@ struct InspectView: View {
     @State private var cloneUpdateStatus: CatalogCloneService.UpdateStatus?
     @State private var isCheckingUpdates = false
     @State private var isPulling = false
+
+    private var currentFolder: CatalogFolder? {
+        guard let id = project.folderID else { return nil }
+        return folders.first { $0.id == id }
+    }
 
     private func loadGitHubMetadata() async {
         let githubURL = project.githubURL
@@ -93,6 +99,23 @@ struct InspectView: View {
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .help("When the project itself last changed upstream — \(updated.formatted(date: .long, time: .shortened))")
+                        }
+                        .padding(.top, 2)
+                    }
+
+                    // Membership belongs with the rest of a project's facts. Only
+                    // when it's in one — every project having a blank Folder row
+                    // would suggest the field is expected to be filled.
+                    if let folder = currentFolder {
+                        HStack {
+                            Text("Folder")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Label(folder.name, systemImage: "folder")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .help("Grouped under \(folder.name). Right-click the row in the list to change it.")
                         }
                         .padding(.top, 2)
                     }

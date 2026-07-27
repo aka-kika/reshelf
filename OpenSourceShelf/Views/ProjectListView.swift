@@ -21,6 +21,9 @@ struct ProjectListView: View {
     /// moves, failures. (Was `compareNotice`; Compare merely introduced it.)
     @State private var statusNotice: String?
     @State private var pendingDeleteProject: ToolProject?
+    /// Non-nil while the New Folder prompt is up; holds what goes into it.
+    @State private var newFolderTargets: [ToolProject]?
+    @State private var newFolderName = ""
     @State private var pendingRemoveCloneProject: ToolProject?
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
@@ -153,6 +156,22 @@ struct ProjectListView: View {
             onCloneStatusKnown: { note in syncBehindBadge(note) },
             onRemoveDuplicates: { requestRemoveDuplicates() }
         ))
+        .alert("New Folder", isPresented: Binding(
+            get: { newFolderTargets != nil },
+            set: { if !$0 { newFolderTargets = nil } }
+        )) {
+            TextField("Name", text: $newFolderName)
+            Button("Create") {
+                if let targets = newFolderTargets,
+                   let folder = CatalogFolderService.create(name: newFolderName, in: modelContext) {
+                    assign(targets, to: folder)
+                }
+                newFolderTargets = nil
+            }
+            Button("Cancel", role: .cancel) { newFolderTargets = nil }
+        } message: {
+            Text("Group projects by what you got them for — a folder is a label, not a place on disk.")
+        }
         .confirmationDialog(
             "Remove \(pendingDeleteProject?.name ?? "this project")?",
             isPresented: Binding(
@@ -225,6 +244,10 @@ struct ProjectListView: View {
             }
         }
 
+        // — Folders — a user-made grouping ("everything I cloned for X"),
+        // orthogonal to both the shelf above and the fixed category taxonomy.
+        folderMenu(for: [project])
+
         // — Local copy — clone the repo to disk (no AI / intelligence needed)
         if !project.githubURL.trimmingCharacters(in: .whitespaces).isEmpty {
             Divider()
@@ -249,6 +272,46 @@ struct ProjectListView: View {
         Button("Remove from Catalog…", role: .destructive) {
             pendingDeleteProject = project
         }
+    }
+
+    /// Takes an array rather than one project so the same menu serves a single
+    /// row and a multi-row selection.
+    @ViewBuilder
+    private func folderMenu(for projects: [ToolProject]) -> some View {
+        Menu(projects.count == 1 ? "Add to Folder" : "Add \(projects.count) to Folder") {
+            ForEach(folders) { folder in
+                Button {
+                    assign(projects, to: folder)
+                } label: {
+                    // A checkmark when every project named is already in it,
+                    // so the menu reads correctly for a mixed selection too.
+                    if projects.allSatisfy({ $0.folderID == folder.id }) {
+                        Label(folder.name, systemImage: "checkmark")
+                    } else {
+                        Text(folder.name)
+                    }
+                }
+            }
+            if !folders.isEmpty { Divider() }
+            Button("New Folder…") {
+                newFolderTargets = projects
+                newFolderName = ""
+            }
+            if projects.contains(where: { $0.folderID != nil }) {
+                Divider()
+                Button("Remove from Folder") {
+                    assign(projects, to: nil)
+                }
+            }
+        }
+    }
+
+    private func assign(_ projects: [ToolProject], to folder: CatalogFolder?) {
+        CatalogFolderService.assign(projects, to: folder, in: modelContext)
+        let what = projects.count == 1 ? projects[0].name : "\(projects.count) projects"
+        statusNotice = folder == nil
+            ? "Removed \(what) from its folder."
+            : "Added \(what) to \(folder!.name)."
     }
 
     private func setShelf(_ shelf: ProjectStatus, for project: ToolProject) {
