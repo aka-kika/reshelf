@@ -9,9 +9,6 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
     case personalNote = "personalNote"
     case personalFit = "personalFit"
     case github = "github"
-    case stack = "stack"
-    case relationships = "relationships"
-    case recommendations = "recommendations"
 
     var id: String { rawValue }
 
@@ -25,9 +22,6 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         // Stars/license live in the fixed Metadata section; this toggles the
         // extras GitHub adds on top (topics, richer description).
         case .github: "GitHub Topics"
-        case .stack: "Stack"
-        case .relationships: "Relationships"
-        case .recommendations: "Recommendations"
         }
     }
 
@@ -39,20 +33,9 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         case .personalNote: "quote.bubble"
         case .personalFit: "star"
         case .github: "chevron.left.forwardslash.chevron.right"
-        case .stack: "square.stack.3d.up"
-        case .relationships: "point.3.connected.trianglepath.dotted"
-        case .recommendations: "lightbulb"
         }
     }
 
-    /// Sections derived from the intelligence engine (clone + analysis). These are
-    /// a v2 surface — hidden in the catalog-only default (Labs off).
-    var isIntelligence: Bool {
-        switch self {
-        case .stack, .relationships, .recommendations: true
-        default: false
-        }
-    }
 }
 
 @Model
@@ -127,9 +110,6 @@ final class AppSettings {
         case .personalNote: return showInspectorPersonalNote
         case .personalFit: return showInspectorPersonalFit
         case .github: return showInspectorGitHub
-        case .stack: return showInspectorStack
-        case .relationships: return showInspectorRelationships
-        case .recommendations: return showInspectorRecommendations
         }
     }
 
@@ -142,9 +122,6 @@ final class AppSettings {
         case .personalNote: showInspectorPersonalNote = value
         case .personalFit: showInspectorPersonalFit = value
         case .github: showInspectorGitHub = value
-        case .stack: showInspectorStack = value
-        case .relationships: showInspectorRelationships = value
-        case .recommendations: showInspectorRecommendations = value
         }
     }
 
