@@ -29,10 +29,17 @@ enum CatalogBackupService {
         guard !projects.isEmpty else { return }
         guard let data = try? CatalogExportService.encode(projects) else { return }
 
+        // Skip only when the *content* is genuinely unchanged. This used to compare
+        // byte lengths, which quietly failed: an edit that swaps one value for
+        // another of the same length leaves the file exactly as long, so real
+        // changes looked identical and no snapshot was written. Compare the encoded
+        // projects instead — and not the whole file, whose `exportedAt` differs on
+        // every call and would make every comparison report a change.
         if let newest = snapshotURLs().first,
            let existing = try? Data(contentsOf: newest),
-           projectCount(in: existing) == projects.count,
-           existing.count == data.count {
+           let existingRows = try? CatalogExportService.decode(existing),
+           existingRows.count == projects.count,
+           fingerprint(of: existingRows) == fingerprint(of: projects.map(CatalogProjectDTO.init)) {
             return // unchanged since last snapshot
         }
 
@@ -108,6 +115,28 @@ enum CatalogBackupService {
     }
 
     // MARK: - Helpers
+
+    /// A content digest of the rows only — deliberately excludes the snapshot
+    /// wrapper, whose `exportedAt` changes on every encode.
+    private static func fingerprint(of rows: [CatalogProjectDTO]) -> Int {
+        var hasher = Hasher()
+        for row in rows.sorted(by: { $0.id < $1.id }) {
+            hasher.combine(row.id)
+            hasher.combine(row.name)
+            hasher.combine(row.status)
+            hasher.combine(row.category)
+            hasher.combine(row.stars)
+            hasher.combine(row.notes)
+            hasher.combine(row.personalNote)
+            hasher.combine(row.tags)
+            hasher.combine(row.useCases)
+            hasher.combine(row.fitScore)
+            hasher.combine(row.githubURL)
+            hasher.combine(row.lastUpdatedDate)
+            hasher.combine(row.lastCheckedDate)
+        }
+        return hasher.finalize()
+    }
 
     private static func projectCount(in data: Data) -> Int {
         (try? CatalogExportService.decode(data).count) ?? -1

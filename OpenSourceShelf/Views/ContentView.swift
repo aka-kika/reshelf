@@ -227,6 +227,16 @@ struct ContentView: View {
                     CatalogBackupService.writeSnapshot(allProjects)
                 }
             }
+            // …and on quit. `scenePhase` is not reliably delivered before the
+            // process goes away, so an edit that changed values without changing
+            // the project count could be lost: neither trigger above fired, and
+            // the newest snapshot stayed older than the change. `willTerminate`
+            // runs synchronously while the app is still alive, which is exactly
+            // the window a last write needs.
+            .onReceive(NotificationCenter.default.publisher(
+                for: NSApplication.willTerminateNotification)) { _ in
+                CatalogBackupService.writeSnapshot(allProjects)
+            }
     }
 
     private var catalogRootStack: some View {

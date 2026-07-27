@@ -29,24 +29,12 @@ enum AICompletionService {
             }
 
         case .openAI, .anthropic, .gemini, .githubCopilot:
-            guard settings.isEnabled(provider) else {
-                return configurationHint(settings: settings)
-            }
-            guard let apiKey = AIProviderCredentialStore.loadAPIKey(for: provider) else {
-                return "⚠️ Add an API key for \(provider.displayName) in Settings."
-            }
-            let model = settings.selectedModel(for: provider)
-            guard !model.isEmpty else {
-                return "⚠️ Choose a model for \(provider.displayName) in Settings."
-            }
-            do {
-                return try await CloudAICompletionService.generate(provider: provider,
-                                                                   apiKey: apiKey,
-                                                                   model: model,
-                                                                   prompt: prompt)
-            } catch {
-                return "⚠️ \(provider.displayName) error: \(error.localizedDescription)"
-            }
+            // Cloud providers were removed in 1.7.0 — reshelf generates on-device
+            // or against your own Ollama, and nowhere else. The enum cases remain
+            // only because `AppSettings` is a SwiftData model whose stored columns
+            // default from them; dropping them would force a schema migration for
+            // no user-visible gain.
+            return configurationHint(settings: settings)
         }
     }
 
@@ -93,22 +81,8 @@ enum AICompletionService {
             }
 
         case .openAI, .anthropic, .gemini, .githubCopilot:
-            guard AISettingsSnapshot.isEnabled(provider),
-                  let apiKey = AIProviderCredentialStore.loadAPIKey(for: provider) else {
-                return (configurationHintFromSnapshot(), nil)
-            }
-            let model = AISettingsSnapshot.model(for: provider)
-            do {
-                let text = try await CloudAICompletionService.generate(provider: provider,
-                                                                         apiKey: apiKey,
-                                                                         model: model,
-                                                                         prompt: prompt,
-                                                                         maxTokens: 2048,
-                                                                         temperature: 0.4)
-                return (text, provider)
-            } catch {
-                return ("⚠️ \(provider.displayName) error: \(error.localizedDescription)", nil)
-            }
+            // See `generate(prompt:settings:)` — no cloud path exists any more.
+            return (configurationHintFromSnapshot(), nil)
         }
     }
 

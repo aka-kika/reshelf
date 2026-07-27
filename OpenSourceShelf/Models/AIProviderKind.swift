@@ -158,9 +158,8 @@ extension AppSettings {
         case .appleIntelligence:
             return appleIntelligenceEnabled && AppleIntelligenceService.availability.isAvailable
         case .openAI, .anthropic, .gemini, .githubCopilot:
-            guard isEnabled(provider) else { return false }
-            let model = selectedModel(for: provider)
-            return !model.isEmpty && AIProviderCredentialStore.hasAPIKey(for: provider)
+            // Cloud providers are gone; nothing can configure one.
+            return false
         }
     }
 

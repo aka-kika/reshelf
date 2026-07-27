@@ -611,20 +611,6 @@
 			path = "OpenSourceShelf/Models/AIProviderKind.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		AIP2REF01234567890ABCDEF02 /* AIProviderCredentialStore.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AIProviderCredentialStore.swift";
-			path = "OpenSourceShelf/Services/AI/AIProviderCredentialStore.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		AIP3REF01234567890ABCDEF03 /* CloudAICompletionService.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "CloudAICompletionService.swift";
-			path = "OpenSourceShelf/Services/AI/CloudAICompletionService.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		AIP4REF01234567890ABCDEF04 /* AICompletionService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -644,13 +630,6 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "AppleIntelligenceService.swift";
 			path = "OpenSourceShelf/Services/AI/AppleIntelligenceService.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		AIP6REF01234567890ABCDEF06 /* CloudAIProviderSettingsCard.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "CloudAIProviderSettingsCard.swift";
-			path = "OpenSourceShelf/Views/Settings/CloudAIProviderSettingsCard.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */ = {
@@ -1061,7 +1040,6 @@
 				CE07F1A2B3C4D5E6F7080007 /* RestoreBackupSheet.swift */,
 				IMPCAT01234567890ABCDEF03 /* ImportCatalogSheet.swift */,
 				765C2FE2DBD8E6A07C7B8D3F /* SettingsView.swift */,
-				AIP6REF01234567890ABCDEF06 /* CloudAIProviderSettingsCard.swift */,
 				24DDEBD0F1DEECC3B4961BA5 /* SidebarView.swift */,
 				D4C2412ABE93DE242AA46D62 /* CatalogRunbookBadgeView.swift */,
 				8341826173D83305FCF387B0 /* IntelligenceStatusChip.swift */,
@@ -1087,8 +1065,6 @@
 				7A9C8E3EE1B7EA37ECA3494A /* EcosystemDiscoveryView.swift */,
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
 				D4FACC71205A0F08A3FCA160 /* OllamaService.swift */,
-				AIP2REF01234567890ABCDEF02 /* AIProviderCredentialStore.swift */,
-				AIP3REF01234567890ABCDEF03 /* CloudAICompletionService.swift */,
 				AIP4REF01234567890ABCDEF04 /* AICompletionService.swift */,
 				AIP5REF01234567890ABCDEF05 /* AISettingsSnapshot.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
@@ -1496,14 +1472,6 @@
 			isa = PBXBuildFile;
 			fileRef = AIP1REF01234567890ABCDEF01;
 		};
-		AIP2BUILD1234567890ABCDEF02 /* AIProviderCredentialStore.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AIP2REF01234567890ABCDEF02;
-		};
-		AIP3BUILD1234567890ABCDEF03 /* CloudAICompletionService.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AIP3REF01234567890ABCDEF03;
-		};
 		AIP4BUILD1234567890ABCDEF04 /* AICompletionService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP4REF01234567890ABCDEF04;
@@ -1515,10 +1483,6 @@
 		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP7REF01234567890ABCDEF07;
-		};
-		AIP6BUILD1234567890ABCDEF06 /* CloudAIProviderSettingsCard.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AIP6REF01234567890ABCDEF06;
 		};
 		233FCACEDD0C4EC0B290CF77 /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -1856,11 +1820,8 @@
 				C5392DFC038F8A68E7A21263,
 				BD82E79C0CF8C385C4169047,
 				AIP1BUILD1234567890ABCDEF01,
-				AIP2BUILD1234567890ABCDEF02,
-				AIP3BUILD1234567890ABCDEF03,
 				AIP4BUILD1234567890ABCDEF04,
 				AIP5BUILD1234567890ABCDEF05,
-				AIP6BUILD1234567890ABCDEF06,
 				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,
 				857F7E93C32C47A1DC69444E,

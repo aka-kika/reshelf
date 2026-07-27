@@ -79,9 +79,8 @@ enum AISettingsSnapshot {
         case .appleIntelligence:
             return isEnabled(.appleIntelligence) && AppleIntelligenceService.availability.isAvailable
         case .openAI, .anthropic, .gemini, .githubCopilot:
-            return isEnabled(provider)
-                && !model(for: provider).isEmpty
-                && AIProviderCredentialStore.hasAPIKey(for: provider)
+            // Cloud providers are gone; nothing can configure one.
+            return false
         }
     }
 
