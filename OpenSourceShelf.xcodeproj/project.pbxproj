@@ -324,6 +324,27 @@
 			path = "OpenSourceShelf/Services/CatalogImportService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		F0LDER201234567890ABCD /* CatalogFolderService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CatalogFolderService.swift";
+			path = "OpenSourceShelf/Services/CatalogFolderService.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		F0LDER101234567890ABCD /* ShelfSelection.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ShelfSelection.swift";
+			path = "OpenSourceShelf/Models/ShelfSelection.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		F0LDER001234567890ABCD /* CatalogFolder.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CatalogFolder.swift";
+			path = "OpenSourceShelf/Models/CatalogFolder.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -612,6 +633,9 @@
 				CE05F1A2B3C4D5E6F7080005 /* CatalogBackupService.swift */,
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
+				F0LDER201234567890ABCD /* CatalogFolderService.swift */,
+				F0LDER101234567890ABCD /* ShelfSelection.swift */,
+				F0LDER001234567890ABCD /* CatalogFolder.swift */,
 				LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */,
 				LUPD00001234567890ABCD /* GitHubDate.swift */,
 				5PARKLE0004234567890ABCD /* UpdaterService.swift */,
@@ -639,6 +663,18 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		F0LDER202234567890ABCD /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F0LDER201234567890ABCD;
+		};
+		F0LDER102234567890ABCD /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F0LDER101234567890ABCD;
+		};
+		F0LDER002234567890ABCD /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F0LDER001234567890ABCD;
 		};
 		LUPD00012234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -991,6 +1027,9 @@
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
 			files = (
+				F0LDER202234567890ABCD,
+				F0LDER102234567890ABCD,
+				F0LDER002234567890ABCD,
 				LUPD00012234567890ABCD,
 				LUPD00002234567890ABCD,
 				5PARKLE0005234567890ABCD,

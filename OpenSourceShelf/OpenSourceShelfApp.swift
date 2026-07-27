@@ -130,7 +130,7 @@ struct OpenSourceShelfApp: App {
         }
 
         do {
-            let schema = Schema([ToolProject.self, AppSettings.self])
+            let schema = Schema([ToolProject.self, AppSettings.self, CatalogFolder.self])
             // Use an app-specific store under ~/reshelf instead of the shared,
             // non-namespaced ~/Library/Application Support/default.store. The shared
             // store is dangerous for a non-sandboxed app: any other SwiftData app or
