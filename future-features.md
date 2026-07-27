@@ -12,10 +12,34 @@ Ideas **not** built yet — a backlog, not a commitment. The headline next item
 
 ## Organization
 
+- [ ] **Folders for clones, as a sidebar tree** — group cloned repos under folders
+      the user creates, e.g. "everything I pulled for project X". Real case: ~100
+      repos cloned for a single project, and afterwards there's no way to see which
+      ones belonged to it or to let the batch go together. A folder is a user-made
+      grouping, *not* a category (categories are a fixed taxonomy) and not a shelf
+      status — a repo keeps its category and its shelf while sitting in a folder.
+      Sidebar shows folders as an expandable tree under Cloned.
+- [ ] **Multi-select + batch actions in the list** — shift/⌘-click a range, then
+      move to shelf, add to folder, or remove local clones in one go. Pairs with
+      folders above: the point is retiring a whole project's worth of clones at once
+      instead of one right-click at a time. Batch unclone must go through the same
+      recoverable trash path as the single-repo action, and say how much disk it
+      will reclaim before doing it.
 - [ ] Custom smart collections beyond the built-in sidebar filters
 - [ ] Manual category override when the auto-classifier guesses wrong
 - [ ] Multiple fit dimensions (docs, maintenance, build quality)
 - [ ] "Alternative to X" / related-projects links
+- [ ] **"Last updated" as first-class metadata + a sort option** — GitHub's
+      `pushed_at` is *already* fetched (`QuickCaptureService`) and already stored in
+      the intelligence DB (`RepositoryIngestionService` → metadata record). The gap
+      is that the list sorts on `ToolProject` (SwiftData) while the date lives in
+      GRDB. Needs: a `lastUpdatedDate: Date?` on `ToolProject`, filled on capture and
+      on metadata refresh; a fourth sort case beside Recently Added / Name / Stars;
+      and a backfill pass for existing rows (model it on Capture Assist's "Fill
+      Missing Entries"). For cloned repos there's a second, free, offline source —
+      the clone's own last commit date from `git log`. Note the schema hazard: adding
+      a field to `ToolProject` migrates the store, so an older build opened
+      afterwards can drop the column (same trap as `personalNote`).
 
 ## Clones & workflow
 
