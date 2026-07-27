@@ -34,7 +34,7 @@ Ideas **not** built yet — a backlog, not a commitment. The headline next item
 
 ## Distribution & quality
 
-- [x] ~~Signed, notarized `.dmg` release~~ — shipped (`scripts/release.sh`); Sparkle auto-update still TODO
+- [x] ~~Signed, notarized `.dmg` release~~ + ~~Sparkle auto-update~~ (1.5.0) — shipped (`scripts/release.sh`)
 - [x] ~~Screenshots in the README~~ — done; a short demo GIF/video still TODO
 - [ ] Unit tests: GitHub URL parsing, license matching, dedup keys, sidebar predicates
 - [ ] UI smoke tests: capture → categorize → clone → pull

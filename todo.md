@@ -14,7 +14,7 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 - [x] 1️⃣ ~~**Two-Mac import test**~~ — done 2026-07-27: exported here, installed 1.4.0 on
       the second Mac, imported there. Round trip confirmed. Steps 2–4 are unblocked.
-- [ ] 2️⃣ **Sparkle auto-update** — in-app updates so 1.4.0 → 1.4.1 doesn't mean
+- [x] 2️⃣ ~~**Sparkle auto-update**~~ — shipped in 1.5.0 (2026-07-27); verified by updating 1.5.0 → 1.5.1 live. Originally: — in-app updates so 1.4.0 → 1.4.1 doesn't mean
       re-downloading a DMG by hand (twice, once per Mac). Needs an appcast feed + EdDSA
       signing key; the GitHub Release already publishes a stable DMG URL to point it at.
       Also tracked in [future-features.md](future-features.md).
