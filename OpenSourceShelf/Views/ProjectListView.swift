@@ -1061,6 +1061,7 @@ private struct CatalogEventHandlers: ViewModifier {
 /// How the catalog list is ordered. Persisted via `@AppStorage`.
 enum CatalogSortOrder: String, CaseIterable, Identifiable {
     case recentlyAdded
+    case lastUpdated
     case name
     case stars
 
@@ -1069,6 +1070,7 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .recentlyAdded: "Recently Added"
+        case .lastUpdated: "Recently Updated"
         case .name: "Name (A–Z)"
         case .stars: "Most Stars"
         }
@@ -1077,6 +1079,7 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .recentlyAdded: "clock"
+        case .lastUpdated: "arrow.trianglehead.2.clockwise"
         case .name: "textformat"
         case .stars: "star"
         }
@@ -1086,6 +1089,24 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
         switch self {
         case .recentlyAdded:
             return projects.sorted { $0.addedDate > $1.addedDate }
+        case .lastUpdated:
+            // Newest upstream activity first. Rows with no date yet (never
+            // captured with it, never refreshed) sink to the bottom rather than
+            // pretending to be ancient, and tie-break by name so the order is stable.
+            return projects.sorted {
+                switch ($0.lastUpdatedDate, $1.lastUpdatedDate) {
+                case let (l?, r?):
+                    return l == r
+                        ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                        : l > r
+                case (nil, nil):
+                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                case (_?, nil):
+                    return true
+                case (nil, _?):
+                    return false
+                }
+            }
         case .name:
             return projects.sorted {
                 $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending

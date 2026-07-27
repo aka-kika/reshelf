@@ -27,6 +27,9 @@ struct CatalogProjectDTO: Codable {
     var fitScore: Int
     var addedDate: Date
     var lastCheckedDate: Date?
+    /// Optional for the same reason as `personalNote`: exports written
+    /// before the field existed have no key for it.
+    var lastUpdatedDate: Date?
     var isLocalFirst: Bool
     var isSelfHosted: Bool
 
@@ -48,6 +51,7 @@ struct CatalogProjectDTO: Codable {
         fitScore = p.fitScore
         addedDate = p.addedDate
         lastCheckedDate = p.lastCheckedDate
+        lastUpdatedDate = p.lastUpdatedDate
         isLocalFirst = p.isLocalFirst
         isSelfHosted = p.isSelfHosted
     }
@@ -70,6 +74,7 @@ struct CatalogProjectDTO: Codable {
             personalNote: personalNote ?? "",
             fitScore: fitScore,
             addedDate: addedDate,
+            lastUpdatedDate: lastUpdatedDate,
             isLocalFirst: isLocalFirst,
             isSelfHosted: isSelfHosted
         )
@@ -102,6 +107,7 @@ struct CatalogProjectDTO: Codable {
         project.fitScore = fitScore
         project.addedDate = addedDate
         project.lastCheckedDate = lastCheckedDate
+        if let lastUpdatedDate { project.lastUpdatedDate = lastUpdatedDate }
         project.isLocalFirst = isLocalFirst
         project.isSelfHosted = isSelfHosted
     }

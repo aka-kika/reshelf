@@ -21,6 +21,12 @@ final class ToolProject {
     var fitScore: Int = 0
     var addedDate: Date = Date()
     var lastCheckedDate: Date?
+    /// When the *upstream project* last changed — GitHub's `pushed_at`, or the
+    /// clone's own last commit date when it's on disk. Distinct from
+    /// `lastCheckedDate` (when *you* last looked) and `addedDate` (when you
+    /// shelved it). Optional because older rows predate the field and only fill
+    /// in on capture, refresh, or backfill.
+    var lastUpdatedDate: Date?
 
     var isLocalFirst: Bool = false
     var isSelfHosted: Bool = false
@@ -46,6 +52,7 @@ final class ToolProject {
          personalNote: String = "",
          fitScore: Int = 0,
          addedDate: Date = Date(),
+         lastUpdatedDate: Date? = nil,
          isLocalFirst: Bool = false,
          isSelfHosted: Bool = false) {
         self.id = UUID()
@@ -64,6 +71,7 @@ final class ToolProject {
         self.personalNote = personalNote
         self.fitScore = fitScore
         self.addedDate = addedDate
+        self.lastUpdatedDate = lastUpdatedDate
         self.isLocalFirst = isLocalFirst
         self.isSelfHosted = isSelfHosted
     }

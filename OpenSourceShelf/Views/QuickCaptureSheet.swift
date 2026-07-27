@@ -43,6 +43,9 @@ struct QuickCaptureSheet: View {
     @State private var fitScore: Int = 3
     @State private var stars: String = ""
     @State private var license: String = ""
+    /// GitHub's `pushed_at` for the fetched repo — carried into the saved
+    /// project so the list can sort by upstream activity.
+    @State private var lastUpdatedDate: Date?
     @State private var isLocalFirst: Bool = false
     @State private var isSelfHosted: Bool = false
     /// The rarely-touched fields live behind this disclosure — capture is
@@ -473,6 +476,7 @@ struct QuickCaptureSheet: View {
         websiteURL = info.homepage ?? ""
         stars = info.stars.map { formatStars($0) } ?? ""
         license = info.license?.spdxId ?? info.license?.name ?? ""
+        lastUpdatedDate = info.pushedAt.flatMap(GitHubDate.parse)
         tagsText = info.topics?.joined(separator: ", ") ?? ""
 
         // Auto-classify category from language, topics, and description
@@ -699,6 +703,7 @@ struct QuickCaptureSheet: View {
             notes: notes.trimmingCharacters(in: .whitespaces),
             personalNote: personalNote.trimmingCharacters(in: .whitespaces),
             fitScore: fitScore,
+            lastUpdatedDate: lastUpdatedDate,
             isLocalFirst: isLocalFirst,
             isSelfHosted: isSelfHosted
         )

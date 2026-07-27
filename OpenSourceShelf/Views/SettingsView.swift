@@ -28,6 +28,8 @@ struct SettingsView: View {
 
     // Agent skill install feedback
     @State private var skillInstallStatus = ""
+    @State private var isFillingLastUpdated = false
+    @State private var lastUpdatedFillStatus = ""
 
     // About tab icon hover
     @State private var aboutIconHovering = false
@@ -85,6 +87,26 @@ struct SettingsView: View {
             sectionOrder = settings.inspectorSectionOrder
             if settings.ollamaEnabled {
                 fetchModels()
+            }
+        }
+    }
+
+    /// Reads each cloned repo's last commit date off disk. Fill-only: entries
+    /// that already have a date (from GitHub, which is more authoritative than a
+    /// possibly-stale local checkout) are left alone.
+    private func fillLastUpdatedFromClones() {
+        isFillingLastUpdated = true
+        lastUpdatedFillStatus = ""
+        Task { @MainActor in
+            let result = await LastUpdatedBackfillService.backfillFromClones(in: modelContext)
+            isFillingLastUpdated = false
+            if result.filled == 0 && result.skippedNotCloned == 0 && result.failed == 0 {
+                lastUpdatedFillStatus = "Every entry already has a date."
+            } else {
+                var parts = ["Filled \(result.filled)"]
+                if result.skippedNotCloned > 0 { parts.append("\(result.skippedNotCloned) not cloned") }
+                if result.failed > 0 { parts.append("\(result.failed) unreadable") }
+                lastUpdatedFillStatus = parts.joined(separator: " · ")
             }
         }
     }
@@ -221,6 +243,27 @@ struct SettingsView: View {
                     }
 
                     Text("Generates use cases for shelved entries that don't have any yet. Entries you already filled in are never touched.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Divider()
+
+                    HStack(spacing: 10) {
+                        Button(isFillingLastUpdated ? "Reading clones…" : "Fill “Last Updated” from Clones") {
+                            fillLastUpdatedFromClones()
+                        }
+                        .disabled(isFillingLastUpdated)
+
+                        if !lastUpdatedFillStatus.isEmpty {
+                            Text(lastUpdatedFillStatus)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text("Reads each cloned repo's last commit date off disk so you can sort by Recently Updated. Offline and instant — no GitHub calls, no rate limit. Repos you haven't cloned fill in the next time their details are fetched.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
