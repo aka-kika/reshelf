@@ -9,6 +9,27 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.6.0] — 2026-07-27
+
+### Added
+- **Sort by what's actually alive.** A new **Recently Updated** sort orders the
+  shelf by when each project last changed upstream, not by when you happened to
+  save it — so the things still moving float to the top and the abandoned ones
+  sink. New captures pick the date up automatically.
+- **Fill it in for everything you've already cloned, in one click.** Settings ▸
+  General ▸ **Fill "Last Updated" from Clones** reads each cloned repo's last
+  commit straight off your disk. Offline, instant, no GitHub rate limit. Repos
+  you haven't cloned fill in the next time their details are fetched; until then
+  they sort to the bottom rather than pretending to be ancient.
+- The date rides along in your exported catalog JSON, so it survives the trip to
+  another Mac.
+
+### Fixed
+- **The top of the sidebar isn't blurry any more.** macOS 26 already tried to
+  paint a frosted band over the first rows and reshelf pushed back; macOS 27
+  started drawing a second one from a different place, and it slipped past. Both
+  are handled now, so "All Projects" and the rows under it stay sharp.
+
 ## [1.5.1] — 2026-07-27
 
 ### Fixed
