@@ -19,7 +19,17 @@ private struct SidebarFilterCounts {
 
 struct SidebarView: View {
     @Binding var selection: ShelfSelection?
+    /// Called when a folder's member row is picked, so the list selects that
+    /// project rather than only filtering to its folder.
+    var onSelectProject: (UUID) -> Void = { _ in }
+
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
+    @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
+
+    @State private var renameTarget: CatalogFolder?
+    @State private var deleteTarget: CatalogFolder?
+    @State private var draftName = ""
 
     /// Computed (not cached) so counts refresh on any catalog change — including a
     /// project moving between shelves, which changes status but not the count.
@@ -49,6 +59,27 @@ struct SidebarView: View {
                     SidebarRow(item: .cloned, count: counts.count(for: .cloned))
                 }
 
+                // Only when folders exist — an empty heading would be noise on a
+                // fresh install, and folders are opt-in by nature.
+                if !folders.isEmpty {
+                    Section(SidebarSection.folders.rawValue) {
+                        ForEach(folders) { folder in
+                            FolderSidebarRow(
+                                folder: folder,
+                                members: memberProjects(of: folder),
+                                onSelectMember: { id in
+                                    selection = .folder(folder.id)
+                                    onSelectProject(id)
+                                }
+                            )
+                            .contextMenu {
+                                Button("Rename…") { renameTarget = folder }
+                                Button("Delete Folder…") { deleteTarget = folder }
+                            }
+                        }
+                    }
+                }
+
                 if !categories.isEmpty {
                     Section(SidebarSection.categories.rawValue) {
                         ForEach(categories) { item in
@@ -64,6 +95,38 @@ struct SidebarView: View {
             // first row of the main list (measured 3pt higher otherwise) while the
             // header divider stays aligned with the list/inspector dividers.
             .contentMargins(.top, 11, for: .scrollContent)
+            .alert("Rename Folder", isPresented: presenting($renameTarget)) {
+                TextField("Name", text: $draftName)
+                Button("Rename") {
+                    if let folder = renameTarget {
+                        CatalogFolderService.rename(folder, to: draftName, in: modelContext)
+                    }
+                    renameTarget = nil
+                }
+                Button("Cancel", role: .cancel) { renameTarget = nil }
+            }
+            .onChange(of: renameTarget) { _, folder in
+                draftName = folder?.name ?? ""
+            }
+            .alert("Delete Folder?", isPresented: presenting($deleteTarget)) {
+                Button("Delete Folder", role: .destructive) {
+                    if let folder = deleteTarget {
+                        // Never leave the list filtered by a folder that no
+                        // longer exists.
+                        if selection == .folder(folder.id) {
+                            selection = .builtin(.allProjects)
+                        }
+                        CatalogFolderService.delete(folder, in: modelContext)
+                    }
+                    deleteTarget = nil
+                }
+                Button("Cancel", role: .cancel) { deleteTarget = nil }
+            } message: {
+                if let folder = deleteTarget {
+                    let count = CatalogFolderService.projectCount(for: folder, in: modelContext)
+                    Text("\(count) project\(count == 1 ? "" : "s") will no longer be grouped. Nothing is deleted — they keep their shelf, their clone and their notes.")
+                }
+            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
         // The sidebar/list split divider: NavigationSplitView's own divider
@@ -82,6 +145,69 @@ struct SidebarView: View {
         // nudge constants (which broke whenever macOS changed its insets).
         .ignoresSafeArea(.container, edges: .top)
         .hidesTopScrollEdgeEffect()
+    }
+
+    /// Members come from the already-loaded `@Query` rather than a fetch, so the
+    /// rows refresh when a project's folder changes.
+    private func memberProjects(of folder: CatalogFolder) -> [ToolProject] {
+        allProjects.filter { $0.folderID == folder.id }
+    }
+
+    /// `.alert(isPresented:)` wants a Bool; the state that matters is which
+    /// folder. Dismissing clears the target.
+    private func presenting<T>(_ target: Binding<T?>) -> Binding<Bool> {
+        Binding(
+            get: { target.wrappedValue != nil },
+            set: { if !$0 { target.wrappedValue = nil } }
+        )
+    }
+}
+
+/// A folder row: selectable like any other sidebar filter, and expandable to
+/// reveal what's inside without leaving the current filter.
+private struct FolderSidebarRow: View {
+    let folder: CatalogFolder
+    let members: [ToolProject]
+    let onSelectMember: (UUID) -> Void
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            ForEach(members) { project in
+                Button {
+                    onSelectMember(project.id)
+                } label: {
+                    Text(project.name)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
+        } label: {
+            HStack {
+                Image(systemName: "folder")
+                    .frame(width: 20)
+                    .font(.system(size: 13))
+                Text(folder.name)
+                    .font(.system(size: 13))
+                Spacer()
+                if !members.isEmpty {
+                    Text("\(members.count)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.primary.opacity(0.08))
+                        )
+                }
+            }
+            .padding(.vertical, 2)
+            .tag(ShelfSelection.folder(folder.id))
+        }
     }
 }
 

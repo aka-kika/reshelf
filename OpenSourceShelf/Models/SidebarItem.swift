@@ -248,6 +248,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
 enum SidebarSection: String {
     case library = "Library"
+    case folders = "Folders"
     case categories = "Categories"
     case settings = "Settings"
 }

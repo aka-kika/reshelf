@@ -387,7 +387,9 @@ struct ContentView: View {
     }
 
     private var sidebarColumn: some View {
-        SidebarView(selection: $sidebarSelection)
+        SidebarView(selection: $sidebarSelection) { projectID in
+            listSelection = .project(projectID)
+        }
         .id("catalog-sidebar")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
