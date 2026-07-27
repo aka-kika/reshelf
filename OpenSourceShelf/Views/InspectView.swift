@@ -120,6 +120,23 @@ struct InspectView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    // Only shown when it's known: an entry captured before the field
+                    // existed, and never cloned, genuinely has no date — and a blank
+                    // row reads as "never updated", which would be a lie.
+                    if let updated = project.lastUpdatedDate {
+                        HStack {
+                            Text("Updated")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(updated, format: .dateTime.day().month().year())
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .help("When the project itself last changed upstream — \(updated.formatted(date: .long, time: .shortened))")
+                        }
+                        .padding(.top, 2)
+                    }
+
                     HStack(spacing: 8) {
                         Button(action: { presentSheetAfterEndingTextEditing { isEditing = true } }) {
                             Label("Edit", systemImage: "pencil")

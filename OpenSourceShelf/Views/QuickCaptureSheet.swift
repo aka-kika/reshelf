@@ -505,18 +505,8 @@ struct QuickCaptureSheet: View {
     /// Whether "Generate with AI" can run with the user's current provider config.
     private var aiAvailable: Bool { aiUnavailableReason == nil }
 
-    /// The provider a "Generate" click will actually use. Catalog-only mode always
-    /// runs on-device Apple Intelligence; Labs mode uses the configured pick and
-    /// falls back to on-device when nothing is configured.
-    private var effectiveAIProvider: AIProviderKind {
-        if labsFeaturesEnabled {
-            let settings = AppSettings.current(in: modelContext)
-            if !settings.configuredAIProviders.isEmpty {
-                return AICompletionService.resolvedProvider(settings: settings)
-            }
-        }
-        return .appleIntelligence
-    }
+    /// reshelf generates on-device and nowhere else. There is no provider to pick.
+    private var effectiveAIProvider: AIProviderKind { .appleIntelligence }
 
     /// User-facing reason the AI step is disabled, or `nil` when it's ready.
     /// Provider-aware: covers Apple Intelligence availability and (for Ollama)

@@ -198,6 +198,35 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
+
+                // MARK: - Agent Skill
+                sectionHeader("Agent Skill")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Button("Install reshelf Skill…") {
+                            installReshelfSkill()
+                        }
+
+                        if !skillInstallStatus.isEmpty {
+                            Text(skillInstallStatus)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf, so your agent can browse the shelf — cloned repos, categories, catalog — as a curated code reference. Reinstalling replaces the previous copy (the old one goes to the Trash).")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
         }
     }
 
@@ -287,151 +316,6 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
-
-                // MARK: - AI Providers
-                sectionHeader("AI Providers")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Use for AI suggestions")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    Picker("Preferred provider", selection: preferredProviderBinding) {
-                        ForEach(AIProviderKind.selectableProviders) { provider in
-                            Text(provider.displayName).tag(provider)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 280, alignment: .leading)
-
-                    Text("Quick Capture, runbook polish, and other on-demand suggestions use this provider when it is enabled and configured. Falls back to another ready provider if needed.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // Ollama
-                AIProviderSettingsCard(
-                    systemImage: AIProviderKind.ollama.systemImage,
-                    title: AIProviderKind.ollama.displayName,
-                    subtitle: AIProviderKind.ollama.subtitle,
-                    isEnabled: $settings.ollamaEnabled
-                ) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        // URL field
-                        HStack(spacing: 8) {
-                            Text("URL")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 30, alignment: .leading)
-                            TextField("http://localhost:11434", text: $urlText)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 12))
-                                .onSubmit { saveURL() }
-                            Button("Test") { testConnection() }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .font(.system(size: 11))
-                        }
-
-                        // Connection status
-                        if connectionStatus != .unknown {
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(connectionStatus.color)
-                                    .frame(width: 6, height: 6)
-                                Text(connectionStatus.label)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(connectionStatus.color)
-                            }
-                        }
-
-                        // Models dropdown
-                        if !ollamaModels.isEmpty {
-                            Divider()
-                            HStack(spacing: 8) {
-                                Text("Model")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                Picker("", selection: $settings.ollamaSelectedModel) {
-                                    Text("None selected").tag("")
-                                    ForEach(ollamaModels) { model in
-                                        Text(model.name).tag(model.name)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                .frame(maxWidth: 220)
-                                .onChange(of: settings.ollamaSelectedModel) { _, _ in
-                                    persistSettings()
-                                }
-
-                                if !settings.ollamaSelectedModel.isEmpty {
-                                    if let selected = ollamaModels.first(where: { $0.name == settings.ollamaSelectedModel }) {
-                                        Text(selected.sizeFormatted)
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-
-                        if isFetchingModels {
-                            HStack(spacing: 6) {
-                                ProgressView().scaleEffect(0.5).frame(width: 16, height: 16)
-                                Text("Fetching models…")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else if connectionStatus == .connected && ollamaModels.isEmpty {
-                            HStack(spacing: 6) {
-                                Image(systemName: "cube.box")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                                Text("No models installed. Pull one via Ollama first.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.top, 8)
-                }
-                .onChange(of: settings.ollamaEnabled) { _, _ in persistSettings() }
-
-                // Apple Intelligence
-                AIProviderSettingsCard(
-                    systemImage: AIProviderKind.appleIntelligence.systemImage,
-                    title: AIProviderKind.appleIntelligence.displayName,
-                    subtitle: AIProviderKind.appleIntelligence.subtitle,
-                    isEnabled: $settings.appleIntelligenceEnabled
-                ) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        let availability = AppleIntelligenceService.availability
-                        HStack(spacing: 6) {
-                            Image(systemName: availability.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(availability.isAvailable ? Color.green : Color.orange)
-                            Text(availability.label)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Text("Uses the on-device Apple Foundation model for Quick Capture suggestions and repository intelligence. No API keys or internet required — nothing leaves this Mac.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineSpacing(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.top, 6)
-                }
-                .onChange(of: settings.appleIntelligenceEnabled) { _, _ in persistSettings() }
         }
     }
 
@@ -522,35 +406,6 @@ struct SettingsView: View {
                             return true
                         }
                     }
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - Agent Skill
-                sectionHeader("Agent Skill")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 10) {
-                        Button("Install reshelf Skill…") {
-                            installReshelfSkill()
-                        }
-
-                        if !skillInstallStatus.isEmpty {
-                            Text(skillInstallStatus)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf, so your agent can browse the shelf — cloned repos, categories, catalog — as a curated code reference. Reinstalling replaces the previous copy (the old one goes to the Trash).")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(12)
                 .background(

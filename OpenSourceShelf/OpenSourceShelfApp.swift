@@ -393,14 +393,21 @@ struct OpenSourceShelfApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 720, height: 640)
 
-        // Standard macOS Settings — app-menu "Settings…" (⌘,). Opens at a sensible
-        // size and is freely resizable: a min floor + ideal opening size, no max, with
-        // .contentMinSize so the user can drag it larger/smaller and the size is
-        // remembered. Tab content scrolls within whatever size is chosen.
+        // Standard macOS Settings — app-menu "Settings…" (⌘,).
+        //
+        // The ideal size is set so the tallest tab fits without scrolling at the
+        // default: with four tabs the fullest are General (Appearance, Licenses,
+        // Agent Skill) and Library (Repository Storage plus the reorderable
+        // inspector list) — both around 440pt of content, so ~660pt of window
+        // clears them with room for the tab bar.
+        //
+        // The scroll view stays: it's what lets the window still work when
+        // dragged small or opened on a short display. It just shouldn't be doing
+        // any work at the size the window actually opens at.
         Settings {
             SettingsView()
-                .frame(minWidth: 480, idealWidth: 580, maxWidth: .infinity,
-                       minHeight: 360, idealHeight: 560, maxHeight: .infinity)
+                .frame(minWidth: 480, idealWidth: 640, maxWidth: .infinity,
+                       minHeight: 400, idealHeight: 660, maxHeight: .infinity)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
         .windowResizability(.contentMinSize)
