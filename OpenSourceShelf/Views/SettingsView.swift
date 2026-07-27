@@ -17,7 +17,10 @@ struct SettingsView: View {
 
     // Appearance (light / dark / system)
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
-    @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
+    // The v2 Intelligence preview is retired — its switch is gone from Settings
+    // and nothing can turn it back on. Kept only until the surfaces it gates
+    // are deleted outright (branch: claude/remove-labs).
+    private let labsFeaturesEnabled = false
     @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
     @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
@@ -208,7 +211,7 @@ struct SettingsView: View {
                             .foregroundStyle(AppleIntelligenceService.availability.isAvailable ? .green : .secondary)
                     }
 
-                    Text("Runs entirely on-device — nothing leaves this Mac and no setup is needed. Independent of Labs below.")
+                    Text("Runs entirely on-device — nothing leaves this Mac and no setup is needed.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -264,25 +267,6 @@ struct SettingsView: View {
                     }
 
                     Text("Reads each cloned repo's last commit date off disk so you can sort by Recently Updated. Offline and instant — no GitHub calls, no rate limit. Repos you haven't cloned fill in the next time their details are fetched.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - Labs
-                sectionHeader("Labs")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Enable Intelligence (v2 preview)", isOn: $labsFeaturesEnabled)
-
-                    Text("Off by default. Turns on the v2 Intelligence engine: deep AI analysis, runbooks, Compare, and Ecosystems — and reveals the AI Providers settings. Requires a configured AI provider for the AI steps.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
