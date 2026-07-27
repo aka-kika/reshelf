@@ -74,13 +74,10 @@ struct SettingsView: View {
         TabView {
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
-            // AI providers configure the v2 Intelligence engine — only under Labs.
-            if labsFeaturesEnabled {
-                aiTab
-                    .tabItem { Label("AI", systemImage: "sparkles") }
-            }
-            inspectorTab
-                .tabItem { Label("Inspector", systemImage: "sidebar.right") }
+            captureTab
+                .tabItem { Label("Capture", systemImage: "sparkles") }
+            libraryTab
+                .tabItem { Label("Library", systemImage: "books.vertical") }
             aboutTab
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
@@ -93,6 +90,7 @@ struct SettingsView: View {
             }
         }
     }
+
 
     /// Reads each cloned repo's last commit date off disk. Fill-only: entries
     /// that already have a date (from GitHub, which is more authoritative than a
@@ -148,8 +146,13 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - General tab
+    // MARK: - Tabs
+    //
+    // Four tabs, each short enough to read without scrolling far. Grouped by what
+    // the user is thinking about — how it looks, how things get captured, where
+    // they live — rather than by which subsystem implements them.
 
+    /// How reshelf looks and what it warns about.
     private var generalTab: some View {
         tabScroll {
                 // MARK: - Appearance
@@ -195,7 +198,13 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
+        }
+    }
 
+    /// Everything about getting a repo onto the shelf, and the on-device or local
+    /// model that fills in the details.
+    private var captureTab: some View {
+        tabScroll {
                 // MARK: - Capture Assist (the one AI feature in the main app)
                 sectionHeader("Capture Assist")
 
@@ -279,105 +288,6 @@ struct SettingsView: View {
                 )
                 .padding(.bottom, 12)
 
-                // MARK: - Repository Storage (where repos are cloned)
-                sectionHeader("Repository Storage")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "folder")
-                            .foregroundStyle(.secondary)
-                        Text(CloneLocation.rootURL.path)
-                            .font(.system(size: 12, design: .monospaced))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .help(CloneLocation.rootURL.path)
-                        Button("Choose…") { chooseCloneFolder() }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .font(.system(size: 11))
-                        if CloneLocation.isCustom {
-                            Button("Reset") { cloneRootPath = "" }
-                                .buttonStyle(.borderless)
-                                .controlSize(.small)
-                                .font(.system(size: 11))
-                                .help("Use the default location (~/reshelf/repos)")
-                        }
-                    }
-
-                    Text("Where repositories are cloned (right-click a repo → Clone Repository, or use the inspector). Repos are organized by owner/name inside this folder. Changing it only affects new clones — existing clones stay where they are.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - Agent Skill
-                sectionHeader("Agent Skill")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 10) {
-                        Button("Install reshelf Skill…") {
-                            installReshelfSkill()
-                        }
-
-                        if !skillInstallStatus.isEmpty {
-                            Text(skillInstallStatus)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf, so your agent can browse the shelf — cloned repos, categories, catalog — as a curated code reference. Reinstalling replaces the previous copy (the old one goes to the Trash).")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-        }
-    }
-
-    /// Copies the bundled reshelf skill folder to ~/.claude/skills/reshelf.
-    /// An existing install is moved to the Trash (recoverable) before the copy.
-    private func installReshelfSkill() {
-        guard let source = Bundle.main.url(forResource: "reshelf-skill", withExtension: nil) else {
-            skillInstallStatus = "Skill files are missing from this build."
-            return
-        }
-        let fm = FileManager.default
-        let skillsDir = fm.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/skills", isDirectory: true)
-        let destination = skillsDir.appendingPathComponent("reshelf", isDirectory: true)
-        do {
-            try fm.createDirectory(at: skillsDir, withIntermediateDirectories: true)
-            if fm.fileExists(atPath: destination.path) {
-                try fm.trashItem(at: destination, resultingItemURL: nil)
-            }
-            try fm.copyItem(at: source, to: destination)
-            skillInstallStatus = "Installed to ~/.claude/skills/reshelf"
-            NSWorkspace.shared.activateFileViewerSelecting([destination])
-        } catch {
-            skillInstallStatus = "Install failed: \(error.localizedDescription)"
-        }
-    }
-
-    // MARK: - AI tab
-
-    private var aiTab: some View {
-        tabScroll {
                 // MARK: - AI Providers
                 sectionHeader("AI Providers")
 
@@ -522,24 +432,40 @@ struct SettingsView: View {
                     .padding(.top, 6)
                 }
                 .onChange(of: settings.appleIntelligenceEnabled) { _, _ in persistSettings() }
+        }
+    }
 
-                CloudAIProviderSettingsCard(provider: .openAI, settings: settings, onSave: persistSettings)
-                CloudAIProviderSettingsCard(provider: .anthropic, settings: settings, onSave: persistSettings)
-                CloudAIProviderSettingsCard(provider: .gemini, settings: settings, onSave: persistSettings)
-                CloudAIProviderSettingsCard(provider: .githubCopilot, settings: settings, onSave: persistSettings)
+    /// Where the shelf lives on disk, how it's displayed, and the agent skill.
+    private var libraryTab: some View {
+        tabScroll {
+                // MARK: - Repository Storage (where repos are cloned)
+                sectionHeader("Repository Storage")
 
-                sectionHeader("Intelligence")
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Automatically generate runbook after intelligence completes",
-                           isOn: $settings.autoGenerateRunbookAfterIntelligence)
-                        .font(.system(size: 12))
-                        .onChange(of: settings.autoGenerateRunbookAfterIntelligence) { _, value in
-                            RunbookAutoEnqueueSettings.syncFromSettings(value)
-                            try? modelContext.save()
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder")
+                            .foregroundStyle(.secondary)
+                        Text(CloneLocation.rootURL.path)
+                            .font(.system(size: 12, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .help(CloneLocation.rootURL.path)
+                        Button("Choose…") { chooseCloneFolder() }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .font(.system(size: 11))
+                        if CloneLocation.isCustom {
+                            Button("Reset") { cloneRootPath = "" }
+                                .buttonStyle(.borderless)
+                                .controlSize(.small)
+                                .font(.system(size: 11))
+                                .help("Use the default location (~/reshelf/repos)")
                         }
+                    }
 
-                    Text("When enabled, reshelf queues runbook generation after analysis and recommendations finish. Commands remain suggested only — nothing runs automatically.")
+                    Text("Where repositories are cloned (right-click a repo → Clone Repository, or use the inspector). Repos are organized by owner/name inside this folder. Changing it only affects new clones — existing clones stay where they are.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -551,13 +477,7 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
-        }
-    }
 
-    // MARK: - Inspector tab
-
-    private var inspectorTab: some View {
-        tabScroll {
                 sectionHeader("Inspector")
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -609,6 +529,59 @@ struct SettingsView: View {
                         .fill(Color.primary.opacity(0.03))
                 )
                 .padding(.bottom, 12)
+
+                // MARK: - Agent Skill
+                sectionHeader("Agent Skill")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Button("Install reshelf Skill…") {
+                            installReshelfSkill()
+                        }
+
+                        if !skillInstallStatus.isEmpty {
+                            Text(skillInstallStatus)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf, so your agent can browse the shelf — cloned repos, categories, catalog — as a curated code reference. Reinstalling replaces the previous copy (the old one goes to the Trash).")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
+        }
+    }
+
+    /// Copies the bundled reshelf skill folder to ~/.claude/skills/reshelf.
+    /// An existing install is moved to the Trash (recoverable) before the copy.
+    private func installReshelfSkill() {
+        guard let source = Bundle.main.url(forResource: "reshelf-skill", withExtension: nil) else {
+            skillInstallStatus = "Skill files are missing from this build."
+            return
+        }
+        let fm = FileManager.default
+        let skillsDir = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/skills", isDirectory: true)
+        let destination = skillsDir.appendingPathComponent("reshelf", isDirectory: true)
+        do {
+            try fm.createDirectory(at: skillsDir, withIntermediateDirectories: true)
+            if fm.fileExists(atPath: destination.path) {
+                try fm.trashItem(at: destination, resultingItemURL: nil)
+            }
+            try fm.copyItem(at: source, to: destination)
+            skillInstallStatus = "Installed to ~/.claude/skills/reshelf"
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+        } catch {
+            skillInstallStatus = "Install failed: \(error.localizedDescription)"
         }
     }
 
