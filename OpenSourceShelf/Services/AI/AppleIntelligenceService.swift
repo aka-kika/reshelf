@@ -136,38 +136,6 @@ enum AppleIntelligenceService {
         #endif
     }
 
-    /// Repository analysis via guided generation — the model fills the payload schema
-    /// directly, so there is no JSON parsing failure mode.
-    static func analyzeRepository(prompt: String) async throws -> RepositoryAIAnalysisPayload {
-        #if canImport(FoundationModels)
-        guard #available(macOS 26.0, *) else { throw GenerationFailure.unavailable(.osTooOld) }
-        let status = availability
-        guard status.isAvailable else { throw GenerationFailure.unavailable(status) }
-
-        let session = LanguageModelSession(instructions: """
-            You analyze open source repositories for a local-first repo intelligence app. \
-            Use only the provided evidence. Do not invent details. \
-            Scores are integers from 0 to 10; base them only on evidence.
-            """)
-        do {
-            let generated = try await session.respond(to: prompt,
-                                                      generating: RepositoryAnalysisGeneration.self).content
-            return RepositoryAIAnalysisPayload(summary: generated.summary,
-                                               usefulness: generated.usefulness,
-                                               classifications: generated.classifications,
-                                               risks: generated.risks,
-                                               setupComplexity: generated.setupComplexity,
-                                               localFirstScore: generated.localFirstScore,
-                                               experimentationPriority: generated.experimentationPriority,
-                                               personalRelevance: generated.personalRelevance,
-                                               relationshipHints: generated.relationshipHints)
-        } catch let error as LanguageModelSession.GenerationError {
-            throw mapGenerationError(error)
-        }
-        #else
-        throw GenerationFailure.unavailable(.frameworkMissing)
-        #endif
-    }
 
     #if canImport(FoundationModels)
     @available(macOS 26.0, *)

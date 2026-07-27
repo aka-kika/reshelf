@@ -231,7 +231,6 @@ struct ContentView: View {
 
     private var catalogRootStack: some View {
         VStack(spacing: 0) {
-            AppStatusBannerView(refreshStore: appRefreshStore)
             catalogSplitView
         }
     }
