@@ -32,6 +32,9 @@ struct SettingsView: View {
     // About tab icon hover
     @State private var aboutIconHovering = false
 
+    // Mirrors Sparkle's own preference; the updater stays the source of truth.
+    @State private var autoCheckForUpdates = UpdaterService.shared.automaticallyChecksForUpdates
+
     // Repository clone location (empty = default ~/reshelf/repos)
     @AppStorage(CloneLocation.storageKey) private var cloneRootPath: String = ""
 
@@ -611,6 +614,20 @@ struct SettingsView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
+
+                Toggle("Automatically check for updates", isOn: $autoCheckForUpdates)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 11))
+                    .padding(.top, 10)
+                    .onChange(of: autoCheckForUpdates) { _, newValue in
+                        UpdaterService.shared.automaticallyChecksForUpdates = newValue
+                    }
+
+                if let checked = UpdaterService.shared.lastUpdateCheckDate {
+                    Text("Last checked \(checked.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
 
                 Text("A local-first shelf for the open-source tools you want to remember.")
                     .font(.system(size: 12))
