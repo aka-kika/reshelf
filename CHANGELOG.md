@@ -9,6 +9,12 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.5.1] — 2026-07-27
+
+### Fixed
+- Housekeeping release. Nothing to see — it exists to prove the new in-app
+  update path works end to end, by being something for 1.5.0 to update to.
+
 ## [1.5.0] — 2026-07-27
 
 ### Added
