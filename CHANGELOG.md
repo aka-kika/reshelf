@@ -9,6 +9,19 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.5.0] — 2026-07-27
+
+### Added
+- **reshelf updates itself.** New versions arrive in the app instead of as a DMG
+  you download and drag. reshelf checks once a day in the background, shows you
+  what changed, and installs only when you say so — nothing happens behind your
+  back. There's a **Check for Updates…** item in the reshelf menu for when you're
+  impatient, and a switch in Settings ▸ About to turn the automatic checking off.
+  Update checks send nothing about your machine.
+
+  One catch, once: 1.4.0 has no updater in it, so 1.5.0 is the last version you
+  install by hand.
+
 ## [1.4.0] — 2026-07-27
 
 ### Added

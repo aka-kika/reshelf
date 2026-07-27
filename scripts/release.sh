@@ -42,13 +42,42 @@ xcodebuild -project "$PROJECT_DIR/OpenSourceShelf.xcodeproj" -scheme "$SCHEME" \
   ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
   clean build >/dev/null
 
-echo "▶︎ Signing app with Developer ID + hardened runtime…"
-# No embedded frameworks (statically linked) → a single sign of the bundle is enough.
+echo "▶︎ Signing app inside-out (Sparkle nests a framework, XPC services and helpers)…"
+# Sparkle embeds Sparkle.framework containing Installer.xpc, Downloader.xpc,
+# Autoupdate and Updater.app. Each needs its own Developer ID signature, applied
+# innermost first — signing the outer bundle first invalidates whatever it wraps,
+# and notarization rejects the result.
 # No --entitlements: the app needs none, and this drops any get-task-allow flag.
+SPARKLE_FW="$APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_FW" ]; then
+  for inner in \
+    "$SPARKLE_FW/Versions/B/XPCServices/Installer.xpc" \
+    "$SPARKLE_FW/Versions/B/XPCServices/Downloader.xpc" \
+    "$SPARKLE_FW/Versions/B/Autoupdate" \
+    "$SPARKLE_FW/Versions/B/Updater.app" \
+    "$SPARKLE_FW"; do
+    [ -e "$inner" ] || continue
+    echo "    · $(basename "$inner")"
+    codesign --force --options runtime --timestamp --sign "$IDENTITY" "$inner"
+  done
+fi
 codesign --force --options runtime --timestamp \
   --sign "$IDENTITY" "$APP"
-codesign --verify --strict --verbose=2 "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
 echo "  $(codesign -dvv "$APP" 2>&1 | grep -E 'TeamIdentifier|Runtime' | tr '\n' ' ')"
+
+# Pass 1 of 2. Sparkle verifies the app it downloads; a stapled ticket lets that
+# succeed without a network round-trip, and stapling an .app requires notarizing
+# something that contains it — hence a ZIP submission of its own, separate from
+# the DMG's below.
+ZIP="$DIST/$APP_NAME-$VERSION.zip"
+echo "▶︎ Notarizing the app (pass 1 of 2, via ZIP)…"
+ditto -c -k --keepParent "$APP" "$ZIP"
+xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun stapler staple "$APP"
+xcrun stapler validate "$APP"
+rm -f "$ZIP"
+ditto -c -k --keepParent "$APP" "$ZIP"   # re-zip so the ticket ships inside it
 
 echo "▶︎ Creating DMG…"
 create-dmg \
@@ -63,7 +92,7 @@ create-dmg \
 echo "▶︎ Signing DMG…"
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
-echo "▶︎ Notarizing (a few minutes)…"
+echo "▶︎ Notarizing the DMG (pass 2 of 2)…"
 xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 
 echo "▶︎ Stapling + verifying…"
@@ -72,4 +101,6 @@ xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature -v "$DMG" 2>&1 || true
 
 echo ""
-echo "✅ Done: $DMG"
+echo "✅ Done:"
+echo "   DMG (humans):  $DMG"
+echo "   ZIP (Sparkle): $ZIP"
