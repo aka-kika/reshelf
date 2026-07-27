@@ -86,7 +86,6 @@ struct QuickCaptureRequest: Identifiable {
 }
 
 struct ContentView: View {
-    let catalogStateStore: CatalogIntelligenceStateStore
     @Environment(\.modelContext) private var modelContext
     @State private var listSelection: CatalogListSelection?
     @State private var searchText: String = ""
@@ -103,11 +102,8 @@ struct ContentView: View {
     @State private var isSidebarVisible = true
     @State private var showsInspectorColumn = true
     @AppStorage("inspectorPanelWidth") private var inspectorWidth: Double = ShelfLayout.inspectorWidth.ideal
-    @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
     @State private var isResizingInspector = false
     @State private var isApplyingColumnVisibility = false
-    @State private var compareModel = CompareScreenModel()
-    @State private var selectedDiscoveryCluster: EcosystemClusterSummary?
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
 
@@ -147,21 +143,15 @@ struct ContentView: View {
                 )
             }
             .modifier(ContentViewNotificationHandlers(
-                labsFeaturesEnabled: labsFeaturesEnabled,
                 sidebarSelection: $sidebarSelection,
                 listSelection: $listSelection,
-                selectedDiscoveryCluster: $selectedDiscoveryCluster,
                 showingAddSheet: $showingAddSheet,
                 showingCommandPalette: $showingCommandPalette,
                 quickCaptureRequest: $quickCaptureRequest,
-                compareModel: compareModel,
                 appRefreshStore: appRefreshStore,
                 onToggleSidebar: toggleSidebarColumn,
                 onToggleInspector: toggleInspectorColumn,
                 onSelectSidebarItem: selectSidebarItem,
-                onCompareDeepLink: handleCompareDeepLink,
-                onRunbookDeepLink: openRunbookRepository,
-                onQuickAction: handleQuickActionNotification,
                 onAppear: handleContentAppear
             ))
             .onReceive(NotificationCenter.default.publisher(for: .exportCatalog)) { _ in
@@ -241,8 +231,6 @@ struct ContentView: View {
 
     private var catalogRootStack: some View {
         VStack(spacing: 0) {
-            QueueWindowBridge()
-            RunbookWindowBridge()
             AppStatusBannerView(refreshStore: appRefreshStore)
             catalogSplitView
         }
@@ -261,11 +249,6 @@ struct ContentView: View {
         }
     }
 
-    private func handleCompareDeepLink(_ request: CompareDeepLinkRequest) {
-        sidebarSelection = .compare
-        Task { await compareModel.applyDeepLink(request) }
-    }
-
     private func handleContentAppear() {
         // Safety net: if the catalog comes up empty but a backup with data exists,
         // restore it instead of seeding defaults over a real (momentarily missing)
@@ -279,12 +262,6 @@ struct ContentView: View {
         // Tidy any legacy flat clones into their category subfolders.
         CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
         CatalogBackupService.writeSnapshot(allProjects)
-        if sidebarSelection == .queue {
-            sidebarSelection = .allProjects
-        }
-        if let sidebarSelection, sidebarSelection.requiresLabs, !labsFeaturesEnabled {
-            self.sidebarSelection = .allProjects
-        }
         ensureCatalogSelectionIfNeeded()
         applyColumnVisibility()
     }
@@ -301,10 +278,6 @@ struct ContentView: View {
     }
 
     private func selectSidebarItem(_ item: SidebarItem) {
-        if item.requiresLabs && !labsFeaturesEnabled {
-            sidebarSelection = .allProjects
-            return
-        }
         sidebarSelection = item
     }
 
@@ -379,12 +352,7 @@ struct ContentView: View {
     /// The trailing column follows the ⌘I inspector toggle.
     private var showsTrailingColumn: Bool {
         guard showsInspectorColumn else { return false }
-        switch sidebarSelection {
-        case .compare, .ecosystems, .workflows, .myStack:
-            return true
-        default:
-            return listSelection != nil
-        }
+        return listSelection != nil
     }
 
     @ViewBuilder
@@ -440,7 +408,7 @@ struct ContentView: View {
 
     private var usesProjectListColumn: Bool {
         switch sidebarSelection {
-        case .compare, .ecosystems, .workflows, .myStack, .settings:
+        case .settings:
             return false
         default:
             return true
@@ -449,71 +417,27 @@ struct ContentView: View {
 
     @ViewBuilder
     private var catalogPrimaryColumn: some View {
-        if sidebarSelection == .compare {
-            CompareView(model: compareModel)
-        } else if sidebarSelection == .ecosystems {
-            discoveryView(
-                title: "Ecosystems",
-                subtitle: "Explore emerging tool ecosystems in your shelf.",
-                clusterTypes: ["ecosystem"]
-            )
-        } else if sidebarSelection == .workflows {
-            discoveryView(
-                title: "Workflows",
-                subtitle: "See workflows formed by stack, protocol, and recommendation overlap.",
-                clusterTypes: ["workflow"]
-            )
-        } else if sidebarSelection == .myStack {
-            discoveryView(
-                title: "My Stack",
-                subtitle: "A synthesized view of central repos, technologies, and experiments.",
-                clusterTypes: ["my_stack"]
-            )
-        } else {
-            ProjectListView(
-                listSelection: $listSelection,
-                searchText: $searchText,
-                sidebarSelection: $sidebarSelection,
-                showingAddSheet: $showingAddSheet,
-                needsTrafficLightInset: !isSidebarVisible,
-                onQuickCapture: {
-                    presentSheetAfterEndingTextEditing {
-                        quickCaptureRequest = QuickCaptureRequest(url: "")
-                    }
-                },
-                onCompareRepositoryIDs: { repositoryIDs in
-                    guard labsFeaturesEnabled else { return }
-                    sidebarSelection = .compare
-                    Task {
-                        await compareModel.applyDeepLink(
-                            CompareDeepLinkRequest(intent: .compare(repositoryIDs: repositoryIDs))
-                        )
-                    }
+        ProjectListView(
+            listSelection: $listSelection,
+            searchText: $searchText,
+            sidebarSelection: $sidebarSelection,
+            showingAddSheet: $showingAddSheet,
+            needsTrafficLightInset: !isSidebarVisible,
+            onQuickCapture: {
+                presentSheetAfterEndingTextEditing {
+                    quickCaptureRequest = QuickCaptureRequest(url: "")
                 }
-            )
-            .environmentObject(catalogStateStore)
-            .id("catalog-project-list")
-        }
+            }
+        )
+        .id("catalog-project-list")
     }
 
     @ViewBuilder
     private var detailColumn: some View {
-        if sidebarSelection == .compare {
-            CompareInspectorView(result: compareModel.result,
-                                 selectedRanking: compareModel.selectedRanking,
-                                 onCopySummary: { compareModel.copySummary() },
-                                 onExportMarkdown: { compareModel.exportMarkdown() })
-        } else if sidebarSelection == .ecosystems || sidebarSelection == .workflows || sidebarSelection == .myStack {
-            DiscoveryClusterInspectorView(
-                cluster: selectedDiscoveryCluster,
-                onOpenRepository: openCatalogRepository
-            )
-        } else {
-            CatalogInspectorPane(
-                listSelection: listSelection,
-                onSelectionChange: { listSelection = $0 }
-            )
-        }
+        CatalogInspectorPane(
+            listSelection: listSelection,
+            onSelectionChange: { listSelection = $0 }
+        )
     }
 
     private var selectedProject: ToolProject? {
@@ -528,103 +452,9 @@ struct ContentView: View {
         }) ?? allProjects.first(where: { $0.name == repository.name }) {
             listSelection = .project(project.id)
             sidebarSelection = .allProjects
-            selectedDiscoveryCluster = nil
         }
     }
 
-    private func discoveryView(title: String, subtitle: String, clusterTypes: [String]) -> some View {
-        EcosystemDiscoveryView(
-            title: title,
-            subtitle: subtitle,
-            clusterTypes: clusterTypes,
-            selectedCluster: $selectedDiscoveryCluster,
-            onOpenRepository: openCatalogRepository
-        )
-    }
-
-    private func openRunbookRepository(_ repositoryID: String, openInWindow: Bool) {
-        openCatalogRepository(repositoryID)
-        if openInWindow {
-            RunbookWindowPresenter.present(repositoryID: repositoryID)
-        }
-    }
-
-    private func handleQuickActionNotification(_ notification: Notification) {
-        guard let raw = notification.userInfo?["action"] as? String,
-              let action = AppQuickAction(rawValue: raw) else { return }
-        handleQuickAction(action)
-    }
-
-    private func handleQuickAction(_ action: AppQuickAction) {
-        switch action {
-        case .openQueue:
-            NotificationCenter.default.post(name: .openQueue, object: nil)
-        case .openCompare:
-            selectSidebarItem(.compare)
-        case .openEcosystems:
-            selectSidebarItem(.ecosystems)
-        case .openMyStack:
-            selectSidebarItem(.myStack)
-        case .generateRunbook:
-            generateRunbookForSelectedProject()
-        case .openRunbook:
-            openRunbookForSelectedProject()
-        case .compareSelected:
-            guard labsFeaturesEnabled else { return }
-            compareSelectedProject()
-        case .showNeedsRunbook:
-            NotificationCenter.default.post(name: .setCatalogRunbookFilter,
-                                            object: nil,
-                                            userInfo: ["filter": CatalogRunbookFilter.needsRunbook.rawValue])
-            sidebarSelection = .allProjects
-        case .showStaleRunbooks:
-            NotificationCenter.default.post(name: .setCatalogRunbookFilter,
-                                            object: nil,
-                                            userInfo: ["filter": CatalogRunbookFilter.staleRunbooks.rawValue])
-            sidebarSelection = .allProjects
-        case .regenerateStaleRunbooks, .refreshIntelligence:
-            AppQuickActionCenter.postCatalog(action)
-            sidebarSelection = .allProjects
-        }
-    }
-
-    private func generateRunbookForSelectedProject() {
-        guard let project = selectedProject,
-              let repositoryID = IntelligenceRepositoryBridge.repositoryID(for: project) else {
-            sidebarSelection = .allProjects
-            return
-        }
-        do {
-            _ = try RepositoryRunbookService.enqueueGeneration(repositoryID: repositoryID, force: false)
-            AppRefreshBus.emit(.queueUpdated)
-            AppRefreshBus.emit(.catalogStateUpdated)
-        } catch {
-            #if DEBUG
-            print("[reshelf] Generate runbook failed: \(error)")
-            #endif
-        }
-    }
-
-    private func openRunbookForSelectedProject() {
-        guard let project = selectedProject,
-              let repositoryID = IntelligenceRepositoryBridge.repositoryID(for: project) else { return }
-        openRunbookRepository(repositoryID, openInWindow: true)
-    }
-
-    private func compareSelectedProject() {
-        guard labsFeaturesEnabled else { return }
-        guard let project = selectedProject,
-              let repositoryID = IntelligenceRepositoryBridge.repositoryID(for: project) else {
-            selectSidebarItem(.compare)
-            return
-        }
-        sidebarSelection = .compare
-        CompareDeepLinkNotifier.post(CompareDeepLinkRequest(intent: .addRepository(repositoryID)))
-    }
-
-    /// Re-classify projects whose category is empty or just a language name.
-    /// After a classifier upgrade (version bump), one forced pass re-scores every
-    /// repo — snapshotting a backup first so the previous categories are recoverable.
     private func reclassifyProjectsIfNeeded() {
         let force = storedClassifierVersion < Self.classifierVersion
         if force {
@@ -656,21 +486,15 @@ struct ContentView: View {
 }
 
 private struct ContentViewNotificationHandlers: ViewModifier {
-    let labsFeaturesEnabled: Bool
     @Binding var sidebarSelection: SidebarItem?
     @Binding var listSelection: CatalogListSelection?
-    @Binding var selectedDiscoveryCluster: EcosystemClusterSummary?
     @Binding var showingAddSheet: Bool
     @Binding var showingCommandPalette: Bool
     @Binding var quickCaptureRequest: QuickCaptureRequest?
-    let compareModel: CompareScreenModel
     let appRefreshStore: AppRefreshStore
     let onToggleSidebar: () -> Void
     let onToggleInspector: () -> Void
     let onSelectSidebarItem: (SidebarItem) -> Void
-    let onCompareDeepLink: (CompareDeepLinkRequest) -> Void
-    let onRunbookDeepLink: (String, Bool) -> Void
-    let onQuickAction: (Notification) -> Void
     let onAppear: () -> Void
 
     func body(content: Content) -> some View {
@@ -692,46 +516,14 @@ private struct ContentViewNotificationHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .openCommandPalette)) { _ in
                 presentSheetAfterEndingTextEditing { showingCommandPalette = true }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openCompare)) { _ in
-                onSelectSidebarItem(.compare)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openEcosystems)) { _ in
-                onSelectSidebarItem(.ecosystems)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openMyStack)) { _ in
-                onSelectSidebarItem(.myStack)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: CompareDeepLinkNotifier.notificationName)) { notification in
-                guard labsFeaturesEnabled,
-                      let request = CompareDeepLinkNotifier.decode(from: notification) else { return }
-                onCompareDeepLink(request)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: RunbookDeepLinkNotifier.notificationName)) { notification in
-                guard let request = RunbookDeepLinkNotifier.decode(from: notification) else { return }
-                onRunbookDeepLink(request.repositoryID, request.openInWindow)
-            }
             .onReceive(NotificationCenter.default.publisher(for: AppRefreshBus.notificationName)) { notification in
                 guard let event = AppRefreshEvent.decode(from: notification) else { return }
                 appRefreshStore.handle(event)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: AppQuickActionCenter.notificationName)) { notification in
-                onQuickAction(notification)
             }
             .onReceive(NotificationCenter.default.publisher(for: .selectSidebarItem)) { notification in
                 guard let raw = notification.userInfo?["item"] as? String,
                       let item = SidebarItem(rawValue: raw) else { return }
                 onSelectSidebarItem(item)
-            }
-            .onChange(of: labsFeaturesEnabled) { _, enabled in
-                if !enabled, let sidebarSelection, sidebarSelection.requiresLabs {
-                    self.sidebarSelection = .allProjects
-                }
-            }
-            .onChange(of: appRefreshStore.compareRevision) { _, _ in
-                Task { await compareModel.reloadSessions() }
-            }
-            .onChange(of: sidebarSelection) { _, _ in
-                selectedDiscoveryCluster = nil
             }
             .onAppear(perform: onAppear)
     }

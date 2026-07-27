@@ -909,7 +909,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
 			name = "IntelligenceRepositoryBridge.swift";
-			path = "OpenSourceShelf/Services/Compare/IntelligenceRepositoryBridge.swift";
+			path = "OpenSourceShelf/Services/Intelligence/IntelligenceRepositoryBridge.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		62FABB54B4304CAB1993CEFC /* RepositoryCompareService.swift */ = {

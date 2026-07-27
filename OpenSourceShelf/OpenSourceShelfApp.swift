@@ -106,10 +106,8 @@ struct OpenSourceShelfApp: App {
     @NSApplicationDelegateAdaptor(FormatMenuPruner.self) private var formatMenuPruner
     let container: ModelContainer
     @StateObject private var appRefreshStore = AppRefreshStore()
-    @StateObject private var catalogStateStore = CatalogIntelligenceStateStore()
     @StateObject private var queueViewModel = QueueViewModel()
     @StateObject private var queueMenuState = QueueMenuPresentationState()
-    @StateObject private var runbookWindowState = RunbookWindowState()
     @StateObject private var updaterService = UpdaterService.shared
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
@@ -150,9 +148,8 @@ struct OpenSourceShelfApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(catalogStateStore: catalogStateStore)
+            ContentView()
                 .environmentObject(appRefreshStore)
-                .environmentObject(runbookWindowState)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
         .modelContainer(container)
@@ -386,7 +383,6 @@ struct OpenSourceShelfApp: App {
 
         Window("Runbook", id: ShelfWindowID.runbook) {
             RunbookWindowView()
-                .environmentObject(runbookWindowState)
                 .environmentObject(appRefreshStore)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
