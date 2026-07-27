@@ -24,6 +24,14 @@ struct ProjectListView: View {
     /// Non-nil while the New Folder prompt is up; holds what goes into it.
     @State private var newFolderTargets: [ToolProject]?
     @State private var newFolderName = ""
+    /// Rows checked for a batch action. Separate from `listSelection`, which is
+    /// "what the inspector is showing" — a single project, always. Keeping them
+    /// separate means ⌘-clicking a second row doesn't blank the inspector.
+    @State private var batchSelection: Set<UUID> = []
+    /// Anchor for ⇧-click range selection: the last row clicked without ⇧.
+    @State private var batchAnchor: UUID?
+    @State private var pendingBatchRemoveClones: [ToolProject]?
+    @State private var pendingBatchDelete: [ToolProject]?
     @State private var pendingRemoveCloneProject: ToolProject?
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
@@ -107,12 +115,13 @@ struct ProjectListView: View {
                             ForEach(filteredProjects) { project in
                                 ProjectRowView(
                                     project: project,
-                                    isSelected: listSelection?.projectID == project.id,
+                                    isSelected: listSelection?.projectID == project.id
+                                        || batchSelection.contains(project.id),
                                     statusKey: project.statusRaw,
                                     isCloning: cloningProjectIDs.contains(project.id),
                                     isClonedLocally: CatalogCloneService.isCloned(project),
                                     isBehind: behindProjectIDs.contains(project.id),
-                                    onSelect: { selectProject(project) }
+                                    onSelect: { selectProject(project, modifiers: $0) }
                                 )
                                 .equatable()
                                 .contextMenu {
@@ -132,6 +141,19 @@ struct ProjectListView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
+                if !batchProjects.isEmpty {
+                    Text("\(batchProjects.count) selected")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Menu("Actions") {
+                        batchActionMenu(for: batchProjects)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    Button("Clear") { clearBatchSelection() }
+                        .font(.system(size: 11))
+                        .buttonStyle(.borderless)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -144,8 +166,10 @@ struct ProjectListView: View {
             IconFetcher.fetchAll(for: allProjects, in: modelContext)
         }
         .onChange(of: searchText) { _, _ in
+            clearBatchSelection()
         }
         .onChange(of: sidebarSelection) { _, _ in
+            clearBatchSelection()
         }
         .onChange(of: appRefreshStore.catalogRevision) { _, _ in
         }
@@ -156,6 +180,40 @@ struct ProjectListView: View {
             onCloneStatusKnown: { note in syncBehindBadge(note) },
             onRemoveDuplicates: { requestRemoveDuplicates() }
         ))
+        .confirmationDialog(
+            "Remove \(pendingBatchRemoveClones?.count ?? 0) local clones?",
+            isPresented: Binding(
+                get: { pendingBatchRemoveClones != nil },
+                set: { if !$0 { pendingBatchRemoveClones = nil } }
+            ),
+            presenting: pendingBatchRemoveClones
+        ) { targets in
+            Button("Move \(targets.count) Clones to Trash", role: .destructive) {
+                for project in targets { removeClone(for: project) }
+                statusNotice = "Moved \(targets.count) clones to the Trash."
+                clearBatchSelection()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { targets in
+            Text("\(targets.count) cloned folders move to the Trash — recoverable from there. The projects stay in your catalog and can be cloned again anytime.")
+        }
+        .confirmationDialog(
+            "Remove \(pendingBatchDelete?.count ?? 0) projects from the catalog?",
+            isPresented: Binding(
+                get: { pendingBatchDelete != nil },
+                set: { if !$0 { pendingBatchDelete = nil } }
+            ),
+            presenting: pendingBatchDelete
+        ) { targets in
+            Button("Remove \(targets.count) from Catalog", role: .destructive) {
+                for project in targets { deleteProject(project) }
+                statusNotice = "Removed \(targets.count) projects from the catalog."
+                clearBatchSelection()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { targets in
+            Text("This removes \(targets.count) entries from your shelf. A backup is written first, so Restore from Backup can bring them back. Cloned files on disk are left untouched.")
+        }
         .alert("New Folder", isPresented: Binding(
             get: { newFolderTargets != nil },
             set: { if !$0 { newFolderTargets = nil } }
@@ -224,14 +282,94 @@ struct ProjectListView: View {
         return "\(projectCount) project\(projectCount == 1 ? "" : "s")"
     }
 
-    private func selectProject(_ project: ToolProject) {
+    /// A plain click selects one project and drops any batch selection. ⌘-click
+    /// toggles a row into the batch; ⇧-click extends from the last plain click.
+    /// The inspector keeps following `listSelection` throughout, so building a
+    /// batch never costs you the detail view of what you last looked at.
+    private func selectProject(_ project: ToolProject, modifiers: EventModifiers = []) {
+        if modifiers.contains(.command) {
+            if batchSelection.contains(project.id) {
+                batchSelection.remove(project.id)
+            } else {
+                batchSelection.insert(project.id)
+                if batchAnchor == nil { batchAnchor = project.id }
+            }
+            return
+        }
+        if modifiers.contains(.shift), let anchor = batchAnchor ?? listSelection?.projectID {
+            let ids = filteredProjects.map(\.id)
+            if let from = ids.firstIndex(of: anchor), let to = ids.firstIndex(of: project.id) {
+                batchSelection.formUnion(ids[min(from, to)...max(from, to)])
+                return
+            }
+        }
+        batchSelection.removeAll()
+        batchAnchor = project.id
         listSelection = .project(project.id)
+    }
+
+    /// The batch, in the list's order — so "move 12 to Yard Sale" reports and acts
+    /// in the order the user sees, and rows filtered out of view are excluded.
+    private var batchProjects: [ToolProject] {
+        filteredProjects.filter { batchSelection.contains($0.id) }
+    }
+
+    private func clearBatchSelection() {
+        batchSelection.removeAll()
+        batchAnchor = nil
+    }
+
+    /// The batch actions, shared by the footer menu and the row context menu so
+    /// there is one definition of what a batch can do.
+    @ViewBuilder
+    private func batchActionMenu(for projects: [ToolProject]) -> some View {
+        Menu("Move \(projects.count) to") {
+            ForEach(ProjectStatus.allCases, id: \.self) { shelf in
+                Button {
+                    for project in projects where project.status != shelf {
+                        project.status = shelf
+                    }
+                    try? modelContext.save()
+                    statusNotice = "Moved \(projects.count) project\(projects.count == 1 ? "" : "s") to \(shelf.displayName)."
+                    clearBatchSelection()
+                } label: {
+                    Label(shelf.displayName, systemImage: shelf.sfSymbol)
+                }
+            }
+        }
+
+        folderMenu(for: projects)
+
+        let cloned = projects.filter { CatalogCloneService.isCloned($0) }
+        if !cloned.isEmpty {
+            Divider()
+            Button("Remove \(cloned.count) Local Clone\(cloned.count == 1 ? "" : "s")…", role: .destructive) {
+                pendingBatchRemoveClones = cloned
+            }
+        }
+
+        Divider()
+        Button("Remove \(projects.count) from Catalog…", role: .destructive) {
+            pendingBatchDelete = projects
+        }
     }
 
  
  
     @ViewBuilder
     private func catalogContextMenu(for project: ToolProject) -> some View {
+        // Right-clicking inside a batch acts on the batch; right-clicking outside
+        // one acts on that row alone. Anything else would silently apply a
+        // destructive action to rows the user wasn't pointing at.
+        if batchSelection.contains(project.id), batchSelection.count > 1 {
+            batchActionMenu(for: batchProjects)
+        } else {
+            singleProjectContextMenu(for: project)
+        }
+    }
+
+    @ViewBuilder
+    private func singleProjectContextMenu(for project: ToolProject) -> some View {
         // Link actions (open / copy) live on the links in the inspector, not here.
         // — Shelf — one-tap triage between shelves
         Menu("Move to") {
@@ -678,7 +816,9 @@ struct ProjectRowView: View, Equatable {
     var isClonedLocally: Bool = false
     /// Local clone is behind its upstream (updates available to pull).
     var isBehind: Bool = false
-    var onSelect: (() -> Void)?
+    /// Carries the modifier keys held at click time so the list can tell a
+    /// plain click from ⌘-click (toggle into batch) and ⇧-click (extend).
+    var onSelect: ((EventModifiers) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
 
@@ -746,7 +886,15 @@ struct ProjectRowView: View, Equatable {
         .padding(.horizontal, 16)
         .contentShape(Rectangle())
         .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
-        .onTapGesture { onSelect?() }
+        .onTapGesture {
+            // SwiftUI's tap gesture doesn't carry modifiers on macOS; read them
+            // from the event that is still current when the handler runs.
+            var modifiers: EventModifiers = []
+            let flags = NSEvent.modifierFlags
+            if flags.contains(.command) { modifiers.insert(.command) }
+            if flags.contains(.shift) { modifiers.insert(.shift) }
+            onSelect?(modifiers)
+        }
     }
 }
 
