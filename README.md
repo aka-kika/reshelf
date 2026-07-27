@@ -49,13 +49,27 @@ No account. No cloud. Your catalog and clones live on your Mac.
 - **Hard to lose data** — an isolated store plus automatic JSON backups (last 30),
   auto-restore-on-empty, manual restore, and JSON import/export.
 
-The **Intelligence engine** (clone + AI analysis, runbooks, Compare, Ecosystems) is a
-**v2 preview** behind **Settings → Enable Intelligence** (off by default).
+**AI, when it happens, happens on your Mac.** Capture Assist fills in use cases, a
+note and tags with on-device Apple Intelligence — no key, no setup, nothing sent
+anywhere. There is no provider to choose and no cloud option to turn on.
 
 <p align="center">
   <img src="assets/reshelf-cloned.png" alt="reshelf — the Cloned filter showing which local clones have updates available, with one-click pull" width="900">
   <br>
   <em>The <strong>Cloned</strong> filter: see which local clones are behind upstream and pull with one click.</em>
+</p>
+
+<p align="center">
+  <img src="assets/reshelf-license.png" alt="reshelf — a plain-language explanation of the MIT license: what you can do, what you must do, and whether it is safe in a closed-source project" width="900">
+  <br>
+  <em>Every license explains itself in plain language — what you can do, what you must do,
+  and whether it's safe to reuse in something closed-source.</em>
+</p>
+
+<p align="center">
+  <img src="assets/reshelf-catalog-light.png" alt="reshelf in light appearance, showing the same shelf of projects" width="900">
+  <br>
+  <em>Light or dark, following macOS or pinned in Settings.</em>
 </p>
 
 ## In one minute
@@ -106,7 +120,7 @@ Resolves **GRDB** via Swift Package Manager on first build.
 | Catalog (projects, settings) | `~/reshelf/catalog.store` (SwiftData — isolated, not the shared default store) |
 | Automatic JSON backups | `~/reshelf/backups/` (last 30 add/remove/background snapshots) |
 | Local clones | `~/reshelf/repos/<Category>/<repo>` (grouped by category; full clones) |
-| Intelligence layer (v2 preview) | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
+| Clone + metadata records | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
 
 ## Extending reshelf with skills 🧩
 
@@ -155,14 +169,14 @@ explicitly welcome.
 ## Privacy and network
 
 - **GitHub API** — only when you use Quick Capture (repo metadata, optional README).
-- **Ollama / cloud AI** — only if you enable the v2 Intelligence preview and configure a provider.
+- **AI** — never leaves the Mac. Capture Assist runs on-device Apple Intelligence; there is no cloud provider to configure.
 - No sign-in, no required cloud sync. Credentials (when used) live in the macOS Keychain.
 
 ## Stack
 
 - **SwiftUI** — interface · **SwiftData** — the catalog you see
-- **GRDB (SQLite)** — the v2 intelligence store (dormant until Labs is on)
-- **GitHub REST** + optional **Ollama / cloud AI** — helpers
+- **GRDB (SQLite)** — a second store for clone and metadata records
+- **GitHub REST** — repo metadata on capture · **Apple Intelligence** — on-device fills
 
 ## Roadmap
 
