@@ -115,39 +115,8 @@ final class IntelligenceDatabase {
     }
 
 
-    func fetchActiveRunbookJobRepositoryIDs(repositoryIDs: [String]) throws -> Set<String> {
-        guard !repositoryIDs.isEmpty else { return [] }
-        return try read { db in
-            let ids = try IngestionJobRecord
-                .filter(repositoryIDs.contains(Column("repository_id")))
-                .filter(Column("type") == "generate_runbook")
-                .filter(["pending", "running"].contains(Column("status")))
-                .fetchAll(db)
-                .map(\.repositoryID)
-            return Set(ids.compactMap { $0 })
-        }
-    }
-
-    func fetchActiveRunbookJobs(repositoryIDs: [String]) throws -> [String: IngestionJobRecord] {
-        guard !repositoryIDs.isEmpty else { return [:] }
-        return try read { db in
-            let jobs = try IngestionJobRecord
-                .filter(repositoryIDs.contains(Column("repository_id")))
-                .filter(Column("type") == "generate_runbook")
-                .filter(["pending", "running"].contains(Column("status")))
-                .order(Column("created_at").desc)
-                .fetchAll(db)
-            var result: [String: IngestionJobRecord] = [:]
-            for job in jobs {
-                guard let repositoryID = job.repositoryID else { continue }
-                if result[repositoryID] == nil {
-                    result[repositoryID] = job
-                }
-            }
-            return result
-        }
-    }
-
+ 
+ 
     func upsert(repository: RepositoryRecord,
                 metadata: RepositoryMetadataRecord? = nil,
                 cloneState: CloneStateRecord? = nil,
@@ -382,24 +351,7 @@ final class IntelligenceDatabase {
     }
 
 
-    func searchCompareRepositories(query: String, limit: Int = 20) throws -> [RepositoryRecord] {
-        let pattern = "%\(query)%"
-        return try read { db in
-            try RepositoryRecord.fetchAll(
-                db,
-                sql: """
-                SELECT *
-                FROM repositories
-                WHERE full_name LIKE ? COLLATE NOCASE
-                   OR name LIKE ? COLLATE NOCASE
-                ORDER BY full_name
-                LIMIT ?
-                """,
-                arguments: [pattern, pattern, limit]
-            )
-        }
-    }
-
+ 
 
     func comparisonEvidenceSignature(repositoryIDs: [String]) throws -> String {
         let sorted = repositoryIDs.sorted()
@@ -520,101 +472,8 @@ final class IntelligenceDatabase {
 
 
 
-    func fetchEcosystemCacheKey() throws -> String {
-        try read { db in
-            let repositorySignature = try String.fetchOne(
-                db,
-                sql: """
-                SELECT COALESCE(GROUP_CONCAT(repository_signature, '|'), 'no-repositories')
-                FROM (
-                    SELECT id || ':' || full_name || ':' || name || ':' || github_url || ':' ||
-                           COALESCE(updated_at, '') AS repository_signature
-                    FROM repositories
-                    ORDER BY repository_signature
-                )
-                """
-            ) ?? "no-repositories"
-            let graphSignature = try String.fetchOne(
-                db,
-                sql: """
-                SELECT COALESCE(GROUP_CONCAT(edge_signature, '|'), 'no-graph')
-                FROM (
-                    SELECT source.key || '>' || target.key || ':' || e.relationship_type || ':' || e.confidence || ':' ||
-                           COALESCE(e.evidence_path, '') || ':' || COALESCE(e.evidence_text, '') || ':' || e.created_by
-                           AS edge_signature
-                    FROM graph_edges e
-                    JOIN graph_nodes source ON source.id = e.source_node_id
-                    JOIN graph_nodes target ON target.id = e.target_node_id
-                    ORDER BY edge_signature
-                )
-                """
-            ) ?? "no-graph"
-            let recommendationSignature = try String.fetchOne(
-                db,
-                sql: """
-                SELECT COALESCE(GROUP_CONCAT(recommendation_signature, '|'), 'no-recommendations')
-                FROM (
-                    SELECT source_repository_id || ':' || target_node_id || ':' || recommendation_type || ':' ||
-                           score || ':' || explanation || ':' || signals_json AS recommendation_signature
-                    FROM repository_recommendations
-                    ORDER BY recommendation_signature
-                )
-                """
-            ) ?? "no-recommendations"
-            let stackSignature = try String.fetchOne(
-                db,
-                sql: """
-                SELECT COALESCE(GROUP_CONCAT(stack_signature, '|'), 'no-stack')
-                FROM (
-                    SELECT repository_id || ':' || name || ':' || category || ':' || detection_source || ':' ||
-                           confidence || ':' || COALESCE(evidence_path, '') || ':' || COALESCE(evidence_text, '') || ':' ||
-                           detected_at AS stack_signature
-                    FROM detected_stack_items
-                    ORDER BY stack_signature
-                )
-                """
-            ) ?? "no-stack"
-            let scoreSignature = try String.fetchOne(
-                db,
-                sql: """
-                SELECT COALESCE(GROUP_CONCAT(score_signature, '|'), 'no-score')
-                FROM (
-                    SELECT repository_id || ':' || setup_complexity || ':' || local_first_score || ':' ||
-                           experimentation_priority || ':' || ecosystem_influence || ':' || personal_relevance || ':' ||
-                           generated_at AS score_signature
-                    FROM repository_scores
-                    ORDER BY score_signature
-                )
-                """
-            ) ?? "no-score"
-            let insightSignature = try String.fetchOne(
-                db,
-                sql: """
-                SELECT COALESCE(GROUP_CONCAT(insight_signature, '|'), 'no-insights')
-                FROM (
-                    SELECT repository_id || ':' || classifications_json || ':' || relationship_hints_json || ':' || generated_at
-                           AS insight_signature
-                    FROM ai_insights
-                    ORDER BY insight_signature
-                )
-                """
-            ) ?? "no-insights"
-            return [repositorySignature, graphSignature, recommendationSignature, stackSignature, scoreSignature, insightSignature]
-                .joined(separator: "|")
-        }
-    }
-
-    func hasEcosystemClusters(cacheKey: String) throws -> Bool {
-        try read { db in
-            let count = try Int.fetchOne(
-                db,
-                sql: "SELECT COUNT(*) FROM ecosystem_clusters WHERE cache_key = ?",
-                arguments: [cacheKey]
-            ) ?? 0
-            return count > 0
-        }
-    }
-
+ 
+ 
 
     func fetchExplorationCacheKey() throws -> String {
         try read { db in
@@ -978,17 +837,7 @@ final class IntelligenceDatabase {
 
 
 
-    func updateRunbookLastExportedAt(runbookID: String, exportedAt: String) throws {
-        try write { db in
-            try db.execute(sql: """
-                UPDATE repository_runbooks
-                SET last_exported_at = ?
-                WHERE id = ?
-                """,
-                           arguments: [exportedAt, runbookID])
-        }
-    }
-
+ 
 
     func fetchRepository(forJobID jobID: String) throws -> RepositoryRecord? {
         try read { db in

@@ -7,7 +7,6 @@ struct QuickCaptureSheet: View {
     var initialURL: String = ""
 
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
     @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
     @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @Query private var existingProjects: [ToolProject]
@@ -294,12 +293,10 @@ struct QuickCaptureSheet: View {
 
     private var detailFields: some View {
             VStack(alignment: .leading, spacing: 14) {
-                // AI suggestions stay zero-setup: in the catalog-only default they
-                // appear only when Capture Assist is on and on-device Apple
-                // Intelligence is available (no keys, no config). Labs mode adds
-                // the configurable providers.
-                if labsFeaturesEnabled
-                    || (captureAssistEnabled && AppleIntelligenceService.availability.isAvailable) {
+                // AI suggestions stay zero-setup: they appear only when Capture
+                // Assist is on and on-device Apple Intelligence is available.
+                // No keys, no config, no provider to choose.
+                if captureAssistEnabled && AppleIntelligenceService.availability.isAvailable {
                     aiSuggestionsSection
                 }
                 field("Name") { TextField("", text: $name) }

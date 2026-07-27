@@ -17,7 +17,7 @@ struct ProjectListView: View {
 
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     /// Transient one-line status under the list header — clone progress, shelf
-    /// moves, failures. (Was `statusNotice`; Compare merely introduced it.)
+    /// moves, failures. (Was `compareNotice`; Compare merely introduced it.)
     @State private var statusNotice: String?
     @State private var pendingDeleteProject: ToolProject?
     @State private var pendingRemoveCloneProject: ToolProject?
@@ -483,18 +483,12 @@ struct ProjectListView: View {
  
  
  
- 
- 
- 
- 
+
     private var filteredProjects: [ToolProject] {
         let bySidebar = applySidebarFilter(allProjects)
-        let byRunbook = bySidebar.filter { project in
-            true
-        }
         let bySearch = searchText.isEmpty
-            ? byRunbook
-            : byRunbook.filter { $0.matchesSearch(searchText) }
+            ? bySidebar
+            : bySidebar.filter { $0.matchesSearch(searchText) }
         return sortOrder.sorted(bySearch)
     }
 

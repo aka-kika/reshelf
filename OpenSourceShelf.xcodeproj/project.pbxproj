@@ -46,11 +46,11 @@
 			path = "OpenSourceShelf/Models/ToolProject.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		LAB1REF01234567890ABCDEF01 /* LabsFeatures.swift */ = {
+		LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
-			name = "LabsFeatures.swift";
-			path = "OpenSourceShelf/Models/LabsFeatures.swift";
+			name = "CaptureAssist.swift";
+			path = "OpenSourceShelf/Models/CaptureAssist.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		CLS1REF01234567890ABCDEF01 /* CatalogListSelection.swift */ = {
@@ -558,7 +558,7 @@
 				E14FFF135E1C32F7E41B3958 /* ProjectStatus.swift */,
 				868BD8CBD1E0AA395EAD3A6F /* SidebarItem.swift */,
 				37F255F7393A8F75EB2F40DD /* ToolProject.swift */,
-				LAB1REF01234567890ABCDEF01 /* LabsFeatures.swift */,
+				LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */,
 				CLS1REF01234567890ABCDEF01 /* CatalogListSelection.swift */,
 				A52E8C5B37CE17A44D88EA70 /* EmbeddingChunkRecord.swift */,
 				3D424D9388C5E6281CE10735 /* SemanticSearchCacheRecord.swift */,
