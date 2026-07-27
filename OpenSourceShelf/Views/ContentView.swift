@@ -89,7 +89,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var listSelection: CatalogListSelection?
     @State private var searchText: String = ""
-    @State private var sidebarSelection: SidebarItem? = .allProjects
+    @State private var sidebarSelection: ShelfSelection? = .builtin(.allProjects)
     @State private var showingAddSheet: Bool = false
     @State private var quickCaptureRequest: QuickCaptureRequest?
     @State private var showingCommandPalette: Bool = false
@@ -277,7 +277,7 @@ struct ContentView: View {
     }
 
     private func selectSidebarItem(_ item: SidebarItem) {
-        sidebarSelection = item
+        sidebarSelection = .builtin(item)
     }
 
     private var catalogSplitView: some View {
@@ -406,7 +406,7 @@ struct ContentView: View {
     }
 
     private var usesProjectListColumn: Bool {
-        switch sidebarSelection {
+        switch sidebarSelection?.builtinItem {
         case .settings:
             return false
         default:
@@ -450,7 +450,7 @@ struct ContentView: View {
             !$0.githubURL.isEmpty && $0.githubURL == repository.githubURL
         }) ?? allProjects.first(where: { $0.name == repository.name }) {
             listSelection = .project(project.id)
-            sidebarSelection = .allProjects
+            sidebarSelection = .builtin(.allProjects)
         }
     }
 
@@ -485,7 +485,7 @@ struct ContentView: View {
 }
 
 private struct ContentViewNotificationHandlers: ViewModifier {
-    @Binding var sidebarSelection: SidebarItem?
+    @Binding var sidebarSelection: ShelfSelection?
     @Binding var listSelection: CatalogListSelection?
     @Binding var showingAddSheet: Bool
     @Binding var showingCommandPalette: Bool

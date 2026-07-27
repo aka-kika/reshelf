@@ -5,7 +5,7 @@ import AppKit
 struct ProjectListView: View {
     @Binding var listSelection: CatalogListSelection?
     @Binding var searchText: String
-    @Binding var sidebarSelection: SidebarItem?
+    @Binding var sidebarSelection: ShelfSelection?
     @Binding var showingAddSheet: Bool
     /// With the sidebar collapsed, this column is at the window's top-left where
     /// the traffic lights sit — inset the header so they don't cover the buttons.
@@ -14,6 +14,7 @@ struct ProjectListView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
+    @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
 
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     /// Transient one-line status under the list header — clone progress, shelf
@@ -42,7 +43,7 @@ struct ProjectListView: View {
                     HeaderChromeButton(systemImage: "sidebar.left", help: "Toggle Sidebar") {
                         NotificationCenter.default.post(name: .toggleSidebarColumn, object: nil)
                     }
-                    Text(sidebarSelection?.title ?? "All Projects")
+                    Text(listTitle)
                         .font(.system(size: 15, weight: .semibold))
                     Spacer()
                     sortMenu
@@ -515,9 +516,23 @@ struct ProjectListView: View {
         .titlebarClickable()
     }
 
+    /// What the list is showing. A folder selection names the folder; a folder
+    /// that has since been deleted falls back rather than showing a stale name.
+    private var listTitle: String {
+        if let item = sidebarSelection?.builtinItem { return item.title }
+        if let id = sidebarSelection?.folderID,
+           let folder = folders.first(where: { $0.id == id }) {
+            return folder.name
+        }
+        return "All Projects"
+    }
+
     private func applySidebarFilter(_ projects: [ToolProject]) -> [ToolProject] {
-        guard let selection = sidebarSelection, selection.isCatalogFilter else { return projects }
-        return projects.filter { selection.matchesCatalogFilter($0) }
+        if let id = sidebarSelection?.folderID {
+            return projects.filter { $0.folderID == id }
+        }
+        guard let item = sidebarSelection?.builtinItem, item.isCatalogFilter else { return projects }
+        return projects.filter { item.matchesCatalogFilter($0) }
     }
 
     private var catalogListEmptyState: some View {
@@ -550,15 +565,20 @@ struct ProjectListView: View {
 
     private var catalogEmptyStateIcon: String {
         if !searchText.trimmingCharacters(in: .whitespaces).isEmpty { return "magnifyingglass" }
-        if sidebarSelection?.isCatalogFilter == true { return "line.3.horizontal.decrease.circle" }
+        if sidebarSelection != nil, sidebarSelection?.builtinItem?.isCatalogFilter != false {
+            return "line.3.horizontal.decrease.circle"
+        }
         return "tray"
     }
 
     private var catalogEmptyStateTitle: String {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespaces)
         if !trimmedSearch.isEmpty { return "No search results" }
-        if let sidebarSelection, sidebarSelection.isCatalogFilter {
-            return "No projects in \(sidebarSelection.title)"
+        if let item = sidebarSelection?.builtinItem, item.isCatalogFilter {
+            return "No projects in \(item.title)"
+        }
+        if sidebarSelection?.folderID != nil {
+            return "This folder is empty"
         }
         return "Your shelf is empty"
     }
@@ -568,15 +588,19 @@ struct ProjectListView: View {
         if !trimmedSearch.isEmpty {
             return "Nothing matched \"\(trimmedSearch)\". Try a different name, tag, or paste a GitHub URL."
         }
-        if sidebarSelection?.isCatalogFilter == true {
+        if sidebarSelection?.builtinItem?.isCatalogFilter == true {
             return "No projects match this filter yet. Capture more repos, or pick another sidebar filter."
+        }
+        if sidebarSelection?.folderID != nil {
+            return "Nothing is in this folder yet. Right-click a project and pick Add to Folder."
         }
         return "Capture a GitHub repo to start building your personal open-source shelf."
     }
 
     private var catalogEmptyStateShowsCaptureActions: Bool {
         searchText.trimmingCharacters(in: .whitespaces).isEmpty
-            && sidebarSelection?.isCatalogFilter != true
+            && sidebarSelection?.builtinItem?.isCatalogFilter != true
+            && sidebarSelection?.folderID == nil
             && allProjects.isEmpty
     }
 }

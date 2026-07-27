@@ -18,7 +18,7 @@ private struct SidebarFilterCounts {
 }
 
 struct SidebarView: View {
-    @Binding var selection: SidebarItem?
+    @Binding var selection: ShelfSelection?
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
 
     /// Computed (not cached) so counts refresh on any catalog change — including a
@@ -31,7 +31,7 @@ struct SidebarView: View {
         // Build the counts once per render (the struct rebuilds on each access).
         let counts = filterCounts
         let categories = SidebarItem.sidebarCategoryItems.filter {
-            counts.count(for: $0) > 0 || selection == $0
+            counts.count(for: $0) > 0 || selection == .builtin($0)
         }
         return VStack(spacing: 0) {
             // Leading inset clears the traffic lights, which share this row now
@@ -110,6 +110,6 @@ struct SidebarRow: View {
             }
         }
         .padding(.vertical, 2)
-        .tag(item)
+        .tag(ShelfSelection.builtin(item))
     }
 }
