@@ -96,6 +96,7 @@ struct ContentView: View {
     @State private var showingCommandPalette: Bool = false
     @State private var showingImportURLs: Bool = false
     @State private var showingRestoreBackup: Bool = false
+    @State private var importCatalogRequest: ImportCatalogRequest?
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingCaptureURL: String = ""
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -177,6 +178,7 @@ struct ContentView: View {
                 showingCommandPalette = false
                 showingImportURLs = false
                 showingRestoreBackup = false
+                importCatalogRequest = nil
                 quickCaptureRequest = nil
             }
             // Clone badges are derived from a per-launch disk index; returning to
@@ -197,6 +199,23 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingRestoreBackup) {
                 RestoreBackupSheet(isPresented: $showingRestoreBackup)
+            }
+            // The open panel runs first, with no sheet up — running a modal
+            // panel from inside a sheet is what wedges sheet presentation.
+            .onReceive(NotificationCenter.default.publisher(for: .importCatalog)) { _ in
+                guard let picked = CatalogImportService.presentOpenPanel() else { return }
+                presentSheetAfterEndingTextEditing {
+                    importCatalogRequest = ImportCatalogRequest(url: picked.url, rows: picked.rows)
+                }
+            }
+            .sheet(item: $importCatalogRequest) { request in
+                ImportCatalogSheet(
+                    request: request,
+                    isPresented: Binding(
+                        get: { importCatalogRequest != nil },
+                        set: { if !$0 { importCatalogRequest = nil } }
+                    )
+                )
             }
             // Auto-backup: snapshot whenever the project count changes (add/remove)
             // and when the app goes to the background (catches in-place edits).

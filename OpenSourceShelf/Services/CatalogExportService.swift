@@ -20,6 +20,10 @@ struct CatalogProjectDTO: Codable {
     var tags: [String]
     var useCases: [String]
     var notes: String
+    /// The human-written "why I saved this". Optional because exports written
+    /// before this field existed have no key for it — decoding those must not
+    /// fail, and importing one must not blank out a note already on the project.
+    var personalNote: String?
     var fitScore: Int
     var addedDate: Date
     var lastCheckedDate: Date?
@@ -40,6 +44,7 @@ struct CatalogProjectDTO: Codable {
         tags = p.tags
         useCases = p.useCases
         notes = p.notes
+        personalNote = p.personalNote
         fitScore = p.fitScore
         addedDate = p.addedDate
         lastCheckedDate = p.lastCheckedDate
@@ -62,6 +67,7 @@ struct CatalogProjectDTO: Codable {
             tags: tags,
             useCases: useCases,
             notes: notes,
+            personalNote: personalNote ?? "",
             fitScore: fitScore,
             addedDate: addedDate,
             isLocalFirst: isLocalFirst,
@@ -70,6 +76,34 @@ struct CatalogProjectDTO: Codable {
         if let uuid = UUID(uuidString: id) { project.id = uuid }
         project.lastCheckedDate = lastCheckedDate
         return project
+    }
+
+    /// Overwrites an existing project with this row's values — used when an
+    /// import is told to update projects the catalog already has. Deliberately
+    /// leaves `id` and `iconData` alone: the local identity and the cached icon
+    /// aren't part of the exported snapshot, and clobbering them would churn
+    /// selection state and drop artwork the file can't restore.
+    func apply(to project: ToolProject) {
+        project.name = name
+        project.shortDescription = shortDescription
+        project.longDescription = longDescription
+        project.githubURL = githubURL
+        project.websiteURL = websiteURL
+        project.category = category
+        project.status = ProjectStatus(rawValue: status) ?? project.status
+        project.license = license
+        project.stars = stars
+        project.tags = tags
+        project.useCases = useCases
+        project.notes = notes
+        // Only when the file actually carries one — an older export with no
+        // personalNote key must not erase a note written on this machine.
+        if let personalNote { project.personalNote = personalNote }
+        project.fitScore = fitScore
+        project.addedDate = addedDate
+        project.lastCheckedDate = lastCheckedDate
+        project.isLocalFirst = isLocalFirst
+        project.isSelfHosted = isSelfHosted
     }
 }
 

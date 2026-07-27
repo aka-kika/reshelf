@@ -90,7 +90,7 @@ enum CatalogBackupService {
         let count = (try? context.fetchCount(FetchDescriptor<ToolProject>())) ?? 0
         guard count == 0, let snapshot = latestNonEmptySnapshot() else { return false }
 
-        insert(snapshot.projects, into: context, skippingExisting: [])
+        CatalogImportService.merge(snapshot.projects, into: context)
         #if DEBUG
         print("[reshelf] Catalog was empty — restored \(snapshot.projects.count) projects from \(snapshot.url.lastPathComponent)")
         #endif
@@ -104,36 +104,10 @@ enum CatalogBackupService {
     static func restore(from url: URL, into context: ModelContext) -> Int {
         let incoming = projects(in: url)
         guard !incoming.isEmpty else { return 0 }
-        let existing = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
-        let existingKeys = Set(existing.map { key(forURL: $0.githubURL, id: $0.id.uuidString) })
-        return insert(incoming, into: context, skippingExisting: existingKeys)
-    }
-
-    @MainActor
-    @discardableResult
-    private static func insert(_ rows: [CatalogProjectDTO],
-                               into context: ModelContext,
-                               skippingExisting existingKeys: Set<String>) -> Int {
-        var inserted = 0
-        for row in rows {
-            let k = key(forURL: row.githubURL, id: row.id)
-            if existingKeys.contains(k) { continue }
-            context.insert(row.makeToolProject())
-            inserted += 1
-        }
-        if inserted > 0 { try? context.save() }
-        return inserted
+        return CatalogImportService.merge(incoming, into: context)
     }
 
     // MARK: - Helpers
-
-    private static func key(forURL url: String, id: String) -> String {
-        let normalized = url.lowercased()
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
-        return normalized.isEmpty ? "id:\(id)" : normalized
-    }
 
     private static func projectCount(in data: Data) -> Int {
         (try? CatalogExportService.decode(data).count) ?? -1

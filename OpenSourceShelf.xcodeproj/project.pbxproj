@@ -443,11 +443,25 @@
 			path = "OpenSourceShelf/Services/CatalogCloneService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CatalogImportService.swift";
+			path = "OpenSourceShelf/Services/CatalogImportService.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		CE07F1A2B3C4D5E6F7080007 /* RestoreBackupSheet.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
 			name = "RestoreBackupSheet.swift";
 			path = "OpenSourceShelf/Views/RestoreBackupSheet.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		IMPCAT01234567890ABCDEF03 /* ImportCatalogSheet.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ImportCatalogSheet.swift";
+			path = "OpenSourceShelf/Views/ImportCatalogSheet.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		765C2FE2DBD8E6A07C7B8D3F /* SettingsView.swift */ = {
@@ -1024,6 +1038,7 @@
 				12114FB947EC0105FC94A269 /* QuickCaptureSheet.swift */,
 				CE03F1A2B3C4D5E6F7080003 /* ImportURLsSheet.swift */,
 				CE07F1A2B3C4D5E6F7080007 /* RestoreBackupSheet.swift */,
+				IMPCAT01234567890ABCDEF03 /* ImportCatalogSheet.swift */,
 				765C2FE2DBD8E6A07C7B8D3F /* SettingsView.swift */,
 				AIP6REF01234567890ABCDEF06 /* CloudAIProviderSettingsCard.swift */,
 				24DDEBD0F1DEECC3B4961BA5 /* SidebarView.swift */,
@@ -1060,6 +1075,7 @@
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
 				CE05F1A2B3C4D5E6F7080005 /* CatalogBackupService.swift */,
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
+				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
 				CC01A2B3D4E5F60789ABCDE0 /* CategoryClassifier.swift */,
 				011EDAC97AD3411BF259663B /* GitHubRepositoryURL.swift */,
 				CAB6FC28BA83F90F9A18E66C /* RepositoryCloneService.swift */,
@@ -1119,6 +1135,14 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		IMPCAT01234567890ABCDEF02 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = IMPCAT01234567890ABCDEF01;
+		};
+		IMPCAT01234567890ABCDEF04 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = IMPCAT01234567890ABCDEF03;
 		};
 		CC02B3C4D5E6F71890BCDEF1 /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -1706,6 +1730,8 @@
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
 			files = (
+				IMPCAT01234567890ABCDEF04,
+				IMPCAT01234567890ABCDEF02,
 				CE02F1A2B3C4D5E6F7080002,
 				CE04F1A2B3C4D5E6F7080004,
 				CE06F1A2B3C4D5E6F7080006,

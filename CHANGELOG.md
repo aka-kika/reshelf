@@ -5,6 +5,22 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+- **Import Catalog from JSON (⇧⌘I).** Export has always written a portable
+  catalog file, but nothing could read one back — so moving a shelf to another
+  Mac was a one-way trip. File ▸ Import Catalog from JSON… now takes any
+  reshelf export (or any automatic backup — same format) and shows what it will
+  do before touching anything: how many projects are new, how many you already
+  have. New projects are always added; matching ones are left alone unless you
+  tick **Also update the projects I already have**, which replaces their details
+  with the file's version. Projects are matched by GitHub URL, so importing the
+  same file twice never duplicates. A backup is taken first, so any import can
+  be undone from Restore from Backup.
+- **Exports now carry "Why I Saved This."** `personalNote` was missing from the
+  export format, so a round-trip through JSON silently dropped every personal
+  note. It's included now. Older exports that predate the field still import
+  fine, and importing one never blanks a note already on the project.
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).

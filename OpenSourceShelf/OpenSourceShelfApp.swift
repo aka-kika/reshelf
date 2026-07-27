@@ -185,6 +185,11 @@ struct OpenSourceShelfApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
 
+                Button("Import Catalog from JSON…") {
+                    NotificationCenter.default.post(name: .importCatalog, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+
                 Button("Import GitHub URLs…") {
                     NotificationCenter.default.post(name: .importURLs, object: nil)
                 }
@@ -492,6 +497,7 @@ extension Notification.Name {
     static let toggleInspectorColumn = Notification.Name("toggleInspectorColumn")
     static let exportCatalog = Notification.Name("exportCatalog")
     static let importURLs = Notification.Name("importURLs")
+    static let importCatalog = Notification.Name("importCatalog")
     static let restoreBackup = Notification.Name("restoreBackup")
     static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
     static let pullCloneUpdates = Notification.Name("pullCloneUpdates")
