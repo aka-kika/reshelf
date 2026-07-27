@@ -450,6 +450,13 @@
 			path = "OpenSourceShelf/Services/CatalogImportService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		5PARKLE0004234567890ABCD /* UpdaterService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "UpdaterService.swift";
+			path = "OpenSourceShelf/Services/UpdaterService.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		CE07F1A2B3C4D5E6F7080007 /* RestoreBackupSheet.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -1076,6 +1083,7 @@
 				CE05F1A2B3C4D5E6F7080005 /* CatalogBackupService.swift */,
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
+				5PARKLE0004234567890ABCD /* UpdaterService.swift */,
 				CC01A2B3D4E5F60789ABCDE0 /* CategoryClassifier.swift */,
 				011EDAC97AD3411BF259663B /* GitHubRepositoryURL.swift */,
 				CAB6FC28BA83F90F9A18E66C /* RepositoryCloneService.swift */,
@@ -1135,6 +1143,10 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		5PARKLE0005234567890ABCD /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 5PARKLE0004234567890ABCD;
 		};
 		IMPCAT01234567890ABCDEF02 /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -1735,6 +1747,7 @@
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
 			files = (
+				5PARKLE0005234567890ABCD,
 				IMPCAT01234567890ABCDEF04,
 				IMPCAT01234567890ABCDEF02,
 				CE02F1A2B3C4D5E6F7080002,
