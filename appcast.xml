@@ -3,13 +3,25 @@
     <channel>
         <title>reshelf</title>
         <item>
+            <title>1.5.1</title>
+            <pubDate>Mon, 27 Jul 2026 22:37:34 +0300</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>1.5.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:releaseNotesLink>https://aka-kika.github.io/reshelf/reshelf-1.5.1.html</sparkle:releaseNotesLink>
+            <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.5.1/reshelf-1.5.1.zip" length="10939458" type="application/octet-stream" sparkle:edSignature="eu53mAPwBSNxY29HZn0WTd8WEvVlvDzDi4wKeE52Id2vk7IU0vtMrDLWuIi9eAv997aMRBOfRw+UAVFopa6IDA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.5.1/reshelf11-10.delta" sparkle:deltaFrom="10" length="16598" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977808" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="7y4qKo2Y70WkRF0bxv0HxJp1TyA83FhuE65PIHaMkFS2vUQEXGWyJ1o3S3YUje1a4O8OQS9amfIhXWyRq/kSDg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.5.0</title>
             <pubDate>Mon, 27 Jul 2026 22:31:25 +0300</pubDate>
             <sparkle:version>10</sparkle:version>
             <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:releaseNotesLink>https://aka-kika.github.io/reshelf/reshelf-1.5.0.html</sparkle:releaseNotesLink>
-            <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.5.0/reshelf-1.5.0.zip" length="10939447" type="application/octet-stream" sparkle:edSignature="laf44YH4nqK9wejYnO7xFLdcX37RphwpyMkgmBu9xUnrOVm+voxs+jNFVzo2idhU4BYeyZVFHziQ1qeTTwsoCw=="/>
+            <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.5.1/reshelf-1.5.0.zip" length="10939447" type="application/octet-stream" sparkle:edSignature="laf44YH4nqK9wejYnO7xFLdcX37RphwpyMkgmBu9xUnrOVm+voxs+jNFVzo2idhU4BYeyZVFHziQ1qeTTwsoCw=="/>
         </item>
     </channel>
 </rss>
