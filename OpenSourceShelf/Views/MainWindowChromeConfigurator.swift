@@ -105,9 +105,13 @@ enum ShelfWindowChrome {
     /// direct subviews of the NSSplitView — they are NOT NSVisualEffectViews, so
     /// the material pass above misses them. They dim/gray the top strip where our
     /// column headers live (verified live: hiding them restores the headers).
-    /// AppKit creates them lazily and re-shows them, so this runs cheaply on every
-    /// window draw (the backdrops are direct split-view children — no deep walk)
-    /// and each found view gets a KVO guard that instantly reverts re-shows.
+    /// AppKit creates them lazily and re-shows them, so this runs on every window
+    /// draw and each found view gets a KVO guard that instantly reverts re-shows.
+    ///
+    /// macOS 27 beta 4 moved the goalposts: it parents a *second* pocket to the
+    /// sidebar List's scroll view, which the split-view scan below cannot reach.
+    /// Verified live — the stray pair was `NSScrollPocket` + `BackdropView` on
+    /// `ListCoreScrollView` at exactly the sidebar width, blurring its top rows.
     private static var backdropGuards: [ObjectIdentifier: NSKeyValueObservation] = [:]
 
     static func hideTitlebarBackdrops(in window: NSWindow) {
@@ -115,14 +119,33 @@ enum ShelfWindowChrome {
         for splitView in contentView.descendantSplitViews() {
             for view in splitView.subviews
             where String(describing: type(of: view)).contains("NSTitlebarBackgroundView") {
-                view.isHidden = true
-                let key = ObjectIdentifier(view)
-                if backdropGuards[key] == nil {
-                    backdropGuards[key] = view.observe(\.isHidden) { view, _ in
-                        if !view.isHidden { view.isHidden = true }
-                    }
-                }
+                hideAndPin(view)
             }
+        }
+        // macOS 27 (beta 4) additionally parents an `NSScrollPocket` — and its
+        // `BackdropView` — to the sidebar List's own scroll view rather than to
+        // the split view, so the loop above never sees it. That pair is what
+        // blurs the top rows of the sidebar. Match on the scroll view's own
+        // children so only pockets belonging to a scroller are touched; the
+        // pocket nested inside the (already hidden) NSTitlebarBackgroundView is
+        // left alone.
+        for scrollView in contentView.descendantScrollViews() {
+            for view in scrollView.subviews {
+                let name = String(describing: type(of: view))
+                guard name == "NSScrollPocket" || name == "BackdropView" else { continue }
+                hideAndPin(view)
+            }
+        }
+    }
+
+    /// Hide a view and keep it hidden: AppKit re-shows this chrome on relayout,
+    /// so a KVO guard reverts each re-show instantly.
+    private static func hideAndPin(_ view: NSView) {
+        view.isHidden = true
+        let key = ObjectIdentifier(view)
+        guard backdropGuards[key] == nil else { return }
+        backdropGuards[key] = view.observe(\.isHidden) { view, _ in
+            if !view.isHidden { view.isHidden = true }
         }
     }
 
@@ -145,6 +168,18 @@ private extension NSView {
                 result.append(splitView)
             }
             result.append(contentsOf: subview.descendantSplitViews())
+        }
+        return result
+    }
+
+    /// Depth-first collection of all NSScrollView instances in the subtree.
+    func descendantScrollViews() -> [NSScrollView] {
+        var result: [NSScrollView] = []
+        for subview in subviews {
+            if let scrollView = subview as? NSScrollView {
+                result.append(scrollView)
+            }
+            result.append(contentsOf: subview.descendantScrollViews())
         }
         return result
     }
