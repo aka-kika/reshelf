@@ -498,7 +498,7 @@ struct ProjectListView: View {
     private func performRemoveDuplicates() {
         let groups = duplicateGroups()
         guard !groups.isEmpty else { return }
-        CatalogBackupService.writeSnapshot(allProjects) // recoverable via Restore from Backup
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
         var removed = 0
         for group in groups {
             let ranked = group.sorted { a, b in

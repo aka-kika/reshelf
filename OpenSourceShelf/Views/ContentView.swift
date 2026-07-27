@@ -106,6 +106,7 @@ struct ContentView: View {
     @State private var isApplyingColumnVisibility = false
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
+    @Query(sort: \CatalogFolder.sortIndex) private var allFolders: [CatalogFolder]
 
     /// Bump when CategoryClassifier gets meaningfully smarter: the next launch
     /// takes a backup and re-runs the fill pass once. Only empty / raw-language
@@ -155,7 +156,7 @@ struct ContentView: View {
                 onAppear: handleContentAppear
             ))
             .onReceive(NotificationCenter.default.publisher(for: .exportCatalog)) { _ in
-                CatalogExportService.presentExportPanel(projects: allProjects)
+                CatalogExportService.presentExportPanel(projects: allProjects, folders: allFolders)
             }
             // Sheet-wedge recovery: a caught ViewBridge exception mid-presentation
             // leaves SwiftUI believing a sheet is up when none is on screen, and
@@ -195,7 +196,8 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .importCatalog)) { _ in
                 guard let picked = CatalogImportService.presentOpenPanel() else { return }
                 presentSheetAfterEndingTextEditing {
-                    importCatalogRequest = ImportCatalogRequest(url: picked.url, rows: picked.rows)
+                    importCatalogRequest = ImportCatalogRequest(
+                        url: picked.url, rows: picked.rows, folders: picked.folders)
                 }
             }
             .sheet(item: $importCatalogRequest) { request in
@@ -210,11 +212,11 @@ struct ContentView: View {
             // Auto-backup: snapshot whenever the project count changes (add/remove)
             // and when the app goes to the background (catches in-place edits).
             .onChange(of: allProjects.count) { _, _ in
-                CatalogBackupService.writeSnapshot(allProjects)
+                CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active {
-                    CatalogBackupService.writeSnapshot(allProjects)
+                    CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
                 }
             }
             // …and on quit. `scenePhase` is not reliably delivered before the
@@ -225,7 +227,7 @@ struct ContentView: View {
             // the window a last write needs.
             .onReceive(NotificationCenter.default.publisher(
                 for: NSApplication.willTerminateNotification)) { _ in
-                CatalogBackupService.writeSnapshot(allProjects)
+                CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
             }
     }
 
@@ -260,7 +262,7 @@ struct ContentView: View {
         reclassifyProjectsIfNeeded()
         // Tidy any legacy flat clones into their category subfolders.
         CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
-        CatalogBackupService.writeSnapshot(allProjects)
+        CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
         ensureCatalogSelectionIfNeeded()
         applyColumnVisibility()
     }
@@ -459,7 +461,7 @@ struct ContentView: View {
     private func reclassifyProjectsIfNeeded() {
         let force = storedClassifierVersion < Self.classifierVersion
         if force {
-            CatalogBackupService.writeSnapshot(allProjects)
+            CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
         }
         var changed = false
         for project in allProjects {

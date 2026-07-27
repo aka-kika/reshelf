@@ -23,6 +23,8 @@ enum CatalogImportService {
         let additions: [CatalogProjectDTO]
         /// Rows matching an existing project — inserted only if updating.
         let matches: [(row: CatalogProjectDTO, existing: ToolProject)]
+        /// Folders named in the file. Empty for pre-folders exports.
+        let folders: [CatalogFolderDTO]
 
         var isEmpty: Bool { additions.isEmpty && matches.isEmpty }
     }
@@ -39,7 +41,7 @@ enum CatalogImportService {
     /// the user cancels; shows an alert (and returns `nil`) when the file isn't
     /// a readable reshelf catalog.
     @MainActor
-    static func presentOpenPanel() -> (url: URL, rows: [CatalogProjectDTO])? {
+    static func presentOpenPanel() -> (url: URL, rows: [CatalogProjectDTO], folders: [CatalogFolderDTO])? {
         let panel = NSOpenPanel()
         panel.title = "Import Catalog"
         panel.message = "Choose a reshelf catalog JSON file to import."
@@ -59,7 +61,8 @@ enum CatalogImportService {
                              message: "\(url.lastPathComponent) is a valid reshelf catalog file, but it contains no projects.")
                 return nil
             }
-            return (url, rows)
+            let folders = (try? CatalogExportService.decodeFolders(data)) ?? []
+            return (url, rows, folders)
         } catch {
             presentAlert(title: "Couldn't Read That File",
                          message: "\(url.lastPathComponent) isn't a reshelf catalog export. Choose a JSON file written by Export Catalog as JSON, or one from ~/reshelf/backups.")
@@ -70,7 +73,7 @@ enum CatalogImportService {
     // MARK: - Planning
 
     @MainActor
-    static func plan(rows: [CatalogProjectDTO], sourceURL: URL, context: ModelContext) -> Plan {
+    static func plan(rows: [CatalogProjectDTO], folders: [CatalogFolderDTO] = [], sourceURL: URL, context: ModelContext) -> Plan {
         let existing = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
         var byKey: [String: ToolProject] = [:]
         for project in existing {
@@ -95,7 +98,7 @@ enum CatalogImportService {
                 additions.append(row)
             }
         }
-        return Plan(sourceURL: sourceURL, additions: additions, matches: matches)
+        return Plan(sourceURL: sourceURL, additions: additions, matches: matches, folders: folders)
     }
 
     // MARK: - Applying
@@ -107,14 +110,26 @@ enum CatalogImportService {
     @discardableResult
     static func apply(_ plan: Plan, updatingExisting: Bool, into context: ModelContext) -> Result {
         let before = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
-        CatalogBackupService.writeSnapshot(before)
+        CatalogBackupService.writeSnapshot(before, folders: CatalogFolderService.folders(in: context))
+
+        // Folders first, so the projects inserted below can be remapped onto
+        // local folders that are guaranteed to exist.
+        let folderMap = resolveFolders(plan.folders, in: context)
 
         for row in plan.additions {
-            context.insert(row.makeToolProject())
+            let project = row.makeToolProject()
+            project.folderID = row.folderID.flatMap { folderMap[$0] }
+            context.insert(project)
         }
         if updatingExisting {
             for (row, existing) in plan.matches {
                 row.apply(to: existing)
+                // Only when the file carries a folder for this project — an older
+                // export with no key must not eject it from a folder it's in
+                // locally, same rule as personalNote.
+                if let localID = row.folderID.flatMap({ folderMap[$0] }) {
+                    existing.folderID = localID
+                }
             }
         }
         if !plan.additions.isEmpty || (updatingExisting && !plan.matches.isEmpty) {
@@ -130,9 +145,33 @@ enum CatalogImportService {
     /// already in the catalog. Returns the number inserted.
     @MainActor
     @discardableResult
-    static func merge(_ rows: [CatalogProjectDTO], into context: ModelContext) -> Int {
-        let plan = plan(rows: rows, sourceURL: URL(fileURLWithPath: "/"), context: context)
+    static func merge(_ rows: [CatalogProjectDTO],
+                      folders: [CatalogFolderDTO] = [],
+                      into context: ModelContext) -> Int {
+        let plan = plan(rows: rows, folders: folders,
+                        sourceURL: URL(fileURLWithPath: "/"), context: context)
         return apply(plan, updatingExisting: false, into: context).added
+    }
+
+    /// Maps each folder id in the file to the id of the local folder that should
+    /// hold its projects, creating folders the catalog doesn't have yet.
+    ///
+    /// Matching is by **name**, case-insensitively, not by id: two Macs that each
+    /// created "Photos app" independently should converge on one folder. Matching
+    /// on id instead would duplicate every folder on the second machine, which is
+    /// both worse and harder to undo than a merge.
+    @MainActor
+    private static func resolveFolders(_ rows: [CatalogFolderDTO], in context: ModelContext) -> [String: UUID] {
+        guard !rows.isEmpty else { return [:] }
+        var map: [String: UUID] = [:]
+        for row in rows {
+            // `create` already returns the existing folder on a name collision,
+            // so this is both the match and the create path.
+            if let folder = CatalogFolderService.create(name: row.name, in: context) {
+                map[row.id] = folder.id
+            }
+        }
+        return map
     }
 
     // MARK: - Helpers

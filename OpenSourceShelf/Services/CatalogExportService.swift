@@ -32,6 +32,10 @@ struct CatalogProjectDTO: Codable {
     var lastUpdatedDate: Date?
     var isLocalFirst: Bool
     var isSelfHosted: Bool
+    /// The folder this project was in on the exporting machine. Not applied
+    /// directly on import — ids diverge between machines, so
+    /// `CatalogImportService` remaps it against the local folder table.
+    var folderID: String?
 
     init(_ p: ToolProject) {
         id = p.id.uuidString
@@ -54,6 +58,7 @@ struct CatalogProjectDTO: Codable {
         lastUpdatedDate = p.lastUpdatedDate
         isLocalFirst = p.isLocalFirst
         isSelfHosted = p.isSelfHosted
+        folderID = p.folderID?.uuidString
     }
 
     /// Rebuilds a `ToolProject` from a snapshot row (for restore/import).
@@ -113,12 +118,31 @@ struct CatalogProjectDTO: Codable {
     }
 }
 
+/// One folder in an export. Travels with the catalog so the grouping survives
+/// the trip to another machine — the gap `personalNote` and `lastUpdatedDate`
+/// each had to be fixed for after the fact.
+struct CatalogFolderDTO: Codable {
+    var id: String
+    var name: String
+    var createdAt: Date
+    var sortIndex: Int
+
+    init(_ f: CatalogFolder) {
+        id = f.id.uuidString
+        name = f.name
+        createdAt = f.createdAt
+        sortIndex = f.sortIndex
+    }
+}
+
 struct CatalogSnapshotDTO: Codable {
     var exportedAt: Date
     var app: String
     var version: Int
     var projectCount: Int
     var projects: [CatalogProjectDTO]
+    /// Optional so exports written before folders existed still decode.
+    var folders: [CatalogFolderDTO]?
 }
 
 /// Exports the catalog (`ToolProject`s) to a portable JSON file the user picks
@@ -140,13 +164,14 @@ enum CatalogExportService {
     }
 
     /// Encodes the given projects to pretty-printed, ISO-8601-dated JSON.
-    static func encode(_ projects: [ToolProject]) throws -> Data {
+    static func encode(_ projects: [ToolProject], folders: [CatalogFolder] = []) throws -> Data {
         let payload = CatalogSnapshotDTO(
             exportedAt: Date(),
             app: "reshelf",
             version: 1,
             projectCount: projects.count,
-            projects: projects.map(CatalogProjectDTO.init)
+            projects: projects.map(CatalogProjectDTO.init),
+            folders: folders.isEmpty ? nil : folders.map(CatalogFolderDTO.init)
         )
         return try makeEncoder().encode(payload)
     }
@@ -156,10 +181,16 @@ enum CatalogExportService {
         try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).projects
     }
 
+    /// The folders in a snapshot/export. Empty for files written before folders
+    /// existed.
+    static func decodeFolders(_ data: Data) throws -> [CatalogFolderDTO] {
+        try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).folders ?? []
+    }
+
     /// Presents a save panel and writes the catalog JSON. Shows an alert on failure.
     /// Must be called on the main thread (it drives AppKit panels).
     @MainActor
-    static func presentExportPanel(projects: [ToolProject]) {
+    static func presentExportPanel(projects: [ToolProject], folders: [CatalogFolder] = []) {
         let panel = NSSavePanel()
         panel.title = "Export Catalog"
         panel.message = "Save your reshelf catalog as JSON."
@@ -171,7 +202,7 @@ enum CatalogExportService {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {
-            let data = try encode(projects)
+            let data = try encode(projects, folders: folders)
             try data.write(to: url, options: .atomic)
         } catch {
             presentFailureAlert(error)

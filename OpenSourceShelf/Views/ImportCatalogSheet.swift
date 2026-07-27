@@ -143,6 +143,7 @@ struct ImportCatalogSheet: View {
 
     private func buildPlan() {
         plan = CatalogImportService.plan(rows: request.rows,
+                                         folders: request.folders,
                                          sourceURL: request.url,
                                          context: modelContext)
     }
@@ -160,4 +161,6 @@ struct ImportCatalogRequest: Identifiable {
     let id = UUID()
     let url: URL
     let rows: [CatalogProjectDTO]
+    /// Folders named in the file; empty for exports written before folders.
+    let folders: [CatalogFolderDTO]
 }
