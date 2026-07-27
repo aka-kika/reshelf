@@ -5,6 +5,12 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.4.0] — 2026-07-27
+
 ### Added
 - **Import Catalog from JSON (⇧⌘I).** Export has always written a portable
   catalog file, but nothing could read one back — so moving a shelf to another
@@ -20,10 +26,6 @@ All notable changes to **reshelf** are documented here. This project follows
   export format, so a round-trip through JSON silently dropped every personal
   note. It's included now. Older exports that predate the field still import
   fine, and importing one never blanks a note already on the project.
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.3.3] — 2026-07-23
 
