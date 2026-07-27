@@ -9,6 +9,24 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.7.0] — 2026-07-28
+
+### Changed
+- **Settings is four short tabs instead of one long scroll.** General holds
+  Appearance, Licenses and the Agent Skill installer; **Capture** holds Capture
+  Assist; **Library** holds where repos are cloned and how the inspector is laid
+  out; About is unchanged. The window also opens large enough that the fullest
+  tab fits without scrolling.
+- **There's no AI provider to choose any more — reshelf generates on-device, full
+  stop.** The AI Providers settings are gone. In practice this changes nothing
+  about what you got: Capture Assist always used on-device Apple Intelligence and
+  never consulted that setting. The picker was offering a choice it didn't make.
+
+### Added
+- **The inspector shows when a project last changed.** An **Updated** row sits
+  under **Added**, so the date the *Recently Updated* sort orders by is one you
+  can actually see. Entries whose date isn't known yet simply don't show the row.
+
 ## [1.6.0] — 2026-07-27
 
 ### Added
