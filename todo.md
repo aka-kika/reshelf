@@ -20,13 +20,19 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
       publisher EdDSA key now backed up in `_INFRA/backups/`. `scripts/release.sh` signs
       Sparkle's nested components inside-out and notarizes twice; `scripts/appcast.sh`
       generates and publishes the feed. Design + plan in `docs/superpowers/`.
-- [ ] 3️⃣ **New app screenshots for the repo** — curate the shelf down to the "screenshot
-      cast" and shoot the four planned shots. Cast + shot list live in
-      `docs/reshelf-screenshots-and-seed-repos.md` (personal reference note).
-      **Do it with export/import, not by hand:** export the full catalog first, curate
-      (yard-sale everything off-cast), shoot, then re-import that export with *Also update
-      the projects I already have* ticked — statuses come back exactly as they were. That
-      makes a 397-repo catalog safe to temporarily reduce to ~20 for a photo shoot.
+- [~] 3️⃣ **New app screenshots for the repo** — IN PROGRESS 2026-07-27. Shot shelf is
+      loaded and ready: a throwaway catalog holding the 16-repo cast (9 Top Shelf,
+      7 Collector). The real 397-repo catalog is parked at
+      `~/reshelf/_real-catalog-parked/`, backups at `~/reshelf/_backups-parked/`,
+      full copy at `~/_KIKA_MAIN/_INFRA/backups/reshelf-pre-screenshots-2026-07-27/`.
+      Restore steps + shot list are in reed.md ("reshelf — screenshot cast and
+      default seed"). **Sort Top Shelf by name, not stars** — Kika's own repos
+      (★1–8) otherwise rank below ollama's ★175k.
+      Cast + shot list originally from `docs/reshelf-screenshots-and-seed-repos.md`.
+      Note the approach changed: a **separate throwaway catalog** beat yard-saling
+      380 rows in the real one — no restore needed, and the sidebar shows honest
+      counts instead of "Yard Sale 380". 10 of the 17 cast repos weren't on the
+      shelf at all and were captured fresh from GitHub.
 - [ ] 4️⃣ **Replace the default seed** — `OpenSourceShelf/SeedData/SeedData.swift` still
       ships Baserow / NocoDB / AppFlowy / Budibase / ToolJet / Directus / Outline /
       FlowiseAI. Swap for the 9-repo list in the same doc (3 of Kika's + ollama, zed,

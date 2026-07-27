@@ -29,7 +29,12 @@ Ideas **not** built yet — a backlog, not a commitment. The headline next item
 - [ ] Manual category override when the auto-classifier guesses wrong
 - [ ] Multiple fit dimensions (docs, maintenance, build quality)
 - [ ] "Alternative to X" / related-projects links
-- [ ] **"Last updated" as first-class metadata + a sort option** — GitHub's
+- [x] ~~**"Last updated" as first-class metadata + a sort option**~~ — shipped in
+      1.6.0 (2026-07-27): `lastUpdatedDate` on `ToolProject`, a **Recently Updated**
+      sort, and a Settings action that backfills from each clone's git log (231 of
+      397 rows filled instantly, offline). Uncloned rows fill on next metadata
+      fetch. The date travels in the catalog JSON. Original note:
+- [ ] ~~"Last updated" as first-class metadata~~ *(kept for context)* — GitHub's
       `pushed_at` is *already* fetched (`QuickCaptureService`) and already stored in
       the intelligence DB (`RepositoryIngestionService` → metadata record). The gap
       is that the list sorts on `ToolProject` (SwiftData) while the date lives in
