@@ -10,6 +10,28 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 - [x] **Remove the empty "Format" menu** from the top macOS menu bar — done in 1.3.0: pruned at the AppKit level (`FormatMenuPruner`), survives menu-bar rebuilds.
 - [ ] 💡 *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits/changelog using plain git (no AI, like today) so you can see what changed. Not a must, but would be nice.
 
+## Next up — in this order (added 2026-07-27, after 1.4.0)
+
+- [ ] 1️⃣ **Two-Mac import test** — export here, install 1.4.0 on the other Mac, import
+      there. Confirms the JSON round-trip end to end. Everything below waits on this.
+- [ ] 2️⃣ **Sparkle auto-update** — in-app updates so 1.4.0 → 1.4.1 doesn't mean
+      re-downloading a DMG by hand (twice, once per Mac). Needs an appcast feed + EdDSA
+      signing key; the GitHub Release already publishes a stable DMG URL to point it at.
+      Also tracked in [future-features.md](future-features.md).
+- [ ] 3️⃣ **New app screenshots for the repo** — curate the shelf down to the "screenshot
+      cast" and shoot the four planned shots. Cast + shot list live in
+      `docs/reshelf-screenshots-and-seed-repos.md` (personal reference note).
+      **Do it with export/import, not by hand:** export the full catalog first, curate
+      (yard-sale everything off-cast), shoot, then re-import that export with *Also update
+      the projects I already have* ticked — statuses come back exactly as they were. That
+      makes a 397-repo catalog safe to temporarily reduce to ~20 for a photo shoot.
+- [ ] 4️⃣ **Replace the default seed** — `OpenSourceShelf/SeedData/SeedData.swift` still
+      ships Baserow / NocoDB / AppFlowy / Budibase / ToolJet / Directus / Outline /
+      FlowiseAI. Swap for the 9-repo list in the same doc (3 of Kika's + ollama, zed,
+      excalidraw, lazygit, immich, screenpipe). Keep the fill-only guard (`count == 0`),
+      map each repo to an **existing** category (fixed taxonomy in `SidebarItem.swift`),
+      verify stars/licenses at build time, and mix Top Shelf + Collector statuses.
+
 ## Done in 1.3.0 (2026-07-17)
 
 - [x] **Capture Assist** — on-device Apple Intelligence fills use cases / note / tags; auto-generate after every save (default on) + **Fill Missing Entries** backfill in Settings; strictly fill-only. Un-parked commit 489841a and built on it with guided generation into the capture form.
