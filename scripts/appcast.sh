@@ -29,8 +29,17 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
 # Binaries live on the GitHub Release; only the feed lives on Pages.
 DOWNLOAD_PREFIX="https://github.com/aka-kika/reshelf/releases/download/v$VERSION/"
 
-# Stage the ZIP on its own. Kept across runs so generate_appcast can carry
-# forward entries for older versions already in the feed.
+# Stage ONLY this version, in a directory emptied first. Two reasons:
+#
+#   1. --download-url-prefix is a single value applied to every entry, and each
+#      release's assets live under its own tag. Leaving older ZIPs here made the
+#      1.5.0 entry point at .../download/v1.5.1/reshelf-1.5.0.zip — a 404.
+#   2. With two builds present, generate_appcast emits a binary delta that
+#      nothing uploads, advertising another dead URL.
+#
+# The cost is no delta updates: every update is a full ~10 MB download. For an
+# app this size that is the right trade against two classes of broken link.
+rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp -f "$DIST/reshelf-$VERSION.zip" "$STAGE/"
 
