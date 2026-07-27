@@ -9,6 +9,25 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.8.0] — 2026-07-28
+
+### Fixed
+- **Backups no longer miss edits that don't change the project count.** Two things
+  were wrong at once. The "has anything changed?" check compared file *sizes*, so
+  swapping one value for another of the same length looked identical and nothing
+  was written. And nothing reliably ran on quit, so an edit made in a session that
+  didn't add or remove a project could go unrecorded entirely. Both fixed: the
+  check now compares actual content, and a snapshot is written as the app quits.
+
+### Changed
+- **A fresh install starts with nine repos worth having** instead of eight
+  internal-tools platforms: jade, Seedling, kika-obsidian-mcp, ollama, Handy, zed,
+  excalidraw, lazygit and immich. Existing shelves are untouched — the starter set
+  only ever appears when there's nothing to show. (immich is AGPL on purpose, so
+  the copyleft caution introduces itself rather than surprising you later.)
+- Removed the last of the cloud-AI plumbing left behind in 1.7.0. Nothing to see —
+  it was already unreachable.
+
 ## [1.7.0] — 2026-07-28
 
 ### Changed
