@@ -110,6 +110,7 @@ struct OpenSourceShelfApp: App {
     @StateObject private var queueViewModel = QueueViewModel()
     @StateObject private var queueMenuState = QueueMenuPresentationState()
     @StateObject private var runbookWindowState = RunbookWindowState()
+    @StateObject private var updaterService = UpdaterService.shared
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
     @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
 
@@ -162,6 +163,10 @@ struct OpenSourceShelfApp: App {
                 Button("About reshelf") {
                     Self.showAboutPanel()
                 }
+                Button("Check for Updates…") {
+                    updaterService.checkForUpdates()
+                }
+                .disabled(!updaterService.canCheckForUpdates)
             }
 
             CommandGroup(replacing: .newItem) {
