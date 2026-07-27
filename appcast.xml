@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>reshelf</title>
+        <item>
+            <title>1.5.0</title>
+            <pubDate>Mon, 27 Jul 2026 22:31:25 +0300</pubDate>
+            <sparkle:version>10</sparkle:version>
+            <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:releaseNotesLink>https://aka-kika.github.io/reshelf/reshelf-1.5.0.html</sparkle:releaseNotesLink>
+            <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.5.0/reshelf-1.5.0.zip" length="10939447" type="application/octet-stream" sparkle:edSignature="laf44YH4nqK9wejYnO7xFLdcX37RphwpyMkgmBu9xUnrOVm+voxs+jNFVzo2idhU4BYeyZVFHziQ1qeTTwsoCw=="/>
+        </item>
+    </channel>
+</rss>
