@@ -1696,6 +1696,10 @@
 			isa = PBXBuildFile;
 			productRef = F429640EF7600E3151FF9C01 /* GRDB */;
 		};
+		5PARKLE0003234567890ABCD /* Sparkle in Frameworks */ = {
+			isa = PBXBuildFile;
+			productRef = 5PARKLE0002234567890ABCD /* Sparkle */;
+		};
 		9E440566B19C12EF065B2306 = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6CE969E4282D97D68D1426C9;
@@ -1714,6 +1718,7 @@
 			productType = "com.apple.product-type.application";
 			packageProductDependencies = (
 				F429640EF7600E3151FF9C01 /* GRDB */,
+				5PARKLE0002234567890ABCD /* Sparkle */,
 			);
 		};
 		R9RES01234567890ABCDEF08 /* Resources */ = {
@@ -1873,6 +1878,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				64353B5CB9B8DE5AA33C7EB9 /* GRDB in Frameworks */,
+				5PARKLE0003234567890ABCD /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1936,6 +1942,7 @@
 			mainGroup = 0035FE99EA2940F7FA633A58;
 			packageReferences = (
 				0F323D8ADDC4DEC1E137266C /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+				5PARKLE0001234567890ABCD /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = 5BAB63C60BF318DAB40A4F04;
 			projectDirPath = "";
@@ -1953,6 +1960,19 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 7.10.0;
+			};
+		};
+		5PARKLE0002234567890ABCD /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5PARKLE0001234567890ABCD /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		5PARKLE0001234567890ABCD /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.4;
 			};
 		};
 	};
