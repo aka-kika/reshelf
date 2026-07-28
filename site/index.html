@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>reshelf — your agent reads the source, not stale docs</title>
+<meta name="description" content="reshelf is a local-first macOS app that catalogs and clones the open-source you actually use — so your coding agent learns from real source, credits every repo, and respects licenses. No account, no cloud.">
+<link rel="icon" type="image/png" href="assets/reshelf-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0a;
+  --bg-raise:#111113;
+  --bg-window:#161617;
+  --bg-side:#1d1d1f;
+  --fg:#f5f5f5;
+  --fg-80:rgba(245,245,245,.8);
+  --fg-70:rgba(245,245,245,.7);
+  --fg-50:rgba(245,245,245,.5);
+  --fg-35:rgba(245,245,245,.35);
+  --line:rgba(245,245,245,.1);
+  --accent:#0a84ff;
+  --accent-hi:#409cff;
+  --accent-soft:rgba(10,132,255,.14);
+  --green:#30d158;
+  --orange:#ff9f0a;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --max:1388px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:rgba(10,132,255,.4);color:#fff}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+:focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px;border-radius:4px}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 clamp(20px,4vw,56px)}
+.mono{font-family:var(--mono)}
+.eyebrow{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--accent-hi);
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);display:inline-block}
+
+/* ---------- header ---------- */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:60;
+  backdrop-filter:blur(12.5px);-webkit-backdrop-filter:blur(12.5px);
+  background:rgba(10,10,10,.55);
+  -webkit-mask-image:linear-gradient(to bottom,black 78%,transparent);
+  mask-image:linear-gradient(to bottom,black 78%,transparent);
+  transition:background .1s ease-out;
+}
+.nav{
+  max-width:var(--max);margin:0 auto;
+  height:61px;
+  padding:0 clamp(20px,4vw,56px);
+  display:flex;align-items:center;gap:28px;
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.01em;font-size:15px}
+.brand-icon{width:22px;height:22px;border-radius:6px;display:block}
+.win-icon{width:16px;height:16px;border-radius:4px;display:block}
+.foot-icon{width:14px;height:14px;border-radius:4px;vertical-align:-2px}
+.nav-links{display:flex;gap:24px;margin-left:18px}
+.nav-links a{
+  font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  color:var(--fg-50);transition:color .15s;
+}
+.nav-links a:hover{color:var(--fg)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.gh-link{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;color:var(--fg-50);transition:color .15s}
+.gh-link:hover{color:var(--fg)}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  border-radius:6px;font-weight:600;font-size:14px;
+  transition:transform .15s,opacity .15s,background .15s,border-color .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:#fff;color:#0a0a0a;padding:9px 16px}
+.btn-primary:hover{opacity:.85}
+.btn-ghost{border:1px solid rgba(245,245,245,.25);color:var(--fg);padding:9px 16px}
+.btn-ghost:hover{border-color:rgba(245,245,245,.6)}
+.btn-sm{padding:6px 13px;font-size:13px}
+
+/* ---------- hero ---------- */
+.hero{padding:168px 0 0;position:relative}
+.hero h1{
+  font-size:clamp(44px,7.2vw,104px);
+  line-height:.94;
+  letter-spacing:-.035em;
+  font-weight:700;
+  font-variation-settings:'wght' 380;
+  max-width:13ch;
+  margin:26px 0 0;
+  transition:font-variation-settings .1s linear;
+}
+.hero h1 .thin{color:var(--fg-35)}
+.hero-sub{
+  margin-top:26px;max-width:52ch;
+  font-size:clamp(16px,1.4vw,19px);line-height:1.55;
+  color:var(--fg-70);
+}
+.hero-sub b{color:var(--fg);font-weight:600}
+.hero-ctas{display:flex;gap:14px;margin-top:38px;flex-wrap:wrap;align-items:center}
+.hero-ctas .hint{font-family:var(--mono);font-size:12px;color:var(--fg-35);margin-left:6px}
+kbd{
+  font-family:var(--mono);font-size:11px;
+  border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;
+  padding:2px 6px;color:var(--fg-70);background:var(--bg-raise);
+  display:inline-block;line-height:1.4;
+}
+
+/* ---------- app window mockup ---------- */
+.stage{position:relative;margin-top:72px}
+.stage .dots{position:absolute;z-index:0;pointer-events:none}
+.window{
+  position:relative;z-index:1;
+  border:1px solid rgba(245,245,245,.13);
+  border-radius:12px;
+  background:var(--bg-window);
+  box-shadow:0 40px 120px -20px rgba(0,0,0,.85),0 0 0 .5px rgba(0,0,0,.6);
+  overflow:hidden;
+  font-size:13px;
+}
+.win-chrome{
+  height:44px;display:flex;align-items:center;gap:8px;
+  padding:0 16px;border-bottom:1px solid var(--line);
+  background:var(--bg-side);
+}
+.tl{width:12px;height:12px;border-radius:50%}
+.tl.r{background:#ff5f57}.tl.y{background:#febc2e}.tl.g{background:#28c840}
+.win-title{margin-left:10px;font-weight:600;color:var(--fg-80);display:flex;gap:8px;align-items:center;font-size:13px}
+.win-title .owl{font-size:15px}
+.win-body{display:grid;grid-template-columns:218px 1fr 300px;min-height:560px}
+/* sidebar */
+.side{background:var(--bg-side);border-right:1px solid var(--line);padding:14px 10px}
+.side-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-35);padding:8px 10px 6px}
+.side-item{
+  display:flex;align-items:center;gap:9px;
+  padding:6px 10px;border-radius:6px;
+  color:var(--fg-70);font-size:13px;margin-bottom:1px;
+}
+.side-item .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--fg-35)}
+.side-item.active{background:var(--accent);color:#fff}
+.side-item.active .count{color:rgba(255,255,255,.75)}
+.side-item svg{width:14px;height:14px;flex:none;opacity:.9}
+/* list */
+.listcol{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.list-head{
+  height:44px;display:flex;align-items:center;gap:14px;padding:0 16px;
+  border-bottom:1px solid var(--line);color:var(--fg-80);font-weight:600;flex:none;
+}
+.list-head .tools{margin-left:auto;display:flex;gap:14px;color:var(--fg-50)}
+.toast{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(10,132,255,.1);border-bottom:1px solid var(--line);
+  padding:8px 16px;font-size:12px;color:var(--fg-70);flex:none;
+}
+.toast .dismiss{margin-left:auto;color:var(--fg-35);font-size:11px}
+.toast code{font-family:var(--mono);color:var(--accent-hi);font-size:11px}
+.repo-row{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:11px 16px;border-bottom:1px solid rgba(245,245,245,.05);
+}
+.repo-row.selected{background:rgba(10,132,255,.16);box-shadow:inset 2px 0 0 var(--accent)}
+.avatar{
+  width:26px;height:26px;border-radius:7px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:12px;
+  background:#262628;color:var(--fg-80);
+}
+.repo-meta{min-width:0}
+.repo-name{font-weight:600;color:var(--fg);font-size:13.5px;display:flex;align-items:center;gap:8px}
+.repo-desc{
+  color:var(--fg-50);font-size:12px;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+.repo-tags{display:flex;gap:6px;margin-top:5px;align-items:center}
+.tag{font-size:11px;color:var(--fg-50)}
+.tag.shelf{color:var(--accent-hi);background:var(--accent-soft);padding:1px 7px;border-radius:99px;font-size:10.5px;font-weight:500}
+.dotsep{color:var(--fg-35)}
+.list-foot{margin-top:auto;padding:9px 16px;border-top:1px solid var(--line);color:var(--fg-35);font-size:11.5px;font-family:var(--mono)}
+/* inspector */
+.insp{padding:16px 18px;overflow:hidden;position:relative}
+/* license popover inside hero mockup — appears on scroll, like the real ⓘ */
+.lic-pop.mock-lic{
+  left:14px;right:14px;top:128px;width:auto;z-index:6;
+  opacity:0;transform:translateY(12px) scale(.88);
+  transform-origin:78px 0;
+  transition:opacity .3s ease-out,transform .55s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events:none;
+}
+.lic-pop.mock-lic.in{opacity:1;transform:none}
+.lic-pop.mock-lic::before{
+  content:"";position:absolute;top:-5px;left:78px;width:10px;height:10px;
+  background:#232325;border-left:1px solid rgba(245,245,245,.14);border-top:1px solid rgba(245,245,245,.14);
+  transform:rotate(45deg);
+}
+.insp-head{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.insp-head .avatar{width:30px;height:30px;font-size:14px}
+.insp-head .nm{font-weight:700;font-size:15px}
+.insp-sec{padding:13px 0;border-bottom:1px solid var(--line)}
+.insp-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-35);margin-bottom:8px}
+.insp-sec p{font-size:12.5px;color:var(--fg-70);line-height:1.5}
+.insp-kv{font-size:12.5px;color:var(--fg-70)}
+.insp-kv a{color:var(--accent-hi)}
+.stars{color:var(--orange);letter-spacing:2px;font-size:12px}
+.stars .off{color:var(--fg-35)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  font-family:var(--mono);font-size:10.5px;color:var(--fg-70);
+  border:1px solid var(--line);border-radius:99px;padding:3px 9px;background:var(--bg-raise);
+}
+.uc-item{display:flex;gap:8px;font-size:12.5px;color:var(--fg-80);margin-bottom:6px;align-items:baseline}
+.uc-item::before{content:"›";color:var(--accent-hi);font-family:var(--mono)}
+/* license popover */
+.lic-pop{
+  position:absolute;z-index:5;
+  width:300px;
+  background:#232325;border:1px solid rgba(245,245,245,.14);
+  border-radius:12px;padding:16px;
+  box-shadow:0 24px 70px -12px rgba(0,0,0,.8);
+  font-size:12px;
+}
+.lic-pop h5{font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.lic-pop .permissive{font-size:10px;font-weight:600;color:#30d158;background:rgba(48,209,88,.14);padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em}
+.lic-pop .sum{color:var(--fg-70);line-height:1.45;margin-bottom:10px}
+.lic-pop .grp{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--fg-35);margin:8px 0 5px;text-transform:uppercase}
+.lic-pop li{list-style:none;display:flex;gap:7px;color:var(--fg-80);margin-bottom:3px;font-size:12px}
+.lic-pop li.c::before{content:"✓";color:var(--green)}
+.lic-pop li.m::before{content:"!";color:var(--orange);font-weight:700}
+.lic-pop .fine{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);color:var(--fg-50);line-height:1.4}
+.lic-pop .legal{color:var(--fg-35);font-size:10.5px;margin-top:6px}
+</style>
+<style>
+/* ---------- sections ---------- */
+section{padding:120px 0;position:relative}
+section[id],div[id]{scroll-margin-top:84px}
+.sec-head{max-width:640px;margin-bottom:64px}
+.sec-head h2{
+  font-size:clamp(30px,3.6vw,48px);line-height:1.02;letter-spacing:-.03em;
+  font-weight:700;margin-top:20px;
+}
+.sec-head p{margin-top:16px;color:var(--fg-70);font-size:16px;line-height:1.55}
+
+/* feature row — no cards */
+.features{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;border-top:1px solid var(--line);padding-top:44px}
+.feat .f-ico{width:22px;height:22px;color:var(--accent-hi);margin-bottom:16px}
+.feat h3{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg);margin-bottom:10px;font-weight:700}
+.feat p{color:var(--fg-50);font-size:13.5px;line-height:1.55}
+.feat p code{font-family:var(--mono);font-size:11.5px;color:var(--fg-80);background:var(--bg-raise);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+
+/* terminal capture demo */
+.capture{
+  border:1px solid var(--line);border-radius:12px;background:var(--bg-window);
+  overflow:hidden;max-width:760px;
+  box-shadow:0 30px 90px -30px rgba(0,0,0,.8);
+}
+.capture-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--bg-side)}
+.capture-bar .lbl{margin-left:8px;font-family:var(--mono);font-size:11px;color:var(--fg-35)}
+.capture-body{padding:20px 20px 24px;font-family:var(--mono);font-size:13px;line-height:1.9;min-height:270px}
+.cline{white-space:pre-wrap;word-break:break-all}
+.cline .p{color:var(--accent-hi)}
+.cline .dim{color:var(--fg-35)}
+.cline .ok{color:var(--green)}
+.cline .hl{color:var(--fg)}
+.cline .val{color:var(--fg-70)}
+.chunk{opacity:0;transform:translateY(4px)}
+.chunk.in{animation:chunk-in .6s var(--ease-out) forwards}
+@keyframes chunk-in{to{opacity:1;transform:none}}
+.cursor{
+  display:inline-block;width:8px;height:15px;background:var(--accent-hi);
+  vertical-align:-2px;animation:blink 1.1s infinite step-start;
+}
+@keyframes blink{50%{opacity:0}}
+
+/* workflow alternating rows */
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,110px);align-items:center;margin-bottom:130px;position:relative}
+.flow:last-child{margin-bottom:0}
+.flow.flip .flow-txt{order:2}
+.flow-txt .eyebrow{margin-bottom:18px}
+.flow-txt h3{font-size:clamp(24px,2.6vw,34px);letter-spacing:-.025em;line-height:1.08;font-weight:700}
+.flow-txt p{margin-top:16px;color:var(--fg-70);font-size:15px;line-height:1.6;max-width:44ch}
+.flow-txt .keys{margin-top:20px;display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--fg-50);align-items:center}
+.flow-viz{position:relative}
+.dots-behind{position:absolute;z-index:0;pointer-events:none;opacity:.5}
+/* shelf viz */
+.shelves{display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
+.shelf-row{
+  display:flex;align-items:center;gap:14px;
+  border:1px solid var(--line);border-radius:10px;
+  padding:16px 18px;background:var(--bg-raise);
+  transition:border-color .2s,transform .3s var(--ease-out);
+}
+.shelf-row:hover{border-color:rgba(245,245,245,.25)}
+.shelf-row .s-ico{width:18px;height:18px;color:var(--accent-hi);flex:none}
+.shelf-row .s-nm{font-weight:600;font-size:14px}
+.shelf-row .s-ds{color:var(--fg-35);font-size:12px;margin-left:2px}
+.shelf-row kbd{margin-left:auto}
+.shelf-row.hot{border-color:rgba(10,132,255,.5);background:var(--accent-soft)}
+/* file tree viz */
+.tree{
+  position:relative;z-index:1;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg-window);
+  padding:22px 22px 26px;font-family:var(--mono);font-size:13px;line-height:2.05;
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.75);
+}
+.tree .t{color:var(--fg-35)}
+.tree .d{color:var(--accent-hi)}
+.tree .r{color:var(--fg-80)}
+.tree .cm{color:var(--fg-35);font-size:11.5px}
+.tree .up{color:var(--orange)}
+/* ai viz */
+.ai-card{
+  position:relative;z-index:1;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg-window);
+  padding:24px;box-shadow:0 30px 80px -30px rgba(0,0,0,.75);
+}
+.ai-row{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid rgba(245,245,245,.06);font-size:13px;align-items:baseline}
+.ai-row:last-child{border-bottom:none}
+.ai-row .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-35);width:86px;flex:none;padding-top:2px}
+.ai-row .v{color:var(--fg-80);line-height:1.5}
+.ai-row .v .gen{color:var(--accent-hi)}
+.ai-badge{
+  display:inline-flex;align-items:center;gap:7px;margin-top:16px;
+  font-family:var(--mono);font-size:11px;color:var(--fg-50);
+  border:1px solid var(--line);border-radius:99px;padding:6px 13px;
+}
+.ai-badge .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* shortcuts */
+.keys-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--line)}
+.key-row{
+  display:flex;align-items:center;gap:18px;
+  padding:17px 4px;border-bottom:1px solid var(--line);
+}
+.key-row .ks{display:flex;gap:5px;min-width:110px}
+.key-row .ac{color:var(--fg-70);font-size:13.5px}
+
+/* privacy strip */
+.privacy{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg-raise)}
+.privacy-in{display:grid;grid-template-columns:repeat(3,1fr);gap:44px;padding:64px 0}
+.priv h4{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:9px}
+.priv h4 .p-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.priv p{color:var(--fg-50);font-size:13.5px;line-height:1.6}
+
+/* faq */
+.faq{max-width:1000px}
+.faq-item{border-bottom:2px solid rgba(245,245,245,.1)}
+.faq-q{
+  width:100%;display:flex;align-items:center;gap:16px;
+  padding:24px 0;text-align:left;font-size:17px;font-weight:600;letter-spacing:-.01em;
+  transition:opacity .15s;
+}
+.faq-q:hover{opacity:.8}
+.faq-q .plus{
+  margin-left:auto;font-family:var(--mono);font-size:18px;color:var(--fg-50);
+  transition:transform .18s ease-out;flex:none;
+}
+.faq-item.open .plus{transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;opacity:0;transition:max-height .18s ease-out,opacity .18s ease-out}
+.faq-item.open .faq-a{opacity:1}
+.faq-a-in{padding:0 0 26px;color:var(--fg-70);font-size:14.5px;line-height:1.65;max-width:64ch}
+.faq-a-in code{font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--bg-raise);border:1px solid var(--line);padding:1.5px 6px;border-radius:4px}
+
+/* final cta + footer */
+.final{padding:430px 0 180px;text-align:left;position:relative;overflow:hidden}
+.final h2{
+  font-size:clamp(40px,6.4vw,92px);line-height:.96;letter-spacing:-.035em;font-weight:700;
+  max-width:12ch;
+}
+.final h2 .thin{color:var(--fg-35)}
+.final .hero-ctas{margin-top:44px}
+footer{border-top:1px solid var(--line);padding:34px 0 44px}
+.foot-in{display:flex;align-items:center;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--fg-35)}
+.foot-in a{transition:color .15s}
+.foot-in a:hover{color:var(--fg)}
+.foot-in .sp{flex:1}
+
+/* ---------- command palette overlay ---------- */
+.palette-veil{
+  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.55);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;justify-content:center;padding-top:16vh;
+  opacity:0;pointer-events:none;transition:opacity .18s ease-out;
+}
+.palette-veil.on{opacity:1;pointer-events:auto}
+.palette{
+  width:min(620px,92vw);height:fit-content;
+  background:#1b1b1d;border:1px solid rgba(245,245,245,.16);
+  border-radius:14px;box-shadow:0 40px 120px rgba(0,0,0,.9);
+  overflow:hidden;transform:translateY(10px) scale(.98);transition:transform .2s var(--ease-out);
+}
+.palette-veil.on .palette{transform:none}
+.palette-in{
+  display:flex;align-items:center;gap:12px;padding:16px 18px;
+  border-bottom:1px solid var(--line);
+}
+.palette-in svg{width:16px;height:16px;color:var(--fg-50);flex:none}
+.palette-in input{
+  flex:1;background:none;border:none;outline:none;color:var(--fg);
+  font-family:var(--mono);font-size:14px;
+}
+.palette-in input::placeholder{color:var(--fg-35)}
+.palette-in kbd{flex:none}
+.palette-out{padding:16px 18px 20px;font-family:var(--mono);font-size:12.5px;line-height:2;min-height:120px;display:none}
+.palette-hint{padding:14px 18px;font-family:var(--mono);font-size:11.5px;color:var(--fg-35)}
+.palette-hint b{color:var(--fg-70);font-weight:500}
+
+/* loop steps */
+.loop-steps{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.lstep{padding:30px 30px 34px 0}
+.lstep+.lstep{border-left:1px solid var(--line);padding-left:30px}
+.lstep .n{font-family:var(--mono);font-size:12px;color:var(--accent-hi);letter-spacing:.1em}
+.lstep h3{font-size:16px;font-weight:700;letter-spacing:-.01em;margin:12px 0 9px}
+.lstep p{color:var(--fg-50);font-size:13px;line-height:1.55}
+.lstep p code{font-family:var(--mono);font-size:11px;color:var(--fg-80);background:var(--bg-raise);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+/* prompt card */
+.prompt-card{
+  margin-top:64px;border:1px solid var(--line);border-radius:12px;background:var(--bg-window);
+  max-width:780px;box-shadow:0 30px 90px -30px rgba(0,0,0,.8);
+}
+.prompt-head{
+  display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-35);
+  background:var(--bg-side);border-radius:12px 12px 0 0;
+}
+.copy-btn{
+  margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--fg-70);
+  border:1px solid var(--line);border-radius:5px;padding:5px 12px;
+  transition:color .15s,border-color .15s,transform .15s;letter-spacing:.02em;
+}
+.copy-btn:hover{color:var(--fg);border-color:rgba(245,245,245,.35)}
+.copy-btn:active{transform:scale(.97)}
+.copy-btn.done{color:var(--green);border-color:rgba(48,209,88,.4)}
+.prompt-body{
+  padding:20px 22px 24px;font-family:var(--mono);font-size:13px;line-height:1.95;
+  color:var(--fg-80);white-space:pre-wrap;
+}
+.prompt-body .ph{color:var(--accent-hi)}
+/* learn / use */
+.learnuse{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.lu{padding:6px 48px 8px 0}
+.lu+.lu{border-left:1px solid var(--line);padding-left:48px;padding-right:0}
+.lu h3{font-size:clamp(22px,2.2vw,28px);letter-spacing:-.02em;font-weight:700;margin:16px 0 12px}
+.lu p{color:var(--fg-50);font-size:14px;line-height:1.6;max-width:46ch}
+.lu p b{color:var(--fg-80);font-weight:600}
+/* rules list */
+.rules-list{border-top:1px solid var(--line);margin-top:56px}
+.rule-row{display:flex;align-items:baseline;gap:20px;padding:16px 4px;border-bottom:1px solid var(--line)}
+.rule-row .lic{font-family:var(--mono);font-size:12.5px;color:var(--fg);min-width:200px;flex:none}
+.rule-row .r-txt{color:var(--fg-50);font-size:13.5px;line-height:1.5}
+.rule-row .verdict{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;flex:none;padding-left:16px}
+.verdict.ok{color:var(--green)}
+.verdict.warn{color:var(--orange)}
+.verdict.no{color:#ff6961}
+.cline .cit{color:var(--accent-hi)}
+
+/* command palette demo (app-true) */
+.demo-stage{padding:16px 16px 20px;min-height:300px}
+.demo-field{
+  display:flex;align-items:center;gap:10px;
+  border:1px solid rgba(10,132,255,.55);border-radius:9px;
+  padding:12px 14px;font-size:14px;background:#101012;
+}
+.demo-field svg{width:15px;height:15px;color:var(--fg-50);flex:none}
+.demo-field .typed{color:var(--fg)}
+.demo-field .ph{color:var(--fg-35)}
+.pal-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-35);padding:16px 8px 7px}
+.pal-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:9px}
+.pal-row .avatar{width:30px;height:30px;border-radius:8px;font-size:13px}
+.pal-row .nm{font-weight:600;font-size:14px;color:var(--fg)}
+.pal-row .ds{color:var(--fg-50);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-row .cat{margin-left:auto;font-size:11px;color:var(--fg-35);flex:none;font-family:var(--mono)}
+#palHome{padding-bottom:10px}
+#palHome .palette-hint{padding:10px 14px 6px}
+/* quick capture sheet inside demo/palette */
+.qc-urlrow{display:flex;gap:10px;align-items:center}
+.qc-urlrow .u{
+  flex:1;border:1px solid rgba(10,132,255,.55);border-radius:9px;padding:10px 14px;
+  font-size:13px;color:var(--fg-80);background:#101012;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);
+}
+.qc-fetch{background:var(--accent);color:#fff;font-weight:600;font-size:13px;border-radius:8px;padding:10px 18px}
+.qc-card{background:#262628;border-radius:11px;padding:15px 17px;margin-top:14px}
+.qc-card .top{display:flex;gap:12px;align-items:center}
+.qc-card .avatar{width:34px;height:34px;border-radius:9px;font-size:15px}
+.qc-card .nm{font-weight:700;font-size:15px}
+.qc-card .own{color:var(--fg-50);font-size:12px;margin-top:1px}
+.qc-card .meta{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:12px;color:var(--fg-70)}
+.qc-card .meta .lang{background:rgba(245,245,245,.1);border-radius:5px;padding:2px 8px;font-size:11px}
+.qc-card .descr{color:var(--fg-50);font-size:12.5px;line-height:1.5;margin-top:9px}
+.qc-grid{display:grid;grid-template-columns:160px 1fr;gap:12px;margin-top:14px}
+.qc-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-35);margin-bottom:6px}
+.qc-val{border:1px solid var(--line);background:#101012;border-radius:8px;padding:9px 13px;font-size:13px;color:var(--fg-80)}
+.qc-val b{color:var(--accent-hi);font-weight:500}
+.qc-save-row{display:flex;justify-content:flex-end;align-items:center;margin-top:16px;gap:14px}
+.qc-cancel{color:var(--fg-50);font-size:13px}
+.qc-save{background:var(--accent);color:#fff;font-weight:600;font-size:13px;border-radius:8px;padding:9px 24px;transition:background .2s}
+.qc-save.saved{background:var(--green)}
+.qc-save.disabled{background:rgba(245,245,245,.12);color:var(--fg-35)}
+.dup-banner{
+  display:flex;gap:10px;align-items:center;
+  background:rgba(10,132,255,.12);border-radius:9px;
+  padding:11px 15px;margin-top:14px;font-size:12.5px;color:var(--accent-hi);line-height:1.45;
+}
+.dup-banner svg{flex:none}
+#palQc{padding:2px 18px 20px}
+
+/* reveal on scroll — only for demo blocks */
+.rv{opacity:0;transform:translateY(14px);transition:opacity .7s var(--ease-out),transform .7s var(--ease-out)}
+.rv.in{opacity:1;transform:none}
+
+/* folders viz */
+.fold-card{
+  position:relative;z-index:1;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg-window);
+  padding:20px 22px 22px;box-shadow:0 30px 80px -30px rgba(0,0,0,.75);
+}
+.fold-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-35);margin-bottom:12px}
+.fold-row{
+  display:flex;align-items:center;gap:11px;
+  padding:9px 11px;border-radius:8px;font-size:13.5px;color:var(--fg-80);
+}
+.fold-row.on{background:var(--accent);color:#fff}
+.fold-row svg{width:15px;height:15px;flex:none;opacity:.9}
+.fold-row .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--fg-35)}
+.fold-row.on .count{color:rgba(255,255,255,.75)}
+.fold-note{
+  margin-top:16px;padding-top:14px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--fg-50);line-height:1.5;
+}
+.fold-note b{color:var(--fg-80);font-weight:600}
+/* batch viz */
+.batch-card{
+  position:relative;z-index:1;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg-window);
+  overflow:hidden;box-shadow:0 30px 80px -30px rgba(0,0,0,.75);
+}
+.batch-row{
+  display:flex;align-items:center;gap:11px;
+  padding:11px 16px;border-bottom:1px solid rgba(245,245,245,.05);font-size:13px;
+}
+.batch-row.pick{background:rgba(10,132,255,.16);box-shadow:inset 2px 0 0 var(--accent)}
+.batch-row .ck{
+  width:14px;height:14px;border-radius:4px;flex:none;
+  border:1px solid rgba(245,245,245,.25);
+}
+.batch-row.pick .ck{background:var(--accent);border-color:var(--accent);position:relative}
+.batch-row.pick .ck::after{
+  content:"✓";position:absolute;inset:0;color:#fff;font-size:10px;
+  display:flex;align-items:center;justify-content:center;
+}
+.batch-row .cat{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--fg-35)}
+.batch-foot{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 16px;background:var(--bg-side);
+  font-family:var(--mono);font-size:11.5px;color:var(--fg-50);
+}
+.batch-foot .sel{color:var(--fg-80)}
+.batch-foot .act{
+  margin-left:auto;border:1px solid rgba(245,245,245,.22);border-radius:6px;
+  padding:5px 12px;color:var(--fg);font-size:11.5px;
+}
+
+/* ---------- responsive ---------- */
+@media(max-width:1080px){
+  .win-body{grid-template-columns:200px 1fr 260px}
+  .features{grid-template-columns:repeat(2,1fr)}
+  .privacy-in{grid-template-columns:1fr;gap:36px}
+}
+@media(max-width:880px){
+  .nav-links{display:none}
+  .win-body{grid-template-columns:190px 1fr}
+  .insp{display:none}
+  .flow{grid-template-columns:1fr;gap:36px;margin-bottom:96px}
+  .flow.flip .flow-txt{order:0}
+  .keys-grid{grid-template-columns:1fr}
+  .loop-steps{grid-template-columns:repeat(2,1fr)}
+  .lstep:nth-child(3){border-left:none;padding-left:0}
+  .lstep:nth-child(n+3){border-top:1px solid var(--line)}
+  .learnuse{grid-template-columns:1fr}
+  .lu{padding:26px 0 30px}
+  .lu+.lu{border-left:none;border-top:1px solid var(--line);padding-left:0}
+  section{padding:88px 0}
+  .gh-link span{display:none}
+}
+@media(max-width:640px){
+  .win-body{grid-template-columns:1fr}
+  .side{display:none}
+  .hero{padding-top:140px}
+  .features{grid-template-columns:1fr;gap:32px}
+  .loop-steps{grid-template-columns:1fr}
+  .lstep+.lstep{border-left:none;padding-left:0;border-top:1px solid var(--line)}
+  .rule-row{flex-wrap:wrap;gap:8px}
+  .rule-row .verdict{margin-left:0}
+  .qc-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="nav">
+    <a class="brand" href="#top"><img src="assets/reshelf-icon.png" alt="" class="brand-icon">reshelf</a>
+    <div class="nav-links">
+      <a href="#loop">the loop</a>
+      <a href="#features">features</a>
+      <a href="#folders">folders</a>
+      <a href="#rules">rules</a>
+      <a href="#shortcuts">shortcuts</a>
+      <a href="#faq">faq</a>
+    </div>
+    <div class="nav-right">
+      <a class="gh-link" href="https://github.com/aka-kika/reshelf" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span>aka-kika/reshelf</span>
+      </a>
+      <a class="btn btn-primary btn-sm" href="https://github.com/aka-kika/reshelf/releases/latest" target="_blank" rel="noopener">Download</a>
+    </div>
+  </nav>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<div class="hero wrap">
+  <div class="eyebrow">local-first macOS app · free &amp; open source</div>
+  <h1 id="heroTitle">your agent<br>stops guessing<br><span class="thin">when it reads<br>your shelf.</span></h1>
+  <p class="hero-sub">
+    reshelf catalogs the open-source you actually use and clones the keepers to your Mac —
+    so your coding agent works from <b>real source, not stale docs</b>: learns the patterns,
+    borrows the code, <b>credits every repo it touched</b>, and knows when a license says hands off.
+    <b>No account. No cloud.</b>
+  </p>
+  <div class="hero-ctas">
+    <a class="btn btn-primary" href="https://github.com/aka-kika/reshelf/releases/latest" target="_blank" rel="noopener">
+      Download for macOS
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+    </a>
+    <a class="btn btn-ghost" href="https://github.com/aka-kika/reshelf" target="_blank" rel="noopener">View on GitHub</a>
+    <span class="hint">signed &amp; notarized · universal · macOS 14+</span>
+  </div>
+
+  <div class="stage">
+    <svg class="dots" width="420" height="420" style="top:-90px;right:-60px" viewBox="0 0 420 420" fill="none">
+      <circle cx="210" cy="210" r="0" stroke="rgba(10,132,255,.35)" stroke-width="1">
+        <animate attributeName="r" from="0" to="200" dur="10s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1" values="0;200"/>
+        <animate attributeName="opacity" from=".6" to="0" dur="10s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="210" cy="210" r="0" stroke="rgba(10,132,255,.2)" stroke-width="1">
+        <animate attributeName="r" from="0" to="140" dur="10s" begin="3.3s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1" values="0;140"/>
+        <animate attributeName="opacity" from=".5" to="0" dur="10s" begin="3.3s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+
+    <!-- app window replica -->
+    <div class="window rv">
+      <div class="win-chrome">
+        <span class="tl r"></span><span class="tl y"></span><span class="tl g"></span>
+        <span class="win-title"><img src="assets/reshelf-icon.png" alt="" class="win-icon"> reshelf</span>
+      </div>
+      <div class="win-body">
+        <!-- sidebar -->
+        <aside class="side">
+          <div class="side-label">Library</div>
+          <div class="side-item active">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>
+            All Projects <span class="count">20</span>
+          </div>
+          <div class="side-item">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.6l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.5l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+            Top Shelf <span class="count">9</span>
+          </div>
+          <div class="side-item">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 5.5l6.5-3 6.5 3-6.5 3z"/><path d="M1.5 8.5l6.5 3 6.5-3M1.5 11.5l6.5 3 6.5-3"/></svg>
+            The Collector <span class="count">7</span>
+          </div>
+          <div class="side-item">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 4.5h11l-1 9h-9z"/><path d="M6 4.5V3a2 2 0 0 1 4 0v1.5"/></svg>
+            Yard Sale <span class="count">4</span>
+          </div>
+          <div class="side-item">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="3" width="13" height="9" rx="1.5"/><path d="M5.5 12v1.5h5V12"/></svg>
+            Cloned <span class="count">4</span>
+          </div>
+          <div class="side-label" style="margin-top:14px">Folders</div>
+          <div class="side-item">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4.5A1 1 0 0 1 2.5 3.5h3l1.2 1.5h5.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1z"/></svg>
+            Photos app <span class="count">6</span>
+          </div>
+          <div class="side-item">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4.5A1 1 0 0 1 2.5 3.5h3l1.2 1.5h5.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1z"/></svg>
+            Terminal research <span class="count">3</span>
+          </div>
+          <div class="side-label" style="margin-top:14px">Categories</div>
+          <div class="side-item">Database <span class="count">1</span></div>
+          <div class="side-item">AI / Agent <span class="count">2</span></div>
+          <div class="side-item">MCP <span class="count">1</span></div>
+          <div class="side-item">macOS <span class="count">3</span></div>
+          <div class="side-item">CLI <span class="count">3</span></div>
+          <div class="side-item">Design <span class="count">2</span></div>
+          <div class="side-item">Local-First <span class="count">9</span></div>
+        </aside>
+
+        <!-- list -->
+        <div class="listcol">
+          <div class="list-head">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>
+            All Projects
+            <div class="tools">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M8 2L4.5 5.5M8 2l3.5 3.5"/></svg>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+            </div>
+          </div>
+          <div class="toast">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#30d158" stroke-width="1.8"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>
+            <span>Cloned <b>supabase</b> to <code>~/reshelf/repos/Database/supabase</code></span>
+            <span class="dismiss">Dismiss</span>
+          </div>
+          <div class="repo-row">
+            <div class="avatar">e</div>
+            <div class="repo-meta">
+              <div class="repo-name">excalidraw</div>
+              <div class="repo-desc">Virtual whiteboard for sketching hand-drawn like diagrams</div>
+              <div class="repo-tags"><span class="tag">Design</span><span class="dotsep">·</span><span class="tag shelf">Top Shelf</span></div>
+            </div>
+          </div>
+          <div class="repo-row selected">
+            <div class="avatar">K</div>
+            <div class="repo-meta">
+              <div class="repo-name">reshelf</div>
+              <div class="repo-desc">A local-first macOS app to catalog, organize, and clone the open-source repos…</div>
+              <div class="repo-tags"><span class="tag">macOS</span><span class="dotsep">·</span><span class="tag shelf">Top Shelf</span></div>
+            </div>
+          </div>
+          <div class="repo-row">
+            <div class="avatar" style="color:#3ecf8e">s</div>
+            <div class="repo-meta">
+              <div class="repo-name">supabase</div>
+              <div class="repo-desc">The Postgres development platform. Supabase gives you a dedicated Postgre…</div>
+              <div class="repo-tags"><span class="tag">Database</span></div>
+            </div>
+          </div>
+          <div class="repo-row">
+            <div class="avatar">t</div>
+            <div class="repo-meta">
+              <div class="repo-name">tldraw</div>
+              <div class="repo-desc">Build infinite canvas apps in React with the tldraw SDK</div>
+              <div class="repo-tags"><span class="tag">Design</span></div>
+            </div>
+          </div>
+          <div class="repo-row">
+            <div class="avatar" style="color:#fa7970">i</div>
+            <div class="repo-meta">
+              <div class="repo-name">immich</div>
+              <div class="repo-desc">High performance self-hosted photo and video management solution</div>
+              <div class="repo-tags"><span class="tag">Media</span></div>
+            </div>
+          </div>
+          <div class="repo-row">
+            <div class="avatar">o</div>
+            <div class="repo-meta">
+              <div class="repo-name">ollama</div>
+              <div class="repo-desc">Get up and running with large language models locally</div>
+              <div class="repo-tags"><span class="tag">AI / Agent</span><span class="dotsep">·</span><span class="tag shelf">Top Shelf</span></div>
+            </div>
+          </div>
+          <div class="repo-row">
+            <div class="avatar">g</div>
+            <div class="repo-meta">
+              <div class="repo-name">ghostty</div>
+              <div class="repo-desc">👻 Fast, feature-rich, cross-platform terminal emulator</div>
+              <div class="repo-tags"><span class="tag">CLI</span><span class="dotsep">·</span><span class="tag shelf">Top Shelf</span></div>
+            </div>
+          </div>
+          <div class="list-foot">20 projects</div>
+        </div>
+
+        <!-- inspector -->
+        <aside class="insp">
+          <div class="insp-head">
+            <div class="avatar">K</div>
+            <div class="nm">reshelf</div>
+            <span class="tag shelf" style="margin-left:auto">Top Shelf</span>
+          </div>
+          <div class="insp-sec">
+            <div class="insp-label">Metadata</div>
+            <div class="insp-kv">GitHub: <a href="https://github.com/aka-kika/reshelf" target="_blank" rel="noopener">aka-kika/reshelf</a></div>
+            <div class="insp-kv" style="margin-top:6px"><span style="color:var(--orange)">★</span> 1 · MIT <span style="color:var(--accent-hi)">ⓘ</span> · macOS</div>
+          </div>
+          <div class="lic-pop mock-lic" id="mockLic">
+            <h5>MIT <span class="permissive">Permissive</span></h5>
+            <div class="sum">Short and very permissive — do almost anything as long as you keep the copyright notice.</div>
+            <div class="grp">You can</div>
+            <li class="c">Commercial use</li>
+            <li class="c">Modify &amp; distribute</li>
+            <li class="c">Private use &amp; sublicense</li>
+            <div class="grp">You must</div>
+            <li class="m">Keep the copyright + license notice</li>
+            <div class="fine">Safe in closed-source and commercial projects. Just keep the notice.</div>
+            <div class="legal">Plain-language summary, not legal advice.</div>
+          </div>
+          <div class="insp-sec">
+            <div class="insp-label">Use cases</div>
+            <div class="uc-item">Cataloging personal open-source repos</div>
+            <div class="uc-item">Organizing local dev tools</div>
+            <div class="uc-item">Cloning used projects</div>
+          </div>
+          <div class="insp-sec">
+            <div class="insp-label">Notes</div>
+            <p>A lightweight, offline-first solution for macOS developers to manage their open-source projects without cloud dependency.</p>
+          </div>
+          <div class="insp-sec">
+            <div class="insp-label">Personal fit</div>
+            <div class="stars">★★★<span class="off">★★</span></div>
+            <div style="color:var(--fg-35);font-size:11px;margin-top:4px">Worth exploring</div>
+          </div>
+          <div class="insp-sec" style="border-bottom:none">
+            <div class="insp-label">Tags</div>
+            <div class="chips">
+              <span class="chip">catalog</span><span class="chip">developer-tools</span>
+              <span class="chip">local-first</span><span class="chip">macos</span>
+              <span class="chip">open-source</span><span class="chip">swift</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ THE LOOP ============ -->
+<section id="loop" class="wrap" style="padding-top:140px">
+  <div class="sec-head">
+    <div class="eyebrow">the loop</div>
+    <h2>collect. clone. build better.</h2>
+    <p>reshelf isn't a trophy case. every repo on your shelf is <b>full source your agent can read</b> — so the next thing you build starts from code that already works, curated by the person who knows your taste: you.</p>
+  </div>
+  <div class="loop-steps">
+    <div class="lstep rv">
+      <div class="n">01</div>
+      <h3>curate</h3>
+      <p>Capture from GitHub with <code>⌘K</code>. Shelves decide keeper, maybe, or let-go — the pile stays honest.</p>
+    </div>
+    <div class="lstep rv">
+      <div class="n">02</div>
+      <h3>clone</h3>
+      <p>Full clones land at <code>~/reshelf/repos/&lt;Category&gt;/&lt;repo&gt;</code> — real source, grouped the way you think.</p>
+    </div>
+    <div class="lstep rv">
+      <div class="n">03</div>
+      <h3>point</h3>
+      <p>Say <code>look at my shelf</code> or <code>/reshelf</code>. The bundled skill maps what's on disk — no setup, no cloud.</p>
+    </div>
+    <div class="lstep rv">
+      <div class="n">04</div>
+      <h3>build</h3>
+      <p>The agent reads the actual files, learns or borrows, and tells you exactly which repos it used.</p>
+    </div>
+  </div>
+  <div class="prompt-card rv">
+    <div class="prompt-head">a prompt worth stealing<button class="copy-btn" id="copyPrompt">copy</button></div>
+    <div class="prompt-body" id="promptBody">Build <span class="ph">&lt;feature&gt;</span>. We use <span class="ph">&lt;library&gt;</span>, cloned at
+~/reshelf/repos/<span class="ph">&lt;Category&gt;</span>/<span class="ph">&lt;library&gt;</span>.
+Before coding: search that clone for the correct API and
+patterns, then implement only the minimal function + one caller.
+Keep the diff small, and tell me which source files/functions
+you referenced.</div>
+  </div>
+</section>
+
+<!-- ============ AGENT DEMO ============ -->
+<section class="wrap" style="padding-top:110px">
+  <div class="sec-head">
+    <div class="eyebrow">/reshelf skill · ships with the app</div>
+    <h2>ask your shelf a question.</h2>
+    <p>The skill maps what's on disk, reads the files that matter, and answers from real code — with receipts.</p>
+  </div>
+  <div class="capture rv" id="agentDemo" style="max-width:840px">
+    <div class="capture-bar">
+      <span class="tl r"></span><span class="tl y"></span><span class="tl g"></span>
+      <span class="lbl">agent session · /reshelf</span>
+    </div>
+    <div class="capture-body" id="agentBody"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section id="features" class="wrap" style="padding-top:140px">
+  <div class="sec-head">
+    <div class="eyebrow">what it does</div>
+    <h2>a calm place for the repos that matter.</h2>
+    <p>Stars are a pile. Tabs are a mess. reshelf is the shelf in between — decide quickly whether something is a keeper, a maybe, or a let-go.</p>
+  </div>
+  <div class="features">
+    <div class="feat rv">
+      <svg class="f-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>
+      <h3>capture fast</h3>
+      <p>Paste a GitHub URL with <code>⌘K</code> — metadata fetched and auto-categorized. No AI required, no mouse either.</p>
+    </div>
+    <div class="feat rv">
+      <svg class="f-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+      <h3>shelves, not piles</h3>
+      <p>Top Shelf for keepers, The Collector by default, Yard Sale for let-go. Move any repo with one keystroke.</p>
+    </div>
+    <div class="feat rv">
+      <svg class="f-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 4l-6 8 6 8M16 4l6 8-6 8"/></svg>
+      <h3>source as context</h3>
+      <p>Your agent greps the real clone before writing a line — actual APIs and conventions, no invented functions, no stale docs.</p>
+    </div>
+    <div class="feat rv">
+      <svg class="f-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4.5"/></svg>
+      <h3>credit &amp; rules</h3>
+      <p>Every pattern is cited to the file it came from, and copyleft gets flagged before code crosses into your project.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CAPTURE DEMO ============ -->
+<section class="wrap" style="padding-top:110px">
+  <div class="sec-head">
+    <div class="eyebrow">⌘K command palette</div>
+    <h2>capture starts where you search.</h2>
+    <p>One palette: search your shelf, or paste a GitHub link and it becomes a capture — fetched, auto-categorized, saved. Duplicates get caught before they happen. Press <kbd>⌘K</kbd> anywhere on this page — or watch:</p>
+  </div>
+  <div class="capture rv" id="captureDemo" style="max-width:720px">
+    <div class="capture-bar">
+      <span class="tl r"></span><span class="tl y"></span><span class="tl g"></span>
+      <span class="lbl">reshelf — command palette</span>
+    </div>
+    <div class="demo-stage">
+      <!-- palette state -->
+      <div id="demoPal">
+        <div class="demo-field">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <span class="typed" id="demoTyped"></span><span class="ph" id="demoPh">Search projects or paste GitHub link…</span><span class="cursor"></span>
+        </div>
+        <div class="pal-label">recently added</div>
+        <div class="pal-row">
+          <div class="avatar">K</div>
+          <div style="min-width:0"><div class="nm">Glossary</div><div class="ds">Understand any tech term in seconds — a keyboard-first, distraction-fre…</div></div>
+          <span class="cat">macOS</span>
+        </div>
+        <div class="pal-row">
+          <div class="avatar">K</div>
+          <div style="min-width:0"><div class="nm">hig-mcp</div><div class="ds">MCP server serving Apple Human Interface Guidelines as structured desig…</div></div>
+          <span class="cat">MCP</span>
+        </div>
+        <div class="pal-row">
+          <div class="avatar">K</div>
+          <div style="min-width:0"><div class="nm">reshelf</div><div class="ds">A local-first macOS app to catalog, organize, and clone the open-so…</div></div>
+          <span class="cat">macOS</span>
+        </div>
+      </div>
+      <!-- quick capture state -->
+      <div id="demoQc" style="display:none">
+        <div class="qc-urlrow">
+          <div class="u" id="qcUrl"></div>
+          <button class="qc-fetch" tabindex="-1">Fetch</button>
+        </div>
+        <div id="qcBody"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LEARN / USE ============ -->
+<section class="wrap" style="padding-top:90px">
+  <div class="learnuse rv">
+    <div class="lu">
+      <div class="eyebrow">path one</div>
+      <h3>learn the pattern.</h3>
+      <p>Walk the actual files with your agent — the functions, the wiring, the <b>why</b>. You come away with the technique, taught from code you already curated and trust. Not a generic tutorial: the approach in <b>this</b> code.</p>
+    </div>
+    <div class="lu">
+      <div class="eyebrow">path two</div>
+      <h3>use the code.</h3>
+      <p>Borrow the proven approach into your own project, wired to your setup. The agent implements the minimal change, <b>checks the license first</b>, and names the source files it referenced — so you can verify every line against the real thing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SHELVES ============ -->
+<section id="shelves" class="wrap">
+  <div class="flow">
+    <div class="flow-txt">
+      <div class="eyebrow">three shelves</div>
+      <h3>triage in one keystroke.</h3>
+      <p>Every repo lands in The Collector. Promote the keepers to <b>Top Shelf</b>, send the maybes to the <b>Yard Sale</b> — and your library stays honest. No folders-within-folders, no guilt.</p>
+      <div class="keys">
+        <span><kbd>⌘T</kbd> top shelf</span>
+        <span><kbd>⌘Y</kbd> yard sale</span>
+        <span><kbd>⌘⇧G</kbd> collector</span>
+      </div>
+    </div>
+    <div class="flow-viz rv">
+      <div class="shelves">
+        <div class="shelf-row hot">
+          <svg class="s-ico" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9z"/></svg>
+          <span class="s-nm">Top Shelf</span><span class="s-ds">the keepers</span><kbd>⌘T</kbd>
+        </div>
+        <div class="shelf-row">
+          <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+          <span class="s-nm">The Collector</span><span class="s-ds">default landing</span><kbd>⌘⇧G</kbd>
+        </div>
+        <div class="shelf-row">
+          <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16l-1.5 13h-13z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
+          <span class="s-nm">Yard Sale</span><span class="s-ds">not sure / let go</span><kbd>⌘Y</kbd>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CLONE ============ -->
+  <div class="flow flip">
+    <div class="flow-txt">
+      <div class="eyebrow">clone locally, organized</div>
+      <h3>your shelf doubles as source-as-context.</h3>
+      <p>Clones are grouped by category in a predictable, scriptable layout — so a coding agent can read the <b>real source</b> of a library instead of guessing from stale docs. Behind upstream? One click pulls.</p>
+      <div class="keys"><span><kbd>⌘⇧U</kbd> check all clones for updates</span></div>
+    </div>
+    <div class="flow-viz rv">
+      <div class="tree">
+        <div><span class="t">~/reshelf/repos/</span></div>
+        <div><span class="t">├──</span> <span class="d">Database/</span></div>
+        <div><span class="t">│&nbsp;&nbsp; └──</span> <span class="r">supabase/</span> <span class="cm">· up to date</span></div>
+        <div><span class="t">├──</span> <span class="d">CLI/</span></div>
+        <div><span class="t">│&nbsp;&nbsp; ├──</span> <span class="r">ghostty/</span> <span class="up">· 14 commits behind ⬇</span></div>
+        <div><span class="t">│&nbsp;&nbsp; └──</span> <span class="r">lazygit/</span> <span class="cm">· up to date</span></div>
+        <div><span class="t">├──</span> <span class="d">AI / Agent/</span></div>
+        <div><span class="t">│&nbsp;&nbsp; └──</span> <span class="r">ollama/</span> <span class="cm">· up to date</span></div>
+        <div><span class="t">└──</span> <span class="d">Media/</span></div>
+        <div><span class="t">&nbsp;&nbsp;&nbsp; └──</span> <span class="r">immich/</span> <span class="up">· 3 commits behind ⬇</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FOLDERS ============ -->
+  <div class="flow" id="folders">
+    <div class="flow-txt">
+      <div class="eyebrow">folders · new in 1.9</div>
+      <h3>group them by what you got them for.</h3>
+      <p>Clone thirty repos for one project and there's no record they belonged together. A <b>folder</b> fixes that — it's yours to name, sits in its own sidebar section, and is separate from categories (what a repo <em>is</em>) and shelves (how much you value it), because one project's repos span all of them.</p>
+      <p style="margin-top:12px"><b>Deleting a folder only ungroups it.</b> Every project keeps its shelf, its clone, its notes — nothing else changes. Folders ride along in exports and backups too, matched by name, so both your Macs land on one “Photos app” instead of two.</p>
+    </div>
+    <div class="flow-viz rv">
+      <div class="fold-card">
+        <div class="fold-lbl">Folders</div>
+        <div class="fold-row on">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4.5A1 1 0 0 1 2.5 3.5h3l1.2 1.5h5.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1z"/></svg>
+          Photos app <span class="count">6</span>
+        </div>
+        <div class="fold-row">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4.5A1 1 0 0 1 2.5 3.5h3l1.2 1.5h5.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1z"/></svg>
+          Terminal research <span class="count">3</span>
+        </div>
+        <div class="fold-row">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4.5A1 1 0 0 1 2.5 3.5h3l1.2 1.5h5.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1z"/></svg>
+          Glossary rewrite <span class="count">11</span>
+        </div>
+        <div class="fold-note">Right-click any repo → <b>Add to Folder</b>. A project sits in one folder at most, cloned or not — uncloning shouldn't drop it from the group that exists to make the cleanup possible.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BATCH ============ -->
+  <div class="flow flip" id="batch">
+    <div class="flow-txt">
+      <div class="eyebrow">batch actions · new in 1.9</div>
+      <h3>retire a whole project's worth at once.</h3>
+      <p><b>⌘-click</b> to gather rows, <b>⇧-click</b> to take a range — then move them all to a shelf, add them all to a folder, or send their clones to the Trash in one action. The other half of folders: the point of knowing what belonged together is being able to let it go together.</p>
+      <p style="margin-top:12px">Right-clicking inside the selection acts on the selection; right-clicking outside it still acts on that one row, so nothing destructive lands on repos you weren't pointing at. Both destructive actions confirm with a count and say what survives.</p>
+      <div class="keys">
+        <span><kbd>⌘</kbd> click — add to selection</span>
+        <span><kbd>⇧</kbd> click — take a range</span>
+      </div>
+    </div>
+    <div class="flow-viz rv">
+      <div class="batch-card">
+        <div class="batch-row pick"><span class="ck"></span> react-native-vision-camera <span class="cat">Media</span></div>
+        <div class="batch-row pick"><span class="ck"></span> photoprism <span class="cat">Media</span></div>
+        <div class="batch-row"><span class="ck"></span> lazygit <span class="cat">CLI</span></div>
+        <div class="batch-row pick"><span class="ck"></span> exiftool-vendored <span class="cat">Utility</span></div>
+        <div class="batch-row pick"><span class="ck"></span> libvips <span class="cat">Media</span></div>
+        <div class="batch-row"><span class="ck"></span> ghostty <span class="cat">CLI</span></div>
+        <div class="batch-foot">
+          <span>20 projects</span>
+          <span class="sel">4 selected</span>
+          <span class="act">Actions ⌄</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GROUND RULES ============ -->
+  <div class="flow" id="rules">
+    <div class="flow-txt">
+      <div class="eyebrow">ground rules</div>
+      <h3>credit every repo. respect every license.</h3>
+      <p>The agent names the <b>exact repo, file, and function</b> behind every pattern it brings you — verify it against the real code, and your project stays honest about where it came from. And before any code crosses into your project, the license gets a say: the app's ⓘ explains each one in plain language, copyleft cautions included.</p>
+    </div>
+    <div class="flow-viz rv">
+      <div class="lic-pop" style="position:relative;width:100%;max-width:340px;margin:0 auto">
+        <h5>Apache-2.0 <span class="permissive">Permissive</span></h5>
+        <div class="sum">Permissive like MIT, with an explicit patent grant.</div>
+        <div class="grp">You can</div>
+        <li class="c">Commercial use</li>
+        <li class="c">Modify &amp; distribute</li>
+        <li class="c">Private &amp; patent use</li>
+        <div class="grp">You must</div>
+        <li class="m">Keep notices + the license</li>
+        <li class="m">State significant changes</li>
+        <div class="fine">Safe for commercial/closed use; note files you changed. Patent-friendly.</div>
+        <div class="legal">Plain-language summary, not legal advice.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules-list rv">
+    <div class="rule-row">
+      <span class="lic">MIT · BSD · ISC</span>
+      <span class="r-txt">use the code — keep the copyright notice</span>
+      <span class="verdict ok">allowed</span>
+    </div>
+    <div class="rule-row">
+      <span class="lic">Apache-2.0</span>
+      <span class="r-txt">use it — state your changes, keep notices; patent grant included</span>
+      <span class="verdict ok">allowed</span>
+    </div>
+    <div class="rule-row">
+      <span class="lic">GPL · AGPL</span>
+      <span class="r-txt">learn the approach — copying code would infect your project's license</span>
+      <span class="verdict warn">learn, don't copy</span>
+    </div>
+    <div class="rule-row">
+      <span class="lic">source-available / no license</span>
+      <span class="r-txt">read the terms first — no license means no permission</span>
+      <span class="verdict no">hands off</span>
+    </div>
+  </div>
+
+  <!-- ============ ON-DEVICE AI ============ -->
+  <div class="flow flip" style="margin-bottom:0">
+    <div class="flow-txt">
+      <div class="eyebrow">capture assist · optional</div>
+      <h3>AI, when it happens, happens on your Mac.</h3>
+      <p>On Macs with Apple Intelligence, each capture can auto-fill <b>use cases, a note, and tags</b> — and a one-click backfill fills entries that have none. No API keys, no provider to choose, <b>nothing leaves your Mac</b>. It never overwrites anything you typed.</p>
+    </div>
+    <div class="flow-viz rv">
+      <div class="ai-card">
+        <div class="ai-row"><span class="k">repo</span><span class="v">ghostty-org/ghostty</span></div>
+        <div class="ai-row"><span class="k">use cases</span><span class="v"><span class="gen">✦ generated</span> — fast daily terminal · GPU-rendered splits · native macOS feel</span></div>
+        <div class="ai-row"><span class="k">note</span><span class="v"><span class="gen">✦ generated</span> — high performance and native UI; ideal when speed and consistency matter</span></div>
+        <div class="ai-row"><span class="k">tags</span><span class="v"><span class="gen">✦ generated</span> — terminal · gpu · emulator</span></div>
+        <div class="ai-badge"><span class="pulse"></span> on-device apple intelligence · no cloud option exists</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SHORTCUTS ============ -->
+<section id="shortcuts" class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">keyboard-first</div>
+    <h2>no mouse needed.</h2>
+  </div>
+  <div class="keys-grid rv">
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>K</kbd></span><span class="ac">Command palette — search or paste a GitHub URL</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>N</kbd></span><span class="ac">Quick Capture (GitHub URL)</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>T</kbd></span><span class="ac">Move to Top Shelf</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>Y</kbd></span><span class="ac">Move to Yard Sale</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd></span><span class="ac">Check clones for updates</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>E</kbd></span><span class="ac">Export catalog as JSON</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>S</kbd></span><span class="ac">Toggle sidebar</span></div>
+    <div class="key-row"><span class="ks"><kbd>⌘</kbd><kbd>I</kbd></span><span class="ac">Toggle inspector</span></div>
+  </div>
+</section>
+
+<!-- ============ PRIVACY ============ -->
+<div class="privacy">
+  <div class="wrap privacy-in">
+    <div class="priv rv">
+      <h4><span class="p-dot"></span>local by default</h4>
+      <p>No sign-in, no required sync. The catalog lives in an isolated store at <span class="mono" style="font-size:12px">~/reshelf/</span> with automatic JSON backups of the last 30 snapshots.</p>
+    </div>
+    <div class="priv rv">
+      <h4><span class="p-dot"></span>network on demand</h4>
+      <p>The GitHub API is touched only when you Quick Capture — repo metadata and an optional README. Update checks are read-only <span class="mono" style="font-size:12px">git ls-remote</span>.</p>
+    </div>
+    <div class="priv rv">
+      <h4><span class="p-dot"></span>ai stays home</h4>
+      <p>Capture Assist runs on-device Apple Intelligence. There is no cloud provider to configure and no cloud option to turn on. Credentials, when used, live in the Keychain.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FAQ ============ -->
+<section id="faq" class="wrap">
+  <div class="sec-head">
+    <div class="eyebrow">faq</div>
+    <h2>the fine print.</h2>
+  </div>
+  <div class="faq rv">
+    <div class="faq-item">
+      <button class="faq-q">What do I need to run it?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">macOS 14 or later, Apple Silicon or Intel. Grab the signed &amp; notarized <code>reshelf.dmg</code> from Releases, drag to Applications, run — no Gatekeeper warnings. To build from source you'll want Xcode 16+ (Swift 6, SwiftUI, SwiftData); GRDB resolves via SPM on first build.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Where does my data live?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">Everything under <code>~/reshelf/</code>: the catalog in <code>catalog.store</code> (SwiftData, isolated), automatic JSON backups in <code>backups/</code>, clones in <code>repos/&lt;Category&gt;/&lt;repo&gt;</code>, and clone records in a GRDB SQLite database. JSON import/export is built in, and auto-restore kicks in if the store is ever empty.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Does the AI send anything anywhere?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">No. Capture Assist is optional and runs fully on-device via Apple Intelligence. There is no provider setting and no cloud fallback. Without it, auto-categorization is plain heuristics — no AI required at all.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Can my coding agent use my shelf?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">Yes — that's the point of the predictable layout. The bundled <code>/reshelf</code> skill maps your clones, reads their real source, and recommends whether to <b>learn</b> the approach or <b>use</b> the code — always citing the files it referenced and flagging copyleft before anything gets copied. Settings → General → Agent Skill installs it straight to <code>~/.claude/skills/reshelf</code>, read-only on your clones. Two more skills ship in <code>extras/</code>: an index over the whole catalog, and one that resurfaces forgotten Collector picks.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">How does it update itself?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">Through <b>Sparkle</b>. reshelf checks a static appcast file and offers the new version in-app — every update is EdDSA-signed and notarized, and you can turn automatic checks off in Settings and use <b>Check for Updates…</b> instead. Nothing about you is sent; it's a plain file request.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">What's the difference between a folder, a category, and a shelf?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">Three different questions. A <b>category</b> says what a repo <em>is</em> — Database, CLI, macOS — auto-assigned from a fixed taxonomy. A <b>shelf</b> says how much you value it: Top Shelf, The Collector, Yard Sale. A <b>folder</b> says what you got it <em>for</em> — "everything I cloned for the photos app" — and you name those yourself. One project's worth of repos spans several categories and all three shelves, which is exactly why folders had to be their own thing. A project sits in one folder at most; deleting the folder ungroups its projects and changes nothing else.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Can I move my shelf to another Mac?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">Yes — <code>⌘⇧E</code> exports the whole catalog as JSON, and <b>File → Import Catalog…</b> merges it on the other machine. Import is additive by default: repos already there are matched by GitHub URL and left alone, so importing twice never duplicates. Folders travel too, matched by <b>name</b>, so a folder both Macs created independently converges into one instead of doubling.</div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Is it free?<span class="plus">+</span></button>
+      <div class="faq-a"><div class="faq-a-in">Free and MIT-licensed. Bug reports, fixes, docs, design feedback, and integrations are all welcome — community skills and scripts that talk to reshelf are explicitly encouraged.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL ============ -->
+<div class="final wrap">
+  <svg class="dots-behind" width="520" height="520" style="top:-40px;right:-100px" viewBox="0 0 520 520" fill="none">
+    <circle cx="260" cy="260" r="0" stroke="rgba(10,132,255,.3)" stroke-width="1">
+      <animate attributeName="r" from="0" to="250" dur="12s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1" values="0;250"/>
+      <animate attributeName="opacity" from=".5" to="0" dur="12s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+  <div class="eyebrow">stop letting it guess</div>
+  <h2 style="margin-top:22px">give your agent <span class="thin">a shelf.</span></h2>
+  <div class="hero-ctas">
+    <a class="btn btn-primary" href="https://github.com/aka-kika/reshelf/releases/latest" target="_blank" rel="noopener">
+      Download reshelf
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+    </a>
+    <a class="btn btn-ghost" href="https://github.com/aka-kika/reshelf" target="_blank" rel="noopener">Star on GitHub</a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap foot-in">
+    <span><img src="assets/reshelf-icon.png" alt="" class="foot-icon"> reshelf — repo shelf</span>
+    <span>MIT © reshelf contributors</span>
+    <span class="sp"></span>
+    <span>built by <a href="https://github.com/aka-kika" target="_blank" rel="noopener">kika</a> · no account, no cloud, no tracking</span>
+  </div>
+</footer>
+
+</main>
+
+<!-- ============ COMMAND PALETTE ============ -->
+<div class="palette-veil" id="veil">
+  <div class="palette" role="dialog" aria-label="Command palette demo">
+    <div class="palette-in">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <input id="palInput" type="text" placeholder="Search projects or paste GitHub link…" spellcheck="false" autocomplete="off">
+      <kbd>esc</kbd>
+    </div>
+    <div id="palHome">
+      <div class="pal-label">recently added</div>
+      <div class="pal-row" data-name="glossary">
+        <div class="avatar">K</div>
+        <div style="min-width:0"><div class="nm">Glossary</div><div class="ds">Understand any tech term in seconds — keyboard-first, distraction-free</div></div>
+        <span class="cat">macOS</span>
+      </div>
+      <div class="pal-row" data-name="hig-mcp">
+        <div class="avatar">K</div>
+        <div style="min-width:0"><div class="nm">hig-mcp</div><div class="ds">MCP server serving Apple Human Interface Guidelines as structured design data</div></div>
+        <span class="cat">MCP</span>
+      </div>
+      <div class="pal-row" data-name="reshelf">
+        <div class="avatar">K</div>
+        <div style="min-width:0"><div class="nm">reshelf</div><div class="ds">A local-first macOS app to catalog, organize, and clone the open-source repos you use</div></div>
+        <span class="cat">macOS</span>
+      </div>
+      <div class="palette-hint">paste a github link + <b>enter</b> to capture · type to search — try <b>reshelf</b> for the duplicate catch</div>
+    </div>
+    <div id="palQc" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- 1. scroll-driven variable font weight on hero ---------- */
+  var heroTitle = document.getElementById("heroTitle");
+  var ticking = false;
+  function weightOnScroll(){
+    var hero = document.querySelector(".hero");
+    var range = Math.max(hero.offsetHeight * 0.9, 1);
+    var p = Math.min(Math.max(window.scrollY / range, 0), 1);
+    var w = Math.round(380 + p * 480); /* 380 -> 860 */
+    heroTitle.style.fontVariationSettings = "'wght' " + w;
+    ticking = false;
+  }
+  if(!reduceMotion){
+    window.addEventListener("scroll", function(){
+      if(!ticking){ window.requestAnimationFrame(weightOnScroll); ticking = true; }
+    }, {passive:true});
+    weightOnScroll();
+  } else {
+    heroTitle.style.fontVariationSettings = "'wght' 700";
+  }
+
+  /* ---------- 2. header state ---------- */
+  var header = document.querySelector("header");
+  window.addEventListener("scroll", function(){
+    header.style.background = window.scrollY > 24 ? "rgba(10,10,10,.78)" : "rgba(10,10,10,.55)";
+  }, {passive:true});
+
+  /* ---------- 3. reveal on scroll (demo blocks only) ---------- */
+  var rvEls = document.querySelectorAll(".rv");
+  if("IntersectionObserver" in window && !reduceMotion){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, {threshold:.12});
+    rvEls.forEach(function(el){ io.observe(el); });
+  } else {
+    rvEls.forEach(function(el){ el.classList.add("in"); });
+  }
+
+  /* ---------- 4. terminal demos (capture + agent) ---------- */
+  function makeTerminal(bodyId, watchId, lines){
+    var body = document.getElementById(bodyId);
+    var started = false;
+    function run(){
+      body.innerHTML = "";
+      var t = 400;
+      lines.forEach(function(l){
+        t += l.d;
+        (function(line, delay){
+          setTimeout(function(){
+            var div = document.createElement("div");
+            div.className = "cline chunk";
+            div.innerHTML = line.html;
+            var old = body.querySelector(".cursor");
+            if(old) old.remove();
+            body.appendChild(div);
+            requestAnimationFrame(function(){ div.classList.add("in"); });
+            var cur = document.createElement("span");
+            cur.className = "cursor";
+            div.appendChild(cur);
+          }, delay);
+        })(l, t);
+      });
+      setTimeout(run, t + 4500); /* loop */
+    }
+    if("IntersectionObserver" in window){
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if(e.isIntersecting && !started){ started = true; run(); io.disconnect(); }
+        });
+      }, {threshold:.3});
+      io.observe(document.getElementById(watchId));
+    } else { run(); }
+  }
+
+  /* ---------- 4a. command palette → quick capture demo ---------- */
+  function mkEl(html){ var d=document.createElement("div"); d.innerHTML=html; return d.firstChild; }
+  function qcCard(s){
+    return mkEl('<div class="qc-card chunk"><div class="top"><div class="avatar"'+(s.color?' style="color:'+s.color+'"':'')+'>'+s.letter+'</div><div><div class="nm">'+s.name+'</div><div class="own">'+s.owner+'</div></div></div><div class="meta"><span>'+s.meta+'</span>'+(s.lang?'<span class="lang">'+s.lang+'</span>':'')+'</div><div class="descr">'+s.descr+'</div></div>');
+  }
+  function qcGrid(s){
+    return mkEl('<div class="qc-grid chunk"><div><div class="qc-lbl">shelf</div><div class="qc-val">The Collector</div></div><div><div class="qc-lbl">category</div><div class="qc-val"><b>'+s.cat+'</b> · auto</div></div></div>');
+  }
+  function qcDupBanner(s){
+    return mkEl('<div class="dup-banner chunk"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5M8 11v.5"/></svg><span>“'+s.name+'” is already in your catalog — saving is disabled to avoid a duplicate.</span></div>');
+  }
+  function runPalDemo(){
+    var pal=document.getElementById("demoPal"),
+        qc=document.getElementById("demoQc"),
+        typed=document.getElementById("demoTyped"),
+        ph=document.getElementById("demoPh"),
+        urlEl=document.getElementById("qcUrl"),
+        body=document.getElementById("qcBody");
+    if(!pal) return;
+    var scenarios=[
+      {url:"github.com/supabase/supabase", dup:false,
+       name:"supabase", owner:"supabase", letter:"s", color:"#3ecf8e",
+       meta:'<span style="color:var(--orange)">★</span> 103.4k · Apache-2.0 ⓘ', lang:"TypeScript",
+       descr:"The Postgres development platform. Supabase gives you a dedicated Postgres database…",
+       cat:"Database"},
+      {url:"github.com/aka-kika/reshelf", dup:true,
+       name:"reshelf", owner:"aka-kika", letter:"K",
+       meta:'<span style="color:var(--orange)">★</span> 1 · MIT ⓘ', lang:"Swift",
+       descr:"A local-first macOS app to catalog, organize, and clone the open-source repos you actually use.",
+       cat:"macOS"}
+    ];
+    var i=0, started=false;
+    function chunk(node){ body.appendChild(node); requestAnimationFrame(function(){ node.classList.add("in"); }); }
+    function scenario(){
+      var s=scenarios[i%scenarios.length]; i++;
+      pal.style.display=""; qc.style.display="none"; body.innerHTML="";
+      typed.textContent=""; ph.style.display="";
+      var chars=s.url.split(""), t0=500;
+      chars.forEach(function(c,idx){
+        setTimeout(function(){ ph.style.display="none"; typed.textContent+=c; }, t0+idx*55);
+      });
+      var t1=t0+chars.length*55+750;
+      setTimeout(function(){
+        pal.style.display="none"; qc.style.display="";
+        urlEl.textContent="https://"+s.url;
+        chunk(mkEl('<div class="chunk" style="font-family:var(--mono);font-size:12px;color:var(--fg-35);margin-top:12px">fetching metadata…</div>'));
+      }, t1);
+      var t2=t1+900;
+      setTimeout(function(){
+        body.innerHTML="";
+        if(s.dup) chunk(qcDupBanner(s));
+        chunk(qcCard(s));
+      }, t2);
+      setTimeout(function(){ chunk(qcGrid(s)); }, t2+750);
+      setTimeout(function(){
+        var row=mkEl('<div class="qc-save-row chunk"><span class="qc-cancel">Cancel</span><button class="qc-save'+(s.dup?' disabled':'')+'" tabindex="-1">Save</button></div>');
+        chunk(row);
+        if(!s.dup){
+          setTimeout(function(){
+            var b=row.querySelector(".qc-save");
+            b.textContent="Saved ✓"; b.classList.add("saved");
+            chunk(mkEl('<div class="chunk" style="font-family:var(--mono);font-size:12px;margin-top:12px"><span class="ok">✓ saved to The Collector</span> <span class="dim">— ⌘T promotes to Top Shelf</span></div>'));
+          }, 950);
+        }
+      }, t2+1500);
+      setTimeout(scenario, t2+(s.dup?4200:5800));
+    }
+    if("IntersectionObserver" in window){
+      var pio=new IntersectionObserver(function(es){
+        es.forEach(function(e){ if(e.isIntersecting && !started){ started=true; scenario(); pio.disconnect(); } });
+      }, {threshold:.25});
+      pio.observe(document.getElementById("captureDemo"));
+    } else { scenario(); }
+  }
+  runPalDemo();
+
+  makeTerminal("agentBody", "agentDemo", [
+    {html:'<span class="p">you</span>&nbsp; <span class="hl">“how do my macOS clones handle global hotkeys?”</span>', d:250},
+    {html:'<span class="dim">$ shelf-map.sh "macOS"</span>', d:850},
+    {html:'  <span class="val">ghostty/</span>&nbsp;&nbsp;&nbsp;<span class="dim">swift · updated 3d ago · MIT</span>', d:480},
+    {html:'  <span class="val">maestral/</span>&nbsp;<span class="dim">python · updated 2w ago · MIT</span>', d:300},
+    {html:'<span class="dim">→ reading the clone, not guessing the api…</span>', d:700},
+    {html:'<span class="hl">ghostty registers one Carbon hotkey app-wide —</span>', d:750},
+    {html:'<span class="hl">RegisterEventHotKey, handler toggles the main window.</span>', d:400},
+    {html:'  <span class="cit">from ghostty/Sources/App/macOS/GlobalHotkey.swift:42</span>', d:550},
+    {html:'  <span class="ok">license MIT — adapt freely, keep the notice ✓</span>', d:450},
+    {html:'<span class="dim">want to</span> <span class="hl">learn</span> <span class="dim">the pattern or</span> <span class="hl">use</span> <span class="dim">it in your app?</span>', d:520}
+  ]);
+
+  /* ---------- 4b. copy prompt ---------- */
+  var copyBtn = document.getElementById("copyPrompt");
+  if(copyBtn){
+    copyBtn.addEventListener("click", function(){
+      var txt = document.getElementById("promptBody").innerText;
+      function done(){
+        copyBtn.textContent = "copied ✓";
+        copyBtn.classList.add("done");
+        setTimeout(function(){ copyBtn.textContent = "copy"; copyBtn.classList.remove("done"); }, 1600);
+      }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(done).catch(function(){ fallback(); });
+      } else { fallback(); }
+      function fallback(){
+        var ta = document.createElement("textarea");
+        ta.value = txt; document.body.appendChild(ta);
+        ta.select();
+        try{ document.execCommand("copy"); done(); }catch(e){}
+        ta.remove();
+      }
+    });
+  }
+
+  /* ---------- 4c. license popover in hero mockup, like clicking ⓘ ---------- */
+  var mockLic = document.getElementById("mockLic");
+  if(mockLic && "IntersectionObserver" in window && !reduceMotion){
+    var licIO = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          setTimeout(function(){ mockLic.classList.add("in"); }, 1000);
+        } else {
+          mockLic.classList.remove("in"); /* reset so it pops again on scroll back */
+        }
+      });
+    }, {threshold:.3});
+    licIO.observe(document.querySelector(".window"));
+  } else if(mockLic){ mockLic.classList.add("in"); }
+
+  /* ---------- 5. faq accordion ---------- */
+  document.querySelectorAll(".faq-item").forEach(function(item){
+    var q = item.querySelector(".faq-q");
+    var a = item.querySelector(".faq-a");
+    q.addEventListener("click", function(){
+      var open = item.classList.toggle("open");
+      a.style.maxHeight = open ? a.scrollHeight + "px" : "0px";
+    });
+  });
+
+  /* ---------- 6. command palette overlay (app-true) ---------- */
+  var veil = document.getElementById("veil");
+  var palInput = document.getElementById("palInput");
+  var palHome = document.getElementById("palHome");
+  var palQc = document.getElementById("palQc");
+  var dupNames = ["reshelf","glossary","hig-mcp"];
+
+  function openPalette(){
+    veil.classList.add("on");
+    document.body.style.overflow = "hidden";
+    palHome.style.display = "";
+    palQc.style.display = "none"; palQc.innerHTML = "";
+    palInput.value = "";
+    filterRows("");
+    setTimeout(function(){ palInput.focus(); }, 60);
+  }
+  function closePalette(){
+    veil.classList.remove("on");
+    document.body.style.overflow = "";
+    palInput.blur();
+  }
+  function filterRows(q){
+    q = q.toLowerCase().replace(/^https?:\/\//,"").replace(/github\.com\//,"");
+    palHome.querySelectorAll(".pal-row").forEach(function(r){
+      r.style.display = (!q || r.getAttribute("data-name").indexOf(q) !== -1) ? "" : "none";
+    });
+  }
+  function parseRepo(v){
+    v = v.trim().replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/+$/,"");
+    if(v.indexOf("github.com/") === 0) v = v.slice("github.com/".length);
+    var parts = v.split("/").filter(Boolean);
+    if(parts.length >= 2) return {owner:parts[0], name:parts[1]};
+    if(parts.length === 1 && parts[0]) return {owner:"you", name:parts[0]};
+    return {owner:"ghostty-org", name:"ghostty"};
+  }
+  function guessCategory(name){
+    var n = name.toLowerCase();
+    if(/term|tty|shell|cli/.test(n)) return "CLI";
+    if(/db|sql|base|store/.test(n)) return "Database";
+    if(/agent|mcp|llm|ai/.test(n)) return "AI / Agent";
+    if(/draw|design|ui|canvas/.test(n)) return "Design";
+    if(/mac|swift/.test(n)) return "macOS";
+    return "Utility";
+  }
+  function palChunkEl(node, target, delay){
+    setTimeout(function(){
+      target.appendChild(node);
+      requestAnimationFrame(function(){ node.classList.add("in"); });
+    }, delay);
+  }
+  function runOverlayCapture(repo){
+    var name = repo.name;
+    var key = name.toLowerCase();
+    var isDup = dupNames.indexOf(key) !== -1;
+    var known = {reshelf:{letter:"K",cat:"macOS"}, glossary:{letter:"K",cat:"macOS"}, "hig-mcp":{letter:"K",cat:"MCP"}};
+    var s = {
+      name:name, owner:repo.owner,
+      letter:known[key] ? known[key].letter : name.charAt(0).toUpperCase(),
+      meta:'<span class="dim">fetched from the GitHub API · license checked ⓘ</span>',
+      lang:"",
+      descr:"Auto-categorized and ready to shelve — the real app fills description, stars, and license here.",
+      cat:known[key] ? known[key].cat : guessCategory(name), dup:isDup
+    };
+    palHome.style.display = "none";
+    palQc.style.display = "";
+    palQc.innerHTML = "";
+    palInput.value = "";
+    palChunkEl(mkEl('<div class="chunk" style="font-family:var(--mono);font-size:12px;color:var(--fg-35);margin-top:2px">fetching metadata…</div>'), palQc, 80);
+    setTimeout(function(){
+      palQc.innerHTML = "";
+      if(isDup) palChunkEl(qcDupBanner(s), palQc, 0);
+      palChunkEl(qcCard(s), palQc, isDup ? 200 : 60);
+      palChunkEl(qcGrid(s), palQc, isDup ? 700 : 560);
+      var row = mkEl('<div class="qc-save-row chunk"><span class="qc-cancel">Cancel</span><button class="qc-save'+(isDup?' disabled':'')+'" tabindex="-1">Save</button></div>');
+      palChunkEl(row, palQc, isDup ? 1200 : 1060);
+      if(!isDup){
+        setTimeout(function(){
+          var b = row.querySelector(".qc-save");
+          b.textContent = "Saved ✓"; b.classList.add("saved");
+        }, 1060 + 1000);
+      }
+    }, 850);
+  }
+  palInput.addEventListener("input", function(){
+    if(palQc.style.display !== "none"){ palQc.style.display = "none"; palQc.innerHTML = ""; palHome.style.display = ""; }
+    filterRows(palInput.value);
+  });
+  palInput.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      if(palQc.style.display !== "none"){ palQc.style.display = "none"; palQc.innerHTML = ""; palHome.style.display = ""; palInput.value = ""; filterRows(""); }
+      else closePalette();
+      return;
+    }
+    if(e.key !== "Enter") return;
+    var v = palInput.value.trim();
+    if(!v) return;
+    if(!/github\.com[/:]/i.test(v) && v.split("/").filter(Boolean).length < 2) return; /* plain search, already filtering */
+    runOverlayCapture(parseRepo(v));
+  });
+  veil.addEventListener("click", function(e){ if(e.target === veil) closePalette(); });
+
+  window.addEventListener("keydown", function(e){
+    var cmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
+    var bareK = !e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "k"
+      && !/input|textarea/i.test(document.activeElement.tagName);
+    if(cmdK || bareK){ e.preventDefault(); veil.classList.contains("on") ? closePalette() : openPalette(); }
+    if(e.key === "Escape" && veil.classList.contains("on")) closePalette();
+  });
+})();
+</script>
+</body>
+</html>
