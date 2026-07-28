@@ -20,25 +20,33 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
       publisher EdDSA key now backed up in `_INFRA/backups/`. `scripts/release.sh` signs
       Sparkle's nested components inside-out and notarizes twice; `scripts/appcast.sh`
       generates and publishes the feed. Design + plan in `docs/superpowers/`.
-- [~] 3️⃣ **New app screenshots for the repo** — IN PROGRESS 2026-07-27. Shot shelf is
-      loaded and ready: a throwaway catalog holding the 16-repo cast (9 Top Shelf,
-      7 Collector). The real 397-repo catalog is parked at
-      `~/reshelf/_real-catalog-parked/`, backups at `~/reshelf/_backups-parked/`,
-      full copy at `~/_KIKA_MAIN/_INFRA/backups/reshelf-pre-screenshots-2026-07-27/`.
-      Restore steps + shot list are in reed.md ("reshelf — screenshot cast and
-      default seed"). **Sort Top Shelf by name, not stars** — Kika's own repos
-      (★1–8) otherwise rank below ollama's ★175k.
-      Cast + shot list originally from `docs/reshelf-screenshots-and-seed-repos.md`.
-      Note the approach changed: a **separate throwaway catalog** beat yard-saling
-      380 rows in the real one — no restore needed, and the sidebar shows honest
-      counts instead of "Yard Sale 380". 10 of the 17 cast repos weren't on the
-      shelf at all and were captured fresh from GitHub.
-- [ ] 4️⃣ **Replace the default seed** — `OpenSourceShelf/SeedData/SeedData.swift` still
-      ships Baserow / NocoDB / AppFlowy / Budibase / ToolJet / Directus / Outline /
-      FlowiseAI. Swap for the 9-repo list in the same doc (3 of Kika's + ollama, zed,
-      excalidraw, lazygit, immich, screenpipe). Keep the fill-only guard (`count == 0`),
-      map each repo to an **existing** category (fixed taxonomy in `SidebarItem.swift`),
-      verify stars/licenses at build time, and mix Top Shelf + Collector statuses.
+- [x] 3️⃣ ~~**New app screenshots for the repo**~~ — done 2026-07-28, shipped in 1.8.0.
+      Shot from a throwaway catalog holding the cast (the real catalog was parked and
+      restored afterwards); `assets/` now carries catalog, cloned, license and light
+      shots. The separate-catalog approach beat yard-saling 380 rows — honest sidebar
+      counts instead of "Yard Sale 380".
+- [x] 4️⃣ ~~**Replace the default seed**~~ — done 2026-07-28, shipped in 1.8.0. Nine repos
+      (jade, Seedling, kika-obsidian-mcp, ollama, Handy, zed, excalidraw, lazygit,
+      immich), 5 Top Shelf / 4 Collector, live stars and verified licences, fill-only
+      guard kept. screenpipe was dropped from the list: it has relicensed commercially,
+      so it can't headline an open-source starter set.
+- [x] 5️⃣ ~~**Folders for clones + batch actions**~~ — shipped in 1.9.0 (2026-07-28).
+      Lived with as `1.9.0-beta.1`/`beta.2` before merging, deliberately kept out of the
+      Sparkle feed while testing. Design + plan in `docs/superpowers/`.
+
+## Next up (added 2026-07-28, after 1.9.0)
+
+- [ ] **Verify the folder import round-trip on both Macs** — export here, import there,
+      confirm folders match by name rather than duplicating. The export half is proven
+      (the app's own backup writes folders + memberships correctly); the import half has
+      only been reasoned through, not exercised.
+- [ ] **The app's docs site** — the how-to/screenshot docs decided to live on the site
+      rather than in-app (no bundled PDF). The repo has no `homepageUrl` set yet either.
+- [ ] 🐞 **Prune the dead Intelligence residue** — the Labs removal left the GRDB
+      intelligence layer and its ingestion services in place (`IntelligenceDatabase`,
+      `RepositoryIngestionService`, runbook generation with no UI). It builds and is
+      harmless, but nothing reaches it from the UI. Decide: keep as the v2 foundation, or
+      cut it too.
 
 ## Done in 1.3.0 (2026-07-17)
 
