@@ -1,20 +1,29 @@
-# reshelf 🦉
+<p align="center">
+  <img src="assets/reshelf-icon.png" alt="reshelf app icon — an owl whose eyes are angle brackets" width="120" height="120">
+</p>
 
-**reshelf** (repo shelf) is a **local-first macOS app** for keeping a personal shelf
-of open-source repos you actually use — capture from GitHub, organize onto shelves,
-clone locally by category, and get told when a clone has updates to pull.
+<h1 align="center">reshelf</h1>
 
-No account. No cloud. Your catalog and clones live on your Mac.
+<p align="center">
+  <strong>A local-first macOS app for the open-source repos you actually use.</strong><br>
+  Capture from GitHub, sort onto shelves, clone by category, and get told when a clone
+  has updates to pull.<br>
+  <em>No account. No cloud. Your catalog and clones live on your Mac.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/aka-kika/reshelf/releases/latest"><img src="https://img.shields.io/badge/download-reshelf.dmg-1f8fff" alt="Download reshelf.dmg"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue" alt="platform: macOS 14+">
+  <img src="https://img.shields.io/badge/universal-arm64%20%2B%20x86__64-555" alt="universal: arm64 + x86_64">
+  <img src="https://img.shields.io/badge/signed%20%26%20notarized-Developer%20ID-4c1" alt="signed and notarized with a Developer ID">
+  <img src="https://img.shields.io/badge/auto--update-Sparkle-orange" alt="auto-update via Sparkle">
+  <img src="https://img.shields.io/badge/AI-on--device%20only-8a63d2" alt="AI runs on-device only">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="license: MIT">
+</p>
 
 <p align="center">
   <img src="assets/reshelf-catalog.png" alt="reshelf — sidebar of shelves and categories, project list, and an inspector showing metadata, license, and personal fit" width="900">
 </p>
-
-[![Download](https://img.shields.io/badge/download-reshelf.dmg-1f8fff)](https://github.com/aka-kika/reshelf/releases/latest)
-![platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
-![universal](https://img.shields.io/badge/universal-arm64%20%2B%20x86__64-555)
-![license: MIT](https://img.shields.io/badge/license-MIT-green)
-![status: v1](https://img.shields.io/badge/status-v1-brightgreen)
 
 > **Download:** grab the latest **signed & notarized**
 > [`reshelf.dmg` from Releases](https://github.com/aka-kika/reshelf/releases/latest)
@@ -48,6 +57,9 @@ No account. No cloud. Your catalog and clones live on your Mac.
   **Remove Duplicate Repos** cleans up any you already have.
 - **Hard to lose data** — an isolated store plus automatic JSON backups (last 30),
   auto-restore-on-empty, manual restore, and JSON import/export.
+- **Updates itself** — **Check for Updates** (or a quiet automatic check) fetches
+  signed releases through Sparkle, so you never hunt for a DMG again. Every update is
+  EdDSA-signed and notarized; you can turn automatic checks off in Settings.
 
 **AI, when it happens, happens on your Mac.** Capture Assist fills in use cases, a
 note and tags with on-device Apple Intelligence — no key, no setup, nothing sent
@@ -170,6 +182,7 @@ explicitly welcome.
 
 - **GitHub API** — only when you use Quick Capture (repo metadata, optional README).
 - **AI** — never leaves the Mac. Capture Assist runs on-device Apple Intelligence; there is no cloud provider to configure.
+- **Update checks** — Sparkle fetches a static appcast from GitHub Pages. Nothing about you is sent; it's a plain file request.
 - No sign-in, no required cloud sync. Credentials (when used) live in the macOS Keychain.
 
 ## Stack
@@ -177,6 +190,7 @@ explicitly welcome.
 - **SwiftUI** — interface · **SwiftData** — the catalog you see
 - **GRDB (SQLite)** — a second store for clone and metadata records
 - **GitHub REST** — repo metadata on capture · **Apple Intelligence** — on-device fills
+- **Sparkle** — signed in-app updates from an EdDSA-signed appcast
 
 ## Roadmap
 
