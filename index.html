@@ -46,7 +46,7 @@ body{
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 :focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px;border-radius:4px}
-.wrap{max-width:var(--max);margin:0 auto;padding:0 clamp(20px,4vw,56px)}
+.wrap{max-width:var(--max);margin:0 auto;padding-left:clamp(20px,4vw,56px);padding-right:clamp(20px,4vw,56px)}
 .mono{font-family:var(--mono)}
 .eyebrow{
   font-family:var(--mono);
@@ -381,18 +381,34 @@ section[id],div[id]{scroll-margin-top:84px}
 .faq-a-in code{font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--bg-raise);border:1px solid var(--line);padding:1.5px 6px;border-radius:4px}
 
 /* final cta + footer */
-.final{padding:430px 0 180px;text-align:left;position:relative;overflow:hidden}
+.final{padding:200px 0 140px;text-align:left;position:relative;overflow:hidden}
 .final h2{
   font-size:clamp(40px,6.4vw,92px);line-height:.96;letter-spacing:-.035em;font-weight:700;
   max-width:12ch;
 }
 .final h2 .thin{color:var(--fg-35)}
 .final .hero-ctas{margin-top:44px}
-footer{border-top:1px solid var(--line);padding:34px 0 44px}
-.foot-in{display:flex;align-items:center;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--fg-35)}
-.foot-in a{transition:color .15s}
-.foot-in a:hover{color:var(--fg)}
-.foot-in .sp{flex:1}
+footer{border-top:1px solid var(--line);padding:56px 0 0}
+.foot-grid{display:grid;grid-template-columns:1fr auto;gap:56px;align-items:start}
+.foot-brand{max-width:34ch}
+.foot-name{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em;color:var(--fg)}
+.foot-tag{display:block;margin-top:10px;font-size:13px;line-height:1.55;color:var(--fg-50)}
+.foot-cols{display:grid;grid-template-columns:repeat(3,minmax(120px,auto));gap:44px}
+.foot-col{display:flex;flex-direction:column;gap:9px}
+.foot-h{
+  font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--fg-35);margin-bottom:3px;
+}
+.foot-col a{font-size:13px;color:var(--fg-70);transition:color .15s;width:fit-content}
+.foot-col a:hover{color:var(--fg)}
+.foot-legal{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  margin-top:52px;padding:22px 0 40px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11.5px;color:var(--fg-35);
+}
+.foot-legal a{transition:color .15s}
+.foot-legal a:hover{color:var(--fg)}
+.foot-legal .sp{flex:1}
 
 /* ---------- command palette overlay ---------- */
 .palette-veil{
@@ -601,6 +617,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 44px}
   .lu+.lu{border-left:none;border-top:1px solid var(--line);padding-left:0}
   section{padding:88px 0}
   .gh-link span{display:none}
+  .foot-grid{grid-template-columns:1fr;gap:40px}
 }
 @media(max-width:640px){
   .win-body{grid-template-columns:1fr}
@@ -612,6 +629,9 @@ footer{border-top:1px solid var(--line);padding:34px 0 44px}
   .rule-row{flex-wrap:wrap;gap:8px}
   .rule-row .verdict{margin-left:0}
   .qc-grid{grid-template-columns:1fr}
+  .foot-cols{grid-template-columns:1fr 1fr;gap:28px}
+  .foot-legal{gap:10px}
+  .foot-legal .sp{display:none}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
@@ -1278,11 +1298,37 @@ you referenced.</div>
 </div>
 
 <footer>
-  <div class="wrap foot-in">
-    <span><img src="assets/reshelf-icon.png" alt="" class="foot-icon"> reshelf — repo shelf</span>
+  <div class="wrap foot-grid">
+    <div class="foot-brand">
+      <span class="foot-name"><img src="assets/reshelf-icon.png" alt="" class="brand-icon"> reshelf</span>
+      <span class="foot-tag">repo shelf. A calm, local place for the open-source that matters to you — built by KIKA, for people who think in systems.</span>
+    </div>
+    <nav class="foot-cols">
+      <div class="foot-col">
+        <div class="foot-h">the app</div>
+        <a href="https://github.com/aka-kika/reshelf/releases/latest" target="_blank" rel="noopener">Download</a>
+        <a href="https://github.com/aka-kika/reshelf/releases" target="_blank" rel="noopener">All releases</a>
+        <a href="https://github.com/aka-kika/reshelf/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+      </div>
+      <div class="foot-col">
+        <div class="foot-h">source</div>
+        <a href="https://github.com/aka-kika/reshelf" target="_blank" rel="noopener">Repository</a>
+        <a href="https://github.com/aka-kika/reshelf/blob/main/features.md" target="_blank" rel="noopener">Features</a>
+        <a href="https://github.com/aka-kika/reshelf/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+      </div>
+      <div class="foot-col">
+        <div class="foot-h">kika</div>
+        <a href="https://akakika.com" target="_blank" rel="noopener">akakika.com</a>
+        <a href="https://github.com/aka-kika" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://x.com/akakikaaa" target="_blank" rel="noopener">𝕏 @akakikaaa</a>
+      </div>
+    </nav>
+  </div>
+  <div class="wrap foot-legal">
     <span>MIT © reshelf contributors</span>
+    <span>macOS 14+ · universal · signed &amp; notarized</span>
     <span class="sp"></span>
-    <span>built by <a href="https://github.com/aka-kika" target="_blank" rel="noopener">kika</a> · no account, no cloud, no tracking</span>
+    <span>no accounts · no cloud · no analytics</span>
   </div>
 </footer>
 
