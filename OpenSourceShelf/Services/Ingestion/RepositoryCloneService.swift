@@ -177,14 +177,6 @@ enum RepositoryCloneService {
                                 cloneState: cloneState,
                                 ingestionJob: job)
 
-            do {
-                _ = try await RepositoryStaticAnalyzer.analyze(repository: updatedRepository, database: database)
-            } catch {
-                #if DEBUG
-                print("[reshelf] Static analysis failed for \(updatedRepository.fullName): \(error)")
-                #endif
-            }
-
             return RepositoryCloneResult(repository: updatedRepository,
                                          cloneState: cloneState,
                                          ingestionJob: job)

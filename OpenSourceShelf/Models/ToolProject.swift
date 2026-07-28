@@ -27,6 +27,11 @@ final class ToolProject {
     /// shelved it). Optional because older rows predate the field and only fill
     /// in on capture, refresh, or backfill.
     var lastUpdatedDate: Date?
+    /// The folder this project belongs to, if any. A plain id rather than a
+    /// SwiftData relationship: membership is one-directional, and a relationship
+    /// would make deleting a folder a cascade decision instead of a field being
+    /// cleared — which is exactly the behaviour we must not have.
+    var folderID: UUID?
 
     var isLocalFirst: Bool = false
     var isSelfHosted: Bool = false
@@ -53,6 +58,7 @@ final class ToolProject {
          fitScore: Int = 0,
          addedDate: Date = Date(),
          lastUpdatedDate: Date? = nil,
+         folderID: UUID? = nil,
          isLocalFirst: Bool = false,
          isSelfHosted: Bool = false) {
         self.id = UUID()
@@ -72,6 +78,7 @@ final class ToolProject {
         self.fitScore = fitScore
         self.addedDate = addedDate
         self.lastUpdatedDate = lastUpdatedDate
+        self.folderID = folderID
         self.isLocalFirst = isLocalFirst
         self.isSelfHosted = isSelfHosted
     }

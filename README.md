@@ -44,8 +44,15 @@
   (Settings → General → Capture Assist.)
 - **Organize onto shelves** — **Top Shelf** (keepers), **The Collector** (default),
   **Yard Sale** (not sure / let go). Move with one keystroke (⌘T / ⌘Y).
-- **Browse by anything** — sidebar filters by shelf, **live category list**, or
-  **Cloned**. Sort by Recently Added / Name / Most Stars.
+- **Browse by anything** — sidebar filters by shelf, **live category list**, **folders**,
+  or **Cloned**. Sort by Recently Added / Name / Most Stars / Last Updated.
+- **Folders for what you got them for** — clone thirty repos for one project and group
+  them: right-click → **Add to Folder**. Folders are yours to name, sit in their own
+  sidebar section, and are separate from categories (what a repo *is*) and shelves (how
+  much you value it). **Deleting a folder only ungroups** — nothing else changes.
+- **Batch actions** — **⌘-click** rows (or **⇧-click** a range), then move them all to a
+  shelf, add them all to a folder, or remove their clones in one go. The whole point of
+  folders: retire a project's worth of repos together instead of one at a time.
 - **Clone locally, organized** — full clones grouped by category at
   `~/reshelf/repos/<Category>/<repo>`, so you can point an AI agent at one category.
   Works without `git-lfs`.
@@ -90,7 +97,7 @@ anywhere. There is no provider to choose and no cloud option to turn on.
 2. Press **⌘K**, paste a GitHub URL → Quick Capture opens with everything fetched →
    **Enter** to fetch, **Enter** again to save (no mouse needed).
 3. Sort it onto a shelf (⌘T Top Shelf, ⌘Y Yard Sale), or filter the sidebar by
-   category or **Cloned**.
+   category, **folder**, or **Cloned**.
 4. Right-click a repo → **Clone Repository**. The inspector shows **up to date** vs
    **updates available** with a one-click **Pull**.
 
@@ -129,7 +136,7 @@ Resolves **GRDB** via Swift Package Manager on first build.
 
 | What | Where |
 |------|-------|
-| Catalog (projects, settings) | `~/reshelf/catalog.store` (SwiftData — isolated, not the shared default store) |
+| Catalog (projects, folders, settings) | `~/reshelf/catalog.store` (SwiftData — isolated, not the shared default store) |
 | Automatic JSON backups | `~/reshelf/backups/` (last 30 add/remove/background snapshots) |
 | Local clones | `~/reshelf/repos/<Category>/<repo>` (grouped by category; full clones) |
 | Clone + metadata records | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |

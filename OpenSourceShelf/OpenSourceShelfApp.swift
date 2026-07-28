@@ -106,13 +106,8 @@ struct OpenSourceShelfApp: App {
     @NSApplicationDelegateAdaptor(FormatMenuPruner.self) private var formatMenuPruner
     let container: ModelContainer
     @StateObject private var appRefreshStore = AppRefreshStore()
-    @StateObject private var catalogStateStore = CatalogIntelligenceStateStore()
-    @StateObject private var queueViewModel = QueueViewModel()
-    @StateObject private var queueMenuState = QueueMenuPresentationState()
-    @StateObject private var runbookWindowState = RunbookWindowState()
     @StateObject private var updaterService = UpdaterService.shared
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
-    @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
 
     init() {
         // Carry over data from the previous "OpenSourceShelf" name. Must run
@@ -135,7 +130,7 @@ struct OpenSourceShelfApp: App {
         }
 
         do {
-            let schema = Schema([ToolProject.self, AppSettings.self])
+            let schema = Schema([ToolProject.self, AppSettings.self, CatalogFolder.self])
             // Use an app-specific store under ~/reshelf instead of the shared,
             // non-namespaced ~/Library/Application Support/default.store. The shared
             // store is dangerous for a non-sandboxed app: any other SwiftData app or
@@ -150,9 +145,8 @@ struct OpenSourceShelfApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(catalogStateStore: catalogStateStore)
+            ContentView()
                 .environmentObject(appRefreshStore)
-                .environmentObject(runbookWindowState)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
         .modelContainer(container)
@@ -249,15 +243,6 @@ struct OpenSourceShelfApp: App {
                     }
                 }
 
-                if labsFeaturesEnabled {
-                    Divider()
-
-                    sidebarMenuButton(.compare)
-                        .keyboardShortcut("c", modifiers: [.command, .shift])
-                    sidebarMenuButton(.ecosystems)
-                    sidebarMenuButton(.workflows)
-                    sidebarMenuButton(.myStack)
-                }
             }
 
             // Drop the default Format menu (Show Fonts steals ⌘T) — this app has
@@ -282,116 +267,9 @@ struct OpenSourceShelfApp: App {
                 .keyboardShortcut("y", modifiers: .command)
             }
 
-            // Catalog (intelligence) + Actions menus are the v2 Intelligence
-            // surface — shown only when Labs is enabled.
-            if labsFeaturesEnabled {
-            CommandMenu("Catalog") {
-                Menu("Runbook Filter") {
-                    ForEach(CatalogRunbookFilter.allCases) { filter in
-                        Button(filter.rawValue) {
-                            NotificationCenter.default.post(
-                                name: .setCatalogRunbookFilter,
-                                object: nil,
-                                userInfo: ["filter": filter.rawValue]
-                            )
-                        }
-                    }
-                }
 
-                Divider()
-
-                Button("Fetch Intelligence for Visible List") {
-                    NotificationCenter.default.post(name: .catalogFetchAllIntelligence, object: nil)
-                }
-
-                Divider()
-
-                Button("Select Projects to Compare") {
-                    NotificationCenter.default.post(name: .toggleCatalogCompareMode, object: nil)
-                }
-
-                Button("Compare Checked Projects") {
-                    NotificationCenter.default.post(name: .catalogCompareSelected, object: nil)
-                }
-                .keyboardShortcut("c", modifiers: [.command, .option])
-
-                Button("Cancel Compare Selection") {
-                    NotificationCenter.default.post(name: .catalogCancelCompareMode, object: nil)
-                }
-            }
-
-            CommandMenu("Actions") {
-                Button("Generate Runbook") {
-                    AppQuickActionCenter.post(.generateRunbook)
-                }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-
-                Button("Open Runbook") {
-                    AppQuickActionCenter.post(.openRunbook)
-                }
-
-                Button("Regenerate Stale Runbooks") {
-                    AppQuickActionCenter.post(.regenerateStaleRunbooks)
-                }
-
-                Divider()
-
-                Button("Show Needs Runbook") {
-                    AppQuickActionCenter.post(.showNeedsRunbook)
-                }
-
-                Button("Show Stale Runbooks") {
-                    AppQuickActionCenter.post(.showStaleRunbooks)
-                }
-
-                Divider()
-
-                Button("Compare Current Project") {
-                    AppQuickActionCenter.post(.compareSelected)
-                }
-
-                Divider()
-
-                Button("Refresh Intelligence") {
-                    AppQuickActionCenter.post(.refreshIntelligence)
-                }
-            }
-            } // labsFeaturesEnabled — Catalog + Actions menus
-
-            // Queue + Explore are v2 surfaces — only in the Window menu under Labs.
-            CommandGroup(after: .windowList) {
-                if labsFeaturesEnabled {
-                    Button("Show Queue") {
-                        queueMenuState.present()
-                    }
-                    .keyboardShortcut("q", modifiers: [.command, .shift])
-
-                    Menu("Explore") {
-                        sidebarMenuButton(.ecosystems)
-                        sidebarMenuButton(.workflows)
-                        sidebarMenuButton(.myStack)
-                    }
-                }
-            }
         }
 
-        Window("Queue", id: ShelfWindowID.queue) {
-            QueueMenuBarRoot(viewModel: queueViewModel)
-                .environmentObject(appRefreshStore)
-                .frame(minWidth: 400, idealWidth: 440, minHeight: 480, idealHeight: 560)
-                .preferredColorScheme(appearanceMode.colorScheme)
-        }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 440, height: 560)
-
-        Window("Runbook", id: ShelfWindowID.runbook) {
-            RunbookWindowView()
-                .environmentObject(runbookWindowState)
-                .environmentObject(appRefreshStore)
-                .preferredColorScheme(appearanceMode.colorScheme)
-        }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 720, height: 640)
 
         // Standard macOS Settings — app-menu "Settings…" (⌘,).
         //
@@ -452,7 +330,6 @@ private extension OpenSourceShelfApp {
 
         do {
             let database = IntelligenceDatabase.shared
-            try database.smokeTest()
             print(try database.debugSchemaSummary())
             exit(EXIT_SUCCESS)
         } catch {

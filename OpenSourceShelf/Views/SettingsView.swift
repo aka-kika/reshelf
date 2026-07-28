@@ -17,10 +17,6 @@ struct SettingsView: View {
 
     // Appearance (light / dark / system)
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
-    // The v2 Intelligence preview is retired — its switch is gone from Settings
-    // and nothing can turn it back on. Kept only until the surfaces it gates
-    // are deleted outright (branch: claude/remove-labs).
-    private let labsFeaturesEnabled = false
     @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
     @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
@@ -371,7 +367,7 @@ struct SettingsView: View {
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    ForEach(sectionOrder.filter { labsFeaturesEnabled || !$0.isIntelligence }) { section in
+                    ForEach(sectionOrder) { section in
                         InspectorSectionRow(
                             section: section,
                             isVisible: Binding(
@@ -592,7 +588,6 @@ struct SettingsView: View {
         self.settings = AppSettings.current(in: modelContext)
         self.urlText = settings.ollamaBaseURL
         AISettingsSnapshot.sync(from: settings)
-        RunbookAutoEnqueueSettings.syncFromSettings(settings.autoGenerateRunbookAfterIntelligence)
     }
 
     private func persistSettings() {

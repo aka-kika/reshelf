@@ -7,9 +7,9 @@ What **reshelf** does today. Plain-language map of the app — see [README.md](R
 - **Three columns** — sidebar (owl app-icon branding), project list (title + controls header), inspector pane. The sidebar and inspector are **user-resizable** by dragging their dividers; the project list flexes between them.
 - **Merged title bar** — the header row doubles as the window title bar (no separate empty toolbar band). The controls live in the project-list header: a **sidebar toggle** on the left, **search** (⌘K) and **inspector toggle** on the right. Toggles stay visible even when their panel is collapsed, so you can always reopen it. The three column header dividers line up as one clean line, and the sidebar edge is a thin hairline (not a heavy macOS shadow).
 - **Command palette** (⌘K) — floating sheet with search field, recent searches, live project filtering. Paste a GitHub URL → "Capture this repository" row appears → click or press Enter → Quick Capture opens with repo info auto-fetched. Escape dismisses.
-- **Menu bar** — File (New / Quick Capture / Search / Export / Import / Restore / **Check Clones for Updates** ⌘⇧U), View (column toggles + navigation), and the app menu (Settings, About). The intelligence menus (Catalog, Actions, Window → Queue) appear only with **Labs on**. No status-bar menu extra.
+- **Menu bar** — File (New / Quick Capture / Search / Export / Import / Restore / **Check Clones for Updates** ⌘⇧U), View (column toggles + navigation), and the app menu (Settings, About, Check for Updates). No status-bar menu extra.
 - **No sign-in** — local app only.
-- **Seed library** — on first empty launch, sample tools (Baserow, NocoDB, AppFlowy, Budibase, etc.) are inserted once.
+- **Seed library** — on first empty launch, nine repos worth having are inserted once (jade, Seedling, kika-obsidian-mcp, ollama, Handy, zed, excalidraw, lazygit, immich). Only ever when there is nothing to show.
 
 ## Data safety
 
@@ -44,11 +44,7 @@ Stored fields you can view and edit:
 
 - Full set: Database, Backend, AI / Agent, Coding Agents, Computer Use, AI Memory, MCP, Internal Tools, Workspace, Knowledge, macOS, SwiftUI, CLI, Editor, DevOps, Automation, Media, Design, Security, Utility, Frontend, Games, plus Local-First (flag-based). Classification is **rule-based** (GitHub topics → description → language), **no AI** — see `CategoryClassifier`. Repos with no clear signal stay uncategorized (visible under All Projects) rather than being mislabeled with a raw language name. Since 1.3.2 the classifier assigns **SwiftUI** too: SwiftUI component/animation/library repos land there (library-shaped wording like "SwiftUI library" / "for SwiftUI" tips cross-platform packages), while mac *apps* that merely use SwiftUI still land in macOS.
 
-**Intelligence (v2 preview)** (Settings → **Enable Intelligence**, off by default) — the entire intelligence engine is gated behind one flag. With it **off** (the v1 default), reshelf is a pure catalog: no clone/Fetch-Intelligence, no runbooks, no Compare/Ecosystems, no Queue or Actions menu, no AI step in Quick Capture, no AI-Providers or Repository-Storage settings, and no intelligence badges on rows or in the inspector. Turning it **on** restores all of it unchanged (clone + AI analysis, runbooks, Compare, Ecosystems, Workflows, My Stack, Queue, AI providers, clone-folder setting).
-
-**Intelligence surfaces** (View and Window menus when Labs is on, not sidebar) — Compare (⌘⇧C), Ecosystems, Workflows, My Stack. Window → Explore also lists the three discovery views. Selecting a cluster shows detail in the inspector; repo rows jump back to the catalog when linked.
-
-**Compare** — the main area toggles between a **repo picker** (selection mode) and the **results view**; running a comparison flips to results, "Edit Repos" returns to the picker. Results lead with a winner hero card, ranking cards with score bars, and the comparison matrix (winner column highlighted), followed by the decision summary and detail cards. The inspector is a per-repo deep dive that defaults to the winner and follows ranking clicks.
+**Folders** — a third section between Library and Categories, present only once you have a folder. See [Folders](#folders) below.
 
 **Settings** — opens as a standard macOS **Settings window** from the app menu (**reshelf → Settings…**, ⌘,), not an in-app panel.
 
@@ -69,7 +65,6 @@ Stored fields you can view and edit:
 - Edit fields, then save into the SwiftData catalog
 - **No-mouse flow** — from the command palette (⌘K): paste a URL → **Enter** fetches → **Enter** again saves (Save is the sheet's default button)
 - **Capture Assist (on-device)** — on Macs with Apple Intelligence, the AI Suggestions step (behind More Details) fills **use cases, a note, and tags** via guided generation; with **auto-generate** on (default) it runs by itself in the background right after save, so the keyboard-only flow is untouched. Fill-only: your typed fields always win
-- Under **Labs**, the configured AI provider (Settings → AI) can be used instead — Ollama locally, Apple Intelligence, or OpenAI, Anthropic, Gemini, GitHub Models with an API key
 
 Quick Capture uses a **solid sheet** (readable over any background), not a glass overlay.
 
@@ -85,7 +80,7 @@ Existing projects whose category was empty or just a language name are **re-cate
 - **Local Copy** — clone status, on-disk path, **Reveal in Finder**, and **Open in…** (installed editors + Terminal); when not cloned, a one-click **Clone Repository**
 - Edit sheet
 - **Resizable** — drag the divider to set the inspector width (persists)
-- **Discovery clusters** — when viewing Ecosystems, Workflows, or My Stack (View/Window menu, Labs on), select a cluster to inspect score, stack, and gaps; tap a repo to open it in the catalog
+- **Folder** — the folder a project belongs to, when it's in one (next to Added / Updated)
 
 Extra metadata stays **inside this pane** (no fourth `.inspector()` column).
 
@@ -99,12 +94,29 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 - **Check Clones for Updates** (**File** menu, ⌘⇧U) — sweeps every cloned repo at once and flags the ones that are behind with an **orange dot** on their disk badge. Pair it with the **Cloned** sidebar filter to see exactly what needs pulling.
 - **Remove Local Clone** — right-click a cloned repo → **Remove Local Clone…** (confirm dialog) moves the cloned folder to the **Trash** (recoverable) and removes an emptied category folder. The catalog entry stays; you can clone again anytime. Deleting a clone folder yourself in Finder is also fine — the disk badge and Cloned count notice and update on their own.
 
-## Runbooks
+reshelf never executes anything on your behalf — clone, pull and update checks are the only git it runs, all read-only or fast-forward.
 
-- **Generate** from the inspector or Actions menu — stored in the intelligence database, not written into the clone automatically
-- **Open Runbook** opens a dedicated read-only window (rendered Markdown, raw toggle, copy/export)
-- **Save to Clone Folder** (in the runbook window) writes `RESHELF-RUNBOOK.md` beside the local clone when one exists
-- reshelf never executes suggested commands — review before running anything in Terminal
+## Folders
+
+A **folder** is a grouping you make: "everything I cloned for project X". Deliberately not a category (those are a fixed taxonomy describing *what a repo is*) and not a shelf (that says how much you value it) — a project's worth of repos spans all three shelves and a dozen categories.
+
+- **One folder at most** per project, so "what did I get for X" stays unambiguous.
+- **Any project qualifies**, cloned or not. Uncloning must not eject a repo from the group that exists to make the cleanup possible.
+- **Assign** — right-click a project → **Add to Folder ▸** lists your folders, marks the one it's in, and offers **New Folder…** and **Remove from Folder**.
+- **Sidebar** — folders get their own section between Library and Categories, shown only once one exists. Each row has a folder icon, a live count, and filters the list exactly like a category row.
+- **Rename / Delete** — right-click a folder row. **Deleting a folder only ungroups**: its projects keep their shelf, their clone, their notes and everything else. The confirmation says how many will be ungrouped and that nothing else changes.
+- **Inspector** — a **Folder** row appears next to Added / Updated when a project is in one.
+- **Travels with the catalog** — folders are written into JSON exports *and* automatic backups. On import they're matched by **name**, case-insensitively, so two Macs that each made a "Photos app" converge on one folder instead of two. A file that carries no folder for a project leaves that project's folder alone.
+
+## Batch actions
+
+Select many rows, then act on all of them — built for the case that motivated folders: ~100 repos cloned for one project that have to be retired together.
+
+- **⌘-click** toggles a row into the selection; **⇧-click** extends from the last plain click; a plain click drops the selection and selects one row.
+- The batch is **separate from the inspector's selection**, so assembling one never costs you the detail view of what you were last looking at.
+- **Act** — the footer shows "N selected" with an **Actions** menu; right-clicking *inside* the selection gives the same menu. Right-clicking *outside* it acts on that row alone, so a destructive action never lands on rows you weren't pointing at.
+- **What you can do** — move them all to a shelf, add them all to a folder, remove their local clones, or remove them from the catalog. Both destructive actions confirm with a count and say what survives: clones go to the Trash and stay in the catalog; catalog removals are backed up first and leave files on disk alone.
+- The selection resolves through the **visible list**, so the count can't promise an action over rows that have been filtered away; changing the filter or the search clears it.
 
 ## Settings
 
@@ -113,7 +125,7 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 - **Capture Assist** — the on-device Apple Intelligence fill (use cases / note / tags): master toggle, live model-availability status, **auto-generate on every capture** (default on), and **Fill Missing Entries** to backfill shelved entries that have none (fill-only, hand-edited data untouched)
 - **Agent Skill** — one-click install of the bundled `reshelf` Claude Code skill to `~/.claude/skills/reshelf` (a previous install is trashed, not deleted)
 - **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are grouped into **category subfolders** (`<Category>/<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
-- **AI Providers** (Labs) — pick a **preferred provider** for suggestions; configure **Ollama** (local URL + model), **Apple Intelligence** (on-device, live availability), **OpenAI**, **Anthropic**, **Gemini**, and **GitHub Copilot / Models** (API keys stored in Keychain, model picker, connection test)
+- **Software Update** — automatic update checks on/off (Sparkle), plus **Check for Updates…** on demand. Updates are EdDSA-signed and notarized; the feed is a static file on GitHub Pages
 - **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders
 - **About** — app icon, version, tagline, and links (akakika.com, GitHub, X)
 - One `AppSettings` row in SwiftData (appearance is stored separately in `@AppStorage`)
@@ -137,4 +149,5 @@ This layer is initialized and has a **smoke test** API in code; the shelf UI sti
 | SwiftData | Catalog + settings |
 | GRDB 7.x | Intelligence SQLite |
 | GitHub REST | Quick Capture |
-| Ollama / cloud AI APIs | Optional AI suggestions (local-first; cloud opt-in) |
+| Apple Intelligence | On-device Capture Assist fills (no key, no cloud) |
+| Sparkle | Signed in-app updates from an EdDSA-signed appcast |

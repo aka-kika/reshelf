@@ -9,6 +9,53 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.9.0] — 2026-07-28
+
+### Added
+- **Folders for the shelf.** A folder is a grouping you make — "everything I cloned for
+  project X" — deliberately separate from categories (a fixed taxonomy describing what a
+  repo *is*) and from shelf status (how much you value it), because a project's worth of
+  repos spans all three shelves and a dozen categories. Right-click a project →
+  **Add to Folder ▸** (or **New Folder…**). Folders appear in their own sidebar section
+  between Library and Categories, shown only once you have one; each row carries a folder
+  icon and a live count and filters the list like a category row. Rename and delete from
+  the row's context menu. **Deleting a folder only ungroups its projects** — they keep
+  their shelf, their clone, their notes and everything else, and the confirmation says
+  so. The inspector shows a **Folder** row next to Added / Updated when a project is in
+  one. A project belongs to at most one folder, and any project qualifies whether or not
+  it's cloned: uncloning must not eject a repo from the group that exists to make the
+  cleanup possible.
+- **Folders travel with the catalog** — written into JSON exports *and* automatic
+  backups, so moving a catalog between Macs (or restoring one) no longer silently drops
+  the grouping. On import folders are matched by **name**, case-insensitively, not by id,
+  so two Macs that each created a "Photos app" converge on one folder rather than two
+  identical ones. An older export that carries no folder for a project leaves that
+  project's folder alone.
+- **Batch actions.** **⌘-click** toggles a row into a selection, **⇧-click** extends from
+  the last plain click, and the footer then shows "N selected" with an **Actions** menu:
+  move them all to a shelf, add them all to a folder, remove their local clones, or
+  remove them from the catalog. Right-clicking *inside* the selection gives the same
+  menu; right-clicking *outside* one still acts on that row alone, so a destructive
+  action never lands on rows you weren't pointing at. Both destructive actions confirm
+  with a count and say what survives — clones go to the Trash and stay in the catalog,
+  catalog removals are backed up first and leave files on disk untouched. The selection
+  is kept separate from the inspector's, so building a batch never costs you the detail
+  view of what you were last looking at.
+
+### Removed
+- **The v2 Intelligence scaffolding is gone** — 78 files. It had been unreachable behind
+  a Labs flag since 1.7.0 retired the toggle, so nothing you could use went with it. What
+  the shelf actually does is unchanged.
+
+### Changed
+- Sorting a project into a folder now counts as a change worth backing up, so a regrouped
+  catalog can't look identical to the previous snapshot and go unrecorded.
+
+### Note on updating
+This adds a field and a model to the catalog store. Once you're on 1.9.0, **don't open an
+older reshelf build** — it can migrate the store backwards and drop them. If you run
+reshelf on two Macs, update both.
+
 ## [1.8.0] — 2026-07-28
 
 ### Fixed

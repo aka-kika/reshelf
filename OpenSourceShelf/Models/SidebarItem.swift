@@ -34,11 +34,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case localFirst = "localFirst"
 
     // Intelligence (v2 — Labs) destinations
-    case queue = "queue"
-    case compare = "compare"
-    case ecosystems = "ecosystems"
-    case workflows = "workflows"
-    case myStack = "myStack"
 
     // Settings
     case settings = "settings"
@@ -75,11 +70,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .frontendTools: "Frontend"
         case .gamesTools: "Games"
         case .localFirst: "Local-First"
-        case .queue: "Queue"
-        case .compare: "Compare"
-        case .ecosystems: "Ecosystems"
-        case .workflows: "Workflows"
-        case .myStack: "My Stack"
         case .settings: "Settings"
         }
     }
@@ -114,11 +104,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .frontendTools: "globe"
         case .gamesTools: "gamecontroller"
         case .localFirst: "house"
-        case .queue: "tray.full"
-        case .compare: "arrow.left.arrow.right"
-        case .ecosystems: "circle.hexagongrid"
-        case .workflows: "point.3.connected.trianglepath.dotted"
-        case .myStack: "square.stack.3d.up"
         case .settings: "gearshape"
         }
     }
@@ -134,8 +119,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
              .designTools, .securityTools, .utilityTools, .frontendTools,
              .gamesTools, .localFirst:
             return .categories
-        case .queue, .compare, .ecosystems, .workflows, .myStack:
-            return .library
         case .settings:
             return .settings
         }
@@ -155,10 +138,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         [.allProjects, .topShelf, .collector, .yardSale, .cloned] + sidebarCategoryItems
     }
 
-    /// Sidebar items that narrow the catalog list (not Queue, Compare, etc.).
+    /// Sidebar items that narrow the catalog list.
     var isCatalogFilter: Bool {
         switch self {
-        case .allProjects, .queue, .compare, .ecosystems, .workflows, .myStack, .settings:
+        case .allProjects, .settings:
             return false
         default:
             return true
@@ -168,7 +151,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     /// Whether a catalog row matches this sidebar filter (shared by list filtering and counts).
     func matchesCatalogFilter(_ project: ToolProject) -> Bool {
         switch self {
-        case .allProjects, .queue, .compare, .ecosystems, .workflows, .myStack, .settings:
+        case .allProjects, .settings:
             return true
         case .topShelf:
             return project.statusRaw == ProjectStatus.topShelf.rawValue
@@ -258,13 +241,14 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .frontendTools: return #Predicate { $0.category.localizedStandardContains("Frontend") }
         case .gamesTools: return #Predicate { $0.category.localizedStandardContains("Games") }
         case .localFirst: return #Predicate { $0.isLocalFirst == true }
-        case .queue, .compare, .ecosystems, .workflows, .myStack, .settings: return nil
+        case .settings: return nil
         }
     }
 }
 
 enum SidebarSection: String {
     case library = "Library"
+    case folders = "Folders"
     case categories = "Categories"
     case settings = "Settings"
 }

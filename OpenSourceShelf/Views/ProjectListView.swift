@@ -5,27 +5,33 @@ import AppKit
 struct ProjectListView: View {
     @Binding var listSelection: CatalogListSelection?
     @Binding var searchText: String
-    @Binding var sidebarSelection: SidebarItem?
+    @Binding var sidebarSelection: ShelfSelection?
     @Binding var showingAddSheet: Bool
     /// With the sidebar collapsed, this column is at the window's top-left where
     /// the traffic lights sit — inset the header so they don't cover the buttons.
     var needsTrafficLightInset: Bool = false
     var onQuickCapture: () -> Void
-    var onCompareRepositoryIDs: ([String]) -> Void
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
+    @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
 
-    @EnvironmentObject private var catalogStateStore: CatalogIntelligenceStateStore
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
-    @AppStorage(LabsFeatures.storageKey) private var labsFeaturesEnabled = false
-    @State private var isCompareSelectMode = false
-    @State private var compareSelectedProjectIDs: Set<UUID> = []
-    @State private var compareNotice: String?
-    @State private var isBatchFetchingIntelligence = false
-    @State private var isBatchRunbookActionRunning = false
-    @State private var runbookFilter: CatalogRunbookFilter = .all
+    /// Transient one-line status under the list header — clone progress, shelf
+    /// moves, failures. (Was `compareNotice`; Compare merely introduced it.)
+    @State private var statusNotice: String?
     @State private var pendingDeleteProject: ToolProject?
+    /// Non-nil while the New Folder prompt is up; holds what goes into it.
+    @State private var newFolderTargets: [ToolProject]?
+    @State private var newFolderName = ""
+    /// Rows checked for a batch action. Separate from `listSelection`, which is
+    /// "what the inspector is showing" — a single project, always. Keeping them
+    /// separate means ⌘-clicking a second row doesn't blank the inspector.
+    @State private var batchSelection: Set<UUID> = []
+    /// Anchor for ⇧-click range selection: the last row clicked without ⇧.
+    @State private var batchAnchor: UUID?
+    @State private var pendingBatchRemoveClones: [ToolProject]?
+    @State private var pendingBatchDelete: [ToolProject]?
     @State private var pendingRemoveCloneProject: ToolProject?
     @State private var cloningProjectIDs: Set<UUID> = []
     @State private var behindProjectIDs: Set<UUID> = []
@@ -48,7 +54,7 @@ struct ProjectListView: View {
                     HeaderChromeButton(systemImage: "sidebar.left", help: "Toggle Sidebar") {
                         NotificationCenter.default.post(name: .toggleSidebarColumn, object: nil)
                     }
-                    Text(sidebarSelection?.title ?? "All Projects")
+                    Text(listTitle)
                         .font(.system(size: 15, weight: .semibold))
                     Spacer()
                     sortMenu
@@ -85,13 +91,13 @@ struct ProjectListView: View {
                 }
             }
 
-            if let compareNotice {
+            if let statusNotice {
                 HStack {
-                    Text(compareNotice)
+                    Text(statusNotice)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Dismiss") { self.compareNotice = nil }
+                    Button("Dismiss") { self.statusNotice = nil }
                         .font(.system(size: 10))
                         .buttonStyle(.borderless)
                 }
@@ -109,19 +115,14 @@ struct ProjectListView: View {
                             ForEach(filteredProjects) { project in
                                 ProjectRowView(
                                     project: project,
-                                    catalogState: catalogStateStore.state(for: project),
-                                    isCompareSelectMode: isCompareSelectMode,
-                                    isCompareSelected: compareSelectedProjectIDs.contains(project.id),
-                                    isSelected: listSelection?.projectID == project.id,
-                                    showsIntelligence: labsFeaturesEnabled,
+                                    isSelected: listSelection?.projectID == project.id
+                                        || batchSelection.contains(project.id),
                                     statusKey: project.statusRaw,
                                     isCloning: cloningProjectIDs.contains(project.id),
                                     isClonedLocally: CatalogCloneService.isCloned(project),
                                     isBehind: behindProjectIDs.contains(project.id),
-                                    onSelect: { selectProject(project) }
-                                ) {
-                                    toggleCompareSelection(for: project)
-                                }
+                                    onSelect: { selectProject(project, modifiers: $0) }
+                                )
                                 .equatable()
                                 .contextMenu {
                                     catalogContextMenu(for: project)
@@ -139,17 +140,20 @@ struct ProjectListView: View {
                 Text(listFooterSummary)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                if runbookFilter != .all {
-                    Text("· \(runbookFilter.rawValue)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                if isCompareSelectMode, !compareSelectedProjectIDs.isEmpty {
-                    Text("· \(compareSelectedProjectIDs.count) selected")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
                 Spacer()
+                if !batchProjects.isEmpty {
+                    Text("\(batchProjects.count) selected")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Menu("Actions") {
+                        batchActionMenu(for: batchProjects)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    Button("Clear") { clearBatchSelection() }
+                        .font(.system(size: 11))
+                        .buttonStyle(.borderless)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -157,45 +161,75 @@ struct ProjectListView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             IconFetcher.fetchAll(for: allProjects, in: modelContext)
-            catalogStateStore.refresh(projects: filteredProjects, includeFreshnessEvaluation: true)
         }
         .onChange(of: allProjects.count) { _, _ in
             IconFetcher.fetchAll(for: allProjects, in: modelContext)
-            catalogStateStore.refresh(projects: filteredProjects, includeFreshnessEvaluation: true)
         }
         .onChange(of: searchText) { _, _ in
-            catalogStateStore.refresh(projects: filteredProjects)
+            clearBatchSelection()
         }
         .onChange(of: sidebarSelection) { _, _ in
-            catalogStateStore.refresh(projects: filteredProjects)
-        }
-        .onChange(of: runbookFilter) { _, _ in
-            catalogStateStore.refresh(projects: filteredProjects)
+            clearBatchSelection()
         }
         .onChange(of: appRefreshStore.catalogRevision) { _, _ in
-            catalogStateStore.refresh(projects: filteredProjects)
         }
         .modifier(CatalogEventHandlers(
-            onCatalogQuickAction: { notification in
-                guard let raw = notification.userInfo?["action"] as? String,
-                      let action = AppQuickAction(rawValue: raw) else { return }
-                handleCatalogQuickAction(action)
-            },
-            onSetRunbookFilter: { notification in
-                guard let raw = notification.userInfo?["filter"] as? String,
-                      let filter = CatalogRunbookFilter(rawValue: raw) else { return }
-                runbookFilter = filter
-            },
-            onToggleCompareMode: { toggleCompareMode() },
-            onFetchAllIntelligence: { fetchIntelligenceForAllVisible() },
-            onCompareSelected: { compareSelectedProjects() },
-            onCancelCompareMode: { cancelCompareMode() },
             onCheckCloneUpdates: { checkAllClonesForUpdates() },
             onPullCloneUpdates: { pullFlaggedClones() },
             onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) },
             onCloneStatusKnown: { note in syncBehindBadge(note) },
             onRemoveDuplicates: { requestRemoveDuplicates() }
         ))
+        .confirmationDialog(
+            "Remove \(pendingBatchRemoveClones?.count ?? 0) local clones?",
+            isPresented: Binding(
+                get: { pendingBatchRemoveClones != nil },
+                set: { if !$0 { pendingBatchRemoveClones = nil } }
+            ),
+            presenting: pendingBatchRemoveClones
+        ) { targets in
+            Button("Move \(targets.count) Clones to Trash", role: .destructive) {
+                for project in targets { removeClone(for: project) }
+                statusNotice = "Moved \(targets.count) clones to the Trash."
+                clearBatchSelection()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { targets in
+            Text("\(targets.count) cloned folders move to the Trash — recoverable from there. The projects stay in your catalog and can be cloned again anytime.")
+        }
+        .confirmationDialog(
+            "Remove \(pendingBatchDelete?.count ?? 0) projects from the catalog?",
+            isPresented: Binding(
+                get: { pendingBatchDelete != nil },
+                set: { if !$0 { pendingBatchDelete = nil } }
+            ),
+            presenting: pendingBatchDelete
+        ) { targets in
+            Button("Remove \(targets.count) from Catalog", role: .destructive) {
+                for project in targets { deleteProject(project) }
+                statusNotice = "Removed \(targets.count) projects from the catalog."
+                clearBatchSelection()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { targets in
+            Text("This removes \(targets.count) entries from your shelf. A backup is written first, so Restore from Backup can bring them back. Cloned files on disk are left untouched.")
+        }
+        .alert("New Folder", isPresented: Binding(
+            get: { newFolderTargets != nil },
+            set: { if !$0 { newFolderTargets = nil } }
+        )) {
+            TextField("Name", text: $newFolderName)
+            Button("Create") {
+                if let targets = newFolderTargets,
+                   let folder = CatalogFolderService.create(name: newFolderName, in: modelContext) {
+                    assign(targets, to: folder)
+                }
+                newFolderTargets = nil
+            }
+            Button("Cancel", role: .cancel) { newFolderTargets = nil }
+        } message: {
+            Text("Group projects by what you got them for — a folder is a label, not a place on disk.")
+        }
         .confirmationDialog(
             "Remove \(pendingDeleteProject?.name ?? "this project")?",
             isPresented: Binding(
@@ -248,100 +282,95 @@ struct ProjectListView: View {
         return "\(projectCount) project\(projectCount == 1 ? "" : "s")"
     }
 
-    private func selectProject(_ project: ToolProject) {
+    /// A plain click selects one project and drops any batch selection. ⌘-click
+    /// toggles a row into the batch; ⇧-click extends from the last plain click.
+    /// The inspector keeps following `listSelection` throughout, so building a
+    /// batch never costs you the detail view of what you last looked at.
+    private func selectProject(_ project: ToolProject, modifiers: EventModifiers = []) {
+        if modifiers.contains(.command) {
+            if batchSelection.contains(project.id) {
+                batchSelection.remove(project.id)
+            } else {
+                batchSelection.insert(project.id)
+                if batchAnchor == nil { batchAnchor = project.id }
+            }
+            return
+        }
+        if modifiers.contains(.shift), let anchor = batchAnchor ?? listSelection?.projectID {
+            let ids = filteredProjects.map(\.id)
+            if let from = ids.firstIndex(of: anchor), let to = ids.firstIndex(of: project.id) {
+                batchSelection.formUnion(ids[min(from, to)...max(from, to)])
+                return
+            }
+        }
+        batchSelection.removeAll()
+        batchAnchor = project.id
         listSelection = .project(project.id)
     }
 
-    private func handleCatalogQuickAction(_ action: AppQuickAction) {
-        switch action {
-        case .showNeedsRunbook:
-            runbookFilter = .needsRunbook
-        case .showStaleRunbooks:
-            runbookFilter = .staleRunbooks
-        case .regenerateStaleRunbooks:
-            batchRegenerateStaleRunbooksForVisible()
-        case .refreshIntelligence:
-            fetchIntelligenceForAllVisible()
-        default:
-            break
+    /// The batch, in the list's order — so "move 12 to Yard Sale" reports and acts
+    /// in the order the user sees, and rows filtered out of view are excluded.
+    private var batchProjects: [ToolProject] {
+        filteredProjects.filter { batchSelection.contains($0.id) }
+    }
+
+    private func clearBatchSelection() {
+        batchSelection.removeAll()
+        batchAnchor = nil
+    }
+
+    /// The batch actions, shared by the footer menu and the row context menu so
+    /// there is one definition of what a batch can do.
+    @ViewBuilder
+    private func batchActionMenu(for projects: [ToolProject]) -> some View {
+        Menu("Move \(projects.count) to") {
+            ForEach(ProjectStatus.allCases, id: \.self) { shelf in
+                Button {
+                    for project in projects where project.status != shelf {
+                        project.status = shelf
+                    }
+                    try? modelContext.save()
+                    statusNotice = "Moved \(projects.count) project\(projects.count == 1 ? "" : "s") to \(shelf.displayName)."
+                    clearBatchSelection()
+                } label: {
+                    Label(shelf.displayName, systemImage: shelf.sfSymbol)
+                }
+            }
+        }
+
+        folderMenu(for: projects)
+
+        let cloned = projects.filter { CatalogCloneService.isCloned($0) }
+        if !cloned.isEmpty {
+            Divider()
+            Button("Remove \(cloned.count) Local Clone\(cloned.count == 1 ? "" : "s")…", role: .destructive) {
+                pendingBatchRemoveClones = cloned
+            }
+        }
+
+        Divider()
+        Button("Remove \(projects.count) from Catalog…", role: .destructive) {
+            pendingBatchDelete = projects
         }
     }
 
-    private func batchRegenerateStaleRunbooksForVisible() {
-        let targets = filteredProjects.filter {
-            catalogStateStore.state(for: $0).runbookBadge == .staleRunbook
+ 
+ 
+    @ViewBuilder
+    private func catalogContextMenu(for project: ToolProject) -> some View {
+        // Right-clicking inside a batch acts on the batch; right-clicking outside
+        // one acts on that row alone. Anything else would silently apply a
+        // destructive action to rows the user wasn't pointing at.
+        if batchSelection.contains(project.id), batchSelection.count > 1 {
+            batchActionMenu(for: batchProjects)
+        } else {
+            singleProjectContextMenu(for: project)
         }
-        guard !targets.isEmpty else {
-            compareNotice = "No stale runbooks in the current list."
-            return
-        }
-        isBatchRunbookActionRunning = true
-        let result = CatalogRunbookBatchService.regenerateStaleRunbooks(for: targets)
-        CatalogRunbookBatchService.emitBatchGenerateEvent(for: result)
-        isBatchRunbookActionRunning = false
-        compareNotice = result.summaryMessage
-        catalogStateStore.refresh(projects: filteredProjects)
     }
 
     @ViewBuilder
-    private func catalogContextMenu(for project: ToolProject) -> some View {
+    private func singleProjectContextMenu(for project: ToolProject) -> some View {
         // Link actions (open / copy) live on the links in the inspector, not here.
-        // — Intelligence (v2 — Labs only): clone, runbooks, compare —
-        if labsFeaturesEnabled {
-            let state = catalogStateStore.state(for: project)
-            let snapshot = state.intelligenceSnapshot
-
-            if snapshot.status.canFetch, IntelligenceRepositoryBridge.resolvedGitHubURL(for: project) != nil {
-                Button(snapshot.status == .failed ? "Retry Intelligence Fetch" : "Fetch Intelligence (Clone & Analyze)") {
-                    fetchIntelligence(for: project)
-                }
-            } else if snapshot.status.canFetch {
-                Button("Fetch Intelligence") {}
-                    .disabled(true)
-            }
-
-            if let cloneURL = cloneWorktreeURL(for: project) {
-                Button("Reveal Clone in Finder") {
-                    NSWorkspace.shared.activateFileViewerSelecting([cloneURL])
-                }
-            }
-
-            if let repositoryID = state.repositoryID, state.hasIntelligence {
-                Button("Generate Runbook") {
-                    enqueueRunbook(for: repositoryID, force: false)
-                }
-                if state.runbookBadge != .neverGenerated && state.runbookBadge != .noIntelligence {
-                    Button("Open Runbook") {
-                        RunbookDeepLinkNotifier.post(
-                            RunbookDeepLinkRequest(repositoryID: repositoryID)
-                        )
-                    }
-                }
-            }
-
-            if let repositoryID = state.repositoryID {
-                if snapshot.status == .ready {
-                    Button("Add to Compare") {
-                        CompareDeepLinkNotifier.post(
-                            CompareDeepLinkRequest(intent: .addRepository(repositoryID))
-                        )
-                        sidebarSelection = .compare
-                    }
-                } else {
-                    Button("Add to Compare") {}
-                        .disabled(true)
-                }
-            }
-
-            if isCompareSelectMode {
-                Button(compareSelectedProjectIDs.contains(project.id) ? "Deselect for Compare" : "Select for Compare") {
-                    toggleCompareSelection(for: project)
-                }
-            }
-
-            Divider()
-        }
-
         // — Shelf — one-tap triage between shelves
         Menu("Move to") {
             ForEach(ProjectStatus.allCases.filter { $0 != project.status }, id: \.self) { shelf in
@@ -352,6 +381,10 @@ struct ProjectListView: View {
                 }
             }
         }
+
+        // — Folders — a user-made grouping ("everything I cloned for X"),
+        // orthogonal to both the shelf above and the fixed category taxonomy.
+        folderMenu(for: [project])
 
         // — Local copy — clone the repo to disk (no AI / intelligence needed)
         if !project.githubURL.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -379,29 +412,53 @@ struct ProjectListView: View {
         }
     }
 
-    private func setShelf(_ shelf: ProjectStatus, for project: ToolProject) {
-        project.status = shelf
-        try? modelContext.save()
-        catalogStateStore.refresh(projects: filteredProjects)
-    }
-
-    private func toggleCompareMode() {
-        if isCompareSelectMode {
-            isCompareSelectMode = false
-            compareSelectedProjectIDs = []
-            compareNotice = nil
-        } else {
-            isCompareSelectMode = true
-            compareNotice = "Select 2–4 projects, then use Catalog → Compare Selected."
+    /// Takes an array rather than one project so the same menu serves a single
+    /// row and a multi-row selection.
+    @ViewBuilder
+    private func folderMenu(for projects: [ToolProject]) -> some View {
+        Menu(projects.count == 1 ? "Add to Folder" : "Add \(projects.count) to Folder") {
+            ForEach(folders) { folder in
+                Button {
+                    assign(projects, to: folder)
+                } label: {
+                    // A checkmark when every project named is already in it,
+                    // so the menu reads correctly for a mixed selection too.
+                    if projects.allSatisfy({ $0.folderID == folder.id }) {
+                        Label(folder.name, systemImage: "checkmark")
+                    } else {
+                        Text(folder.name)
+                    }
+                }
+            }
+            if !folders.isEmpty { Divider() }
+            Button("New Folder…") {
+                newFolderTargets = projects
+                newFolderName = ""
+            }
+            if projects.contains(where: { $0.folderID != nil }) {
+                Divider()
+                Button("Remove from Folder") {
+                    assign(projects, to: nil)
+                }
+            }
         }
     }
 
-    private func cancelCompareMode() {
-        isCompareSelectMode = false
-        compareSelectedProjectIDs = []
-        compareNotice = nil
+    private func assign(_ projects: [ToolProject], to folder: CatalogFolder?) {
+        CatalogFolderService.assign(projects, to: folder, in: modelContext)
+        let what = projects.count == 1 ? projects[0].name : "\(projects.count) projects"
+        statusNotice = folder == nil
+            ? "Removed \(what) from its folder."
+            : "Added \(what) to \(folder!.name)."
     }
 
+    private func setShelf(_ shelf: ProjectStatus, for project: ToolProject) {
+        project.status = shelf
+        try? modelContext.save()
+    }
+
+ 
+ 
     /// ⌘T / ⌘Y / ⌘⇧G — move the currently selected repo to a shelf.
     private func moveSelectedToShelf(_ rawStatus: String?) {
         guard let rawStatus, let shelf = ProjectStatus(rawValue: rawStatus),
@@ -409,23 +466,23 @@ struct ProjectListView: View {
               let project = allProjects.first(where: { $0.id == id }) else { return }
         guard project.status != shelf else { return }
         setShelf(shelf, for: project)
-        compareNotice = "Moved \(project.name) to \(shelf.displayName)."
+        statusNotice = "Moved \(project.name) to \(shelf.displayName)."
     }
 
     private func cloneProject(_ project: ToolProject) {
         cloningProjectIDs.insert(project.id)
-        compareNotice = "Cloning \(project.name)…"
+        statusNotice = "Cloning \(project.name)…"
         Task {
             do {
                 let dest = try await CatalogCloneService.clone(project)
                 await MainActor.run {
                     cloningProjectIDs.remove(project.id)
-                    compareNotice = "Cloned \(project.name) to \(dest.path)."
+                    statusNotice = "Cloned \(project.name) to \(dest.path)."
                 }
             } catch {
                 await MainActor.run {
                     cloningProjectIDs.remove(project.id)
-                    compareNotice = "Clone failed: \(error.localizedDescription)"
+                    statusNotice = "Clone failed: \(error.localizedDescription)"
                 }
             }
         }
@@ -435,9 +492,9 @@ struct ProjectListView: View {
         do {
             try CatalogCloneService.removeClone(project)
             behindProjectIDs.remove(project.id)
-            compareNotice = "Moved the \(project.name) clone to the Trash."
+            statusNotice = "Moved the \(project.name) clone to the Trash."
         } catch {
-            compareNotice = "Couldn't remove clone: \(error.localizedDescription)"
+            statusNotice = "Couldn't remove clone: \(error.localizedDescription)"
         }
     }
 
@@ -447,11 +504,11 @@ struct ProjectListView: View {
         guard !isCheckingCloneUpdates else { return }
         let cloned = allProjects.filter { CatalogCloneService.isCloned($0) }
         guard !cloned.isEmpty else {
-            compareNotice = "No cloned repositories to check."
+            statusNotice = "No cloned repositories to check."
             return
         }
         isCheckingCloneUpdates = true
-        compareNotice = "Checking \(cloned.count) clone\(cloned.count == 1 ? "" : "s") for updates…"
+        statusNotice = "Checking \(cloned.count) clone\(cloned.count == 1 ? "" : "s") for updates…"
         Task {
             var behind: Set<UUID> = []
             for project in cloned {
@@ -463,9 +520,9 @@ struct ProjectListView: View {
                 behindProjectIDs = behind
                 isCheckingCloneUpdates = false
                 if behind.isEmpty {
-                    compareNotice = "All clones are up to date."
+                    statusNotice = "All clones are up to date."
                 } else {
-                    compareNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Press ⌘U to pull all."
+                    statusNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Press ⌘U to pull all."
                 }
             }
         }
@@ -478,11 +535,11 @@ struct ProjectListView: View {
         guard !isPullingClones else { return }
         let flagged = allProjects.filter { behindProjectIDs.contains($0.id) }
         guard !flagged.isEmpty else {
-            compareNotice = "No clones flagged — run Check Clones for Updates (⌘⇧U) first."
+            statusNotice = "No clones flagged — run Check Clones for Updates (⌘⇧U) first."
             return
         }
         isPullingClones = true
-        compareNotice = "Pulling \(flagged.count) clone\(flagged.count == 1 ? "" : "s")…"
+        statusNotice = "Pulling \(flagged.count) clone\(flagged.count == 1 ? "" : "s")…"
         Task {
             var updated = 0
             var skipped = 0
@@ -502,7 +559,7 @@ struct ProjectListView: View {
             await MainActor.run {
                 behindProjectIDs.subtract(pulledIDs)
                 isPullingClones = false
-                compareNotice = pullSummary(updated: updated, skipped: skipped, failed: failed)
+                statusNotice = pullSummary(updated: updated, skipped: skipped, failed: failed)
             }
         }
     }
@@ -570,7 +627,7 @@ struct ProjectListView: View {
     private func requestRemoveDuplicates() {
         let victims = duplicateGroups().reduce(0) { $0 + ($1.count - 1) }
         if victims == 0 {
-            compareNotice = "No duplicate repos found."
+            statusNotice = "No duplicate repos found."
         } else {
             pendingDuplicateRemoval = victims
         }
@@ -579,7 +636,7 @@ struct ProjectListView: View {
     private func performRemoveDuplicates() {
         let groups = duplicateGroups()
         guard !groups.isEmpty else { return }
-        CatalogBackupService.writeSnapshot(allProjects) // recoverable via Restore from Backup
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
         var removed = 0
         for group in groups {
             let ranked = group.sorted { a, b in
@@ -593,8 +650,7 @@ struct ProjectListView: View {
             }
         }
         try? modelContext.save()
-        catalogStateStore.refresh(projects: filteredProjects)
-        compareNotice = "Removed \(removed) duplicate\(removed == 1 ? "" : "s"). A backup was saved."
+        statusNotice = "Removed \(removed) duplicate\(removed == 1 ? "" : "s"). A backup was saved."
     }
 
     // MARK: - Context-menu action helpers
@@ -618,188 +674,23 @@ struct ProjectListView: View {
         modelContext.delete(project)
         try? modelContext.save()
         AppRefreshBus.emit(.catalogStateUpdated)
-        catalogStateStore.refresh(projects: filteredProjects)
-        compareNotice = "Removed “\(name)” from the catalog."
+        statusNotice = "Removed “\(name)” from the catalog."
     }
 
-    private var compareButtonTitle: String {
-        let count = compareSelectedProjectIDs.count
-        return count > 0 ? "Compare (\(count))" : "Compare"
-    }
-
-    private var canCompareSelection: Bool {
-        compareSelectedProjectIDs.count >= RepositoryCompareService.minRepositories
-            && compareSelectedProjectIDs.count <= RepositoryCompareService.maxRepositories
-    }
-
-    private func toggleCompareSelection(for project: ToolProject) {
-        if compareSelectedProjectIDs.contains(project.id) {
-            compareSelectedProjectIDs.remove(project.id)
-            return
-        }
-        guard compareSelectedProjectIDs.count < RepositoryCompareService.maxRepositories else {
-            compareNotice = "You can compare up to \(RepositoryCompareService.maxRepositories) repositories."
-            return
-        }
-        compareSelectedProjectIDs.insert(project.id)
-    }
-
-    private func compareSelectedProjects() {
-        let selected = filteredProjects.filter { compareSelectedProjectIDs.contains($0.id) }
-        var repositoryIDs: [String] = []
-        var missing = 0
-
-        for project in selected {
-            let state = catalogStateStore.state(for: project)
-            if state.analysisStatus == .ready, let repositoryID = state.repositoryID {
-                repositoryIDs.append(repositoryID)
-            } else if let repositoryID = IntelligenceRepositoryBridge.repositoryID(for: project) {
-                repositoryIDs.append(repositoryID)
-            } else {
-                missing += 1
-            }
-        }
-
-        guard repositoryIDs.count >= RepositoryCompareService.minRepositories else {
-            compareNotice = missing > 0
-                ? "Fetch intelligence for selected projects before comparing."
-                : "Select at least \(RepositoryCompareService.minRepositories) projects with intelligence data."
-            return
-        }
-
-        onCompareRepositoryIDs(Array(repositoryIDs.prefix(RepositoryCompareService.maxRepositories)))
-        isCompareSelectMode = false
-        compareSelectedProjectIDs = []
-        if missing > 0 {
-            compareNotice = "\(missing) selected project(s) had no ready intelligence and were skipped."
-        } else {
-            compareNotice = nil
-        }
-    }
-
-    private func selectedProjects() -> [ToolProject] {
-        filteredProjects.filter { compareSelectedProjectIDs.contains($0.id) }
-    }
-
-    private func batchGenerateRunbooks(force: Bool) {
-        let selected = selectedProjects()
-        guard !selected.isEmpty else { return }
-        isBatchRunbookActionRunning = true
-        let result = CatalogRunbookBatchService.generateRunbooks(for: selected, force: force)
-        CatalogRunbookBatchService.emitBatchGenerateEvent(for: result)
-        isBatchRunbookActionRunning = false
-        compareNotice = result.summaryMessage
-        catalogStateStore.refresh(projects: filteredProjects)
-    }
-
-    private func batchRegenerateStaleRunbooks() {
-        let selected = selectedProjects()
-        guard !selected.isEmpty else { return }
-        isBatchRunbookActionRunning = true
-        let result = CatalogRunbookBatchService.regenerateStaleRunbooks(for: selected)
-        CatalogRunbookBatchService.emitBatchGenerateEvent(for: result)
-        isBatchRunbookActionRunning = false
-        compareNotice = result.summaryMessage
-        catalogStateStore.refresh(projects: filteredProjects)
-    }
-
-    private func batchExportRunbooks() {
-        let selected = selectedProjects()
-        guard !selected.isEmpty else { return }
-        isBatchRunbookActionRunning = true
-        let result = CatalogRunbookBatchService.exportSelectedRunbooks(for: selected)
-        isBatchRunbookActionRunning = false
-        compareNotice = result.summaryMessage
-        catalogStateStore.refresh(projects: filteredProjects)
-    }
-
-    private func enqueueRunbook(for repositoryID: String, force: Bool) {
-            do {
-            _ = try RepositoryRunbookService.enqueueGeneration(repositoryID: repositoryID, force: force)
-            compareNotice = "Runbook generation queued."
-            AppRefreshBus.emit(.queueUpdated)
-            AppRefreshBus.emit(.catalogStateUpdated)
-            catalogStateStore.refresh(projects: filteredProjects)
-        } catch {
-            compareNotice = error.localizedDescription
-        }
-    }
-
-    private func fetchIntelligence(for project: ToolProject) {
-        compareNotice = "Fetching intelligence for \(project.name)…"
-        Task {
-            let outcome = await CatalogIntelligenceIngestionService.fetchIntelligence(for: project)
-            await MainActor.run {
-                compareNotice = fetchOutcomeMessage(for: project.name, outcome: outcome)
-                if case .started = outcome {
-                    appRefreshStore.showIntelligenceRefreshComplete(started: 1)
-                }
-                catalogStateStore.refresh(projects: filteredProjects)
-            }
-        }
-    }
-
-    private func fetchIntelligenceForSelected() {
-        let selected = selectedProjects()
-        guard !selected.isEmpty else { return }
-        isBatchFetchingIntelligence = true
-        compareNotice = "Fetching intelligence for \(selected.count) selected project(s)…"
-        Task {
-            let result = await CatalogIntelligenceIngestionService.fetchIntelligence(for: selected)
-            await MainActor.run {
-                isBatchFetchingIntelligence = false
-                compareNotice = result.summaryMessage
-                if result.started > 0 {
-                    appRefreshStore.showIntelligenceRefreshComplete(started: result.started)
-                }
-                catalogStateStore.refresh(projects: filteredProjects)
-            }
-        }
-    }
-
-    private func fetchIntelligenceForAllVisible() {
-        let visible = filteredProjects
-        guard !visible.isEmpty else { return }
-        isBatchFetchingIntelligence = true
-        compareNotice = "Fetching intelligence for visible projects…"
-        Task {
-            let result = await CatalogIntelligenceIngestionService.fetchIntelligence(for: visible)
-            await MainActor.run {
-                isBatchFetchingIntelligence = false
-                compareNotice = result.summaryMessage
-                if result.started > 0 {
-                    appRefreshStore.showIntelligenceRefreshComplete(started: result.started)
-                }
-                catalogStateStore.refresh(projects: filteredProjects)
-            }
-        }
-    }
-
-    private func fetchOutcomeMessage(for name: String, outcome: CatalogIntelligenceFetchOutcome) -> String {
-        switch outcome {
-        case .started:
-            return "Started intelligence fetch for \(name). Track progress in Queue."
-        case .skippedAlreadyReady:
-            return "\(name) already has intelligence data."
-        case .skippedInProgress:
-            return "\(name) is already queued or in progress."
-        case .skippedInvalidURL:
-            return "\(name) does not have a valid GitHub URL."
-        case .skippedNoGitHubURL:
-            return "\(name) needs a GitHub URL before intelligence can be fetched."
-        case .failed(let message):
-            return "Intelligence fetch failed for \(name): \(message)"
-        }
-    }
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
     private var filteredProjects: [ToolProject] {
         let bySidebar = applySidebarFilter(allProjects)
-        let byRunbook = bySidebar.filter { project in
-            runbookFilter == .all || runbookFilter.matches(catalogStateStore.state(for: project))
-        }
         let bySearch = searchText.isEmpty
-            ? byRunbook
-            : byRunbook.filter { $0.matchesSearch(searchText) }
+            ? bySidebar
+            : bySidebar.filter { $0.matchesSearch(searchText) }
         return sortOrder.sorted(bySearch)
     }
 
@@ -826,9 +717,23 @@ struct ProjectListView: View {
         .titlebarClickable()
     }
 
+    /// What the list is showing. A folder selection names the folder; a folder
+    /// that has since been deleted falls back rather than showing a stale name.
+    private var listTitle: String {
+        if let item = sidebarSelection?.builtinItem { return item.title }
+        if let id = sidebarSelection?.folderID,
+           let folder = folders.first(where: { $0.id == id }) {
+            return folder.name
+        }
+        return "All Projects"
+    }
+
     private func applySidebarFilter(_ projects: [ToolProject]) -> [ToolProject] {
-        guard let selection = sidebarSelection, selection.isCatalogFilter else { return projects }
-        return projects.filter { selection.matchesCatalogFilter($0) }
+        if let id = sidebarSelection?.folderID {
+            return projects.filter { $0.folderID == id }
+        }
+        guard let item = sidebarSelection?.builtinItem, item.isCatalogFilter else { return projects }
+        return projects.filter { item.matchesCatalogFilter($0) }
     }
 
     private var catalogListEmptyState: some View {
@@ -861,17 +766,20 @@ struct ProjectListView: View {
 
     private var catalogEmptyStateIcon: String {
         if !searchText.trimmingCharacters(in: .whitespaces).isEmpty { return "magnifyingglass" }
-        if runbookFilter != .all { return "doc.text" }
-        if sidebarSelection?.isCatalogFilter == true { return "line.3.horizontal.decrease.circle" }
+        if sidebarSelection != nil, sidebarSelection?.builtinItem?.isCatalogFilter != false {
+            return "line.3.horizontal.decrease.circle"
+        }
         return "tray"
     }
 
     private var catalogEmptyStateTitle: String {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespaces)
         if !trimmedSearch.isEmpty { return "No search results" }
-        if runbookFilter != .all { return "No runbook matches" }
-        if let sidebarSelection, sidebarSelection.isCatalogFilter {
-            return "No projects in \(sidebarSelection.title)"
+        if let item = sidebarSelection?.builtinItem, item.isCatalogFilter {
+            return "No projects in \(item.title)"
+        }
+        if sidebarSelection?.folderID != nil {
+            return "This folder is empty"
         }
         return "Your shelf is empty"
     }
@@ -881,32 +789,26 @@ struct ProjectListView: View {
         if !trimmedSearch.isEmpty {
             return "Nothing matched \"\(trimmedSearch)\". Try a different name, tag, or paste a GitHub URL."
         }
-        if runbookFilter != .all {
-            return "No visible projects match the \(runbookFilter.rawValue) filter. Try All Runbooks or fetch intelligence first."
-        }
-        if sidebarSelection?.isCatalogFilter == true {
+        if sidebarSelection?.builtinItem?.isCatalogFilter == true {
             return "No projects match this filter yet. Capture more repos, or pick another sidebar filter."
+        }
+        if sidebarSelection?.folderID != nil {
+            return "Nothing is in this folder yet. Right-click a project and pick Add to Folder."
         }
         return "Capture a GitHub repo to start building your personal open-source shelf."
     }
 
     private var catalogEmptyStateShowsCaptureActions: Bool {
         searchText.trimmingCharacters(in: .whitespaces).isEmpty
-            && runbookFilter == .all
-            && sidebarSelection?.isCatalogFilter != true
+            && sidebarSelection?.builtinItem?.isCatalogFilter != true
+            && sidebarSelection?.folderID == nil
             && allProjects.isEmpty
     }
 }
 
 struct ProjectRowView: View, Equatable {
     let project: ToolProject
-    var catalogState: CatalogIntelligenceState
-    var isCompareSelectMode: Bool = false
-    var isCompareSelected: Bool = false
     var isSelected: Bool = false
-    /// Intelligence badges (status chip + runbook badge) are a v2/Labs surface;
-    /// hidden in the catalog-only default so rows stay clean.
-    var showsIntelligence: Bool = false
     /// Captured status value so `.equatable()` detects a shelf move (status changes
     /// but the project reference stays the same, so we can't read it live in `==`).
     var statusKey: String = ""
@@ -914,8 +816,9 @@ struct ProjectRowView: View, Equatable {
     var isClonedLocally: Bool = false
     /// Local clone is behind its upstream (updates available to pull).
     var isBehind: Bool = false
-    var onSelect: (() -> Void)?
-    var onCompareToggle: (() -> Void)?
+    /// Carries the modifier keys held at click time so the list can tell a
+    /// plain click from ⌘-click (toggle into batch) and ⇧-click (extend).
+    var onSelect: ((EventModifiers) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
 
@@ -925,24 +828,11 @@ struct ProjectRowView: View, Equatable {
             && lhs.isCloning == rhs.isCloning
             && lhs.isClonedLocally == rhs.isClonedLocally
             && lhs.isBehind == rhs.isBehind
-            && lhs.catalogState == rhs.catalogState
-            && lhs.isCompareSelectMode == rhs.isCompareSelectMode
-            && lhs.isCompareSelected == rhs.isCompareSelected
             && lhs.isSelected == rhs.isSelected
-            && lhs.showsIntelligence == rhs.showsIntelligence
     }
 
     var body: some View {
         HStack(spacing: 10) {
-            if isCompareSelectMode {
-                Button(action: { onCompareToggle?() }) {
-                    Image(systemName: isCompareSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 14))
-                        .foregroundStyle(isCompareSelected ? Color.accentColor : .secondary)
-                }
-                .buttonStyle(.plain)
-            }
-
             ProjectIcon(project: project)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -953,13 +843,6 @@ struct ProjectRowView: View, Equatable {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                if catalogState.runbookBadge != .noIntelligence,
-                   let metadata = catalogState.compactMetadataLine {
-                    Text(metadata)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
                 HStack(spacing: 6) {
                     if !project.category.isEmpty {
                         Text(project.category)
@@ -998,26 +881,19 @@ struct ProjectRowView: View, Equatable {
                     .help(isBehind ? "Updates available — pull to update" : "Cloned to disk")
             }
 
-            if showsIntelligence {
-                VStack(alignment: .trailing, spacing: 4) {
-                    if catalogState.analysisStatus != .ready && catalogState.analysisStatus != .notFetched {
-                        IntelligenceStatusChip(snapshot: catalogState.intelligenceSnapshot)
-                    }
-                    CatalogRunbookBadgeView(badge: catalogState.runbookBadge,
-                                            tooltip: catalogState.tooltipText)
-                }
-            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 16)
         .contentShape(Rectangle())
         .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
         .onTapGesture {
-            if isCompareSelectMode {
-                onCompareToggle?()
-            } else {
-                onSelect?()
-            }
+            // SwiftUI's tap gesture doesn't carry modifiers on macOS; read them
+            // from the event that is still current when the handler runs.
+            var modifiers: EventModifiers = []
+            let flags = NSEvent.modifierFlags
+            if flags.contains(.command) { modifiers.insert(.command) }
+            if flags.contains(.shift) { modifiers.insert(.shift) }
+            onSelect?(modifiers)
         }
     }
 }
@@ -1030,12 +906,6 @@ private func isGitHubURL(_ text: String) -> Bool {
 /// Bundles the catalog's notification `.onReceive` handlers into one modifier so
 /// the main `body` modifier chain stays short enough for the type-checker.
 private struct CatalogEventHandlers: ViewModifier {
-    let onCatalogQuickAction: (Notification) -> Void
-    let onSetRunbookFilter: (Notification) -> Void
-    let onToggleCompareMode: () -> Void
-    let onFetchAllIntelligence: () -> Void
-    let onCompareSelected: () -> Void
-    let onCancelCompareMode: () -> Void
     let onCheckCloneUpdates: () -> Void
     let onPullCloneUpdates: () -> Void
     let onMoveSelectedToShelf: (Notification) -> Void
@@ -1044,12 +914,6 @@ private struct CatalogEventHandlers: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onReceive(NotificationCenter.default.publisher(for: AppQuickActionCenter.catalogActionName), perform: onCatalogQuickAction)
-            .onReceive(NotificationCenter.default.publisher(for: .setCatalogRunbookFilter), perform: onSetRunbookFilter)
-            .onReceive(NotificationCenter.default.publisher(for: .toggleCatalogCompareMode)) { _ in onToggleCompareMode() }
-            .onReceive(NotificationCenter.default.publisher(for: .catalogFetchAllIntelligence)) { _ in onFetchAllIntelligence() }
-            .onReceive(NotificationCenter.default.publisher(for: .catalogCompareSelected)) { _ in onCompareSelected() }
-            .onReceive(NotificationCenter.default.publisher(for: .catalogCancelCompareMode)) { _ in onCancelCompareMode() }
             .onReceive(NotificationCenter.default.publisher(for: .checkCloneUpdates)) { _ in onCheckCloneUpdates() }
             .onReceive(NotificationCenter.default.publisher(for: .pullCloneUpdates)) { _ in onPullCloneUpdates() }
             .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)

@@ -25,9 +25,10 @@ enum CatalogBackupService {
     /// Writes a snapshot of the given projects, then prunes old ones. No-ops when
     /// the catalog is empty (never overwrite history with nothing) or when the
     /// newest snapshot is byte-identical (avoid churn on no-op saves).
-    static func writeSnapshot(_ projects: [ToolProject]) {
+    /// Folders ride along so a restore doesn't silently ungroup the catalog.
+    static func writeSnapshot(_ projects: [ToolProject], folders: [CatalogFolder] = []) {
         guard !projects.isEmpty else { return }
-        guard let data = try? CatalogExportService.encode(projects) else { return }
+        guard let data = try? CatalogExportService.encode(projects, folders: folders) else { return }
 
         // Skip only when the *content* is genuinely unchanged. This used to compare
         // byte lengths, which quietly failed: an edit that swaps one value for
@@ -80,6 +81,12 @@ enum CatalogBackupService {
         return projects
     }
 
+    static func folders(in url: URL) -> [CatalogFolderDTO] {
+        guard let data = try? Data(contentsOf: url),
+              let folders = try? CatalogExportService.decodeFolders(data) else { return [] }
+        return folders
+    }
+
     /// The newest snapshot that actually contains projects.
     static func latestNonEmptySnapshot() -> (url: URL, projects: [CatalogProjectDTO])? {
         for url in snapshotURLs() {
@@ -97,7 +104,7 @@ enum CatalogBackupService {
         let count = (try? context.fetchCount(FetchDescriptor<ToolProject>())) ?? 0
         guard count == 0, let snapshot = latestNonEmptySnapshot() else { return false }
 
-        CatalogImportService.merge(snapshot.projects, into: context)
+        CatalogImportService.merge(snapshot.projects, folders: folders(in: snapshot.url), into: context)
         #if DEBUG
         print("[reshelf] Catalog was empty — restored \(snapshot.projects.count) projects from \(snapshot.url.lastPathComponent)")
         #endif
@@ -111,7 +118,7 @@ enum CatalogBackupService {
     static func restore(from url: URL, into context: ModelContext) -> Int {
         let incoming = projects(in: url)
         guard !incoming.isEmpty else { return 0 }
-        return CatalogImportService.merge(incoming, into: context)
+        return CatalogImportService.merge(incoming, folders: folders(in: url), into: context)
     }
 
     // MARK: - Helpers
@@ -134,6 +141,11 @@ enum CatalogBackupService {
             hasher.combine(row.githubURL)
             hasher.combine(row.lastUpdatedDate)
             hasher.combine(row.lastCheckedDate)
+            // Moving a project between folders is a real change — without this,
+            // a regrouped catalog would look identical and no snapshot would be
+            // written, which is the exact bug the content comparison replaced
+            // byte-length checking to fix.
+            hasher.combine(row.folderID)
         }
         return hasher.finalize()
     }
