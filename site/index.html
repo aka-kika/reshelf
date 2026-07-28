@@ -6,10 +6,33 @@
 <title>reshelf — your agent reads the source, not stale docs</title>
 <meta name="description" content="reshelf is a local-first macOS app that catalogs and clones the open-source you actually use — so your coding agent learns from real source, credits every repo, and respects licenses. No account, no cloud.">
 <link rel="icon" type="image/png" href="assets/reshelf-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* Self-hosted so the page makes no third-party request — the reason the footer
+   can say "no tracking" and mean it. Both faces are variable (one file covers
+   every weight) and OFL-licensed; the licences sit beside them in
+   assets/fonts/. Latin + latin-ext subsets only, as Google serves them. */
+@font-face{
+  font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
+  src:url(assets/fonts/inter-latin-ext.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face{
+  font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
+  src:url(assets/fonts/inter-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(assets/fonts/jetbrains-mono-latin-ext.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face{
+  font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(assets/fonts/jetbrains-mono-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
 :root{
   --bg:#0a0a0a;
   --bg-raise:#111113;
@@ -1328,7 +1351,7 @@ you referenced.</div>
     <span>MIT © reshelf contributors</span>
     <span>macOS 14+ · universal · signed &amp; notarized</span>
     <span class="sp"></span>
-    <span>no accounts · no cloud · no analytics</span>
+    <span>no accounts · no cloud · no tracking</span>
   </div>
 </footer>
 
