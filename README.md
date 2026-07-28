@@ -22,6 +22,10 @@
 </p>
 
 <p align="center">
+  <a href="https://aka-kika.github.io/reshelf/"><strong>aka-kika.github.io/reshelf</strong></a>
+</p>
+
+<p align="center">
   <img src="assets/reshelf-catalog.png" alt="reshelf — sidebar of shelves and categories, project list, and an inspector showing metadata, license, and personal fit" width="900">
 </p>
 
@@ -235,6 +239,7 @@ Swift files must be registered in `project.pbxproj`). Use the issue templates.
 | [future-features.md](future-features.md) | Ideas not built yet |
 | [todo.md](todo.md) | Working checklist + recent history |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
+| [site/](site) | Source of the landing page at [aka-kika.github.io/reshelf](https://aka-kika.github.io/reshelf/); deployed by copying to the `gh-pages` branch, which also hosts the Sparkle appcast |
 | [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [AGENTS.md](AGENTS.md) | Contributing, security, agent/architecture notes |
 
 ## License
