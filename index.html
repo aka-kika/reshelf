@@ -99,7 +99,7 @@ header{
 .btn-sm{padding:6px 13px;font-size:13px}
 
 /* ---------- hero ---------- */
-.hero{padding:168px 0 0;position:relative}
+.hero{padding-top:168px;position:relative}
 .hero h1{
   font-size:clamp(44px,7.2vw,104px);
   line-height:.94;
@@ -356,7 +356,7 @@ section[id],div[id]{scroll-margin-top:84px}
 
 /* privacy strip */
 .privacy{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg-raise)}
-.privacy-in{display:grid;grid-template-columns:repeat(3,1fr);gap:44px;padding:64px 0}
+.privacy-in{display:grid;grid-template-columns:repeat(3,1fr);gap:44px;padding-top:64px;padding-bottom:64px}
 .priv h4{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:9px}
 .priv h4 .p-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
 .priv p{color:var(--fg-50);font-size:13.5px;line-height:1.6}
@@ -381,7 +381,7 @@ section[id],div[id]{scroll-margin-top:84px}
 .faq-a-in code{font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--bg-raise);border:1px solid var(--line);padding:1.5px 6px;border-radius:4px}
 
 /* final cta + footer */
-.final{padding:110px 0 96px;text-align:left;position:relative;overflow:hidden}
+.final{padding-top:110px;padding-bottom:96px;text-align:left;position:relative;overflow:hidden}
 .final h2{
   font-size:clamp(40px,6.4vw,92px);line-height:.96;letter-spacing:-.035em;font-weight:700;
   max-width:12ch;
@@ -403,7 +403,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
 .foot-col a:hover{color:var(--fg)}
 .foot-legal{
   display:flex;align-items:center;gap:20px;flex-wrap:wrap;
-  margin-top:40px;padding:20px 0 32px;border-top:1px solid var(--line);
+  margin-top:40px;padding-top:20px;padding-bottom:32px;border-top:1px solid var(--line);
   font-family:var(--mono);font-size:11.5px;color:var(--fg-35);
 }
 .foot-legal a{transition:color .15s}
