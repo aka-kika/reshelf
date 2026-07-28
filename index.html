@@ -925,7 +925,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
   <div class="sec-head">
     <div class="eyebrow">the loop</div>
     <h2>collect. clone. build better.</h2>
-    <p>reshelf isn't a trophy case. every repo on your shelf is <b>full source your agent can read</b> — so the next thing you build starts from code that already works, curated by the person who knows your taste: you.</p>
+    <p>reshelf isn't a trophy case. every repo on your shelf is <b>full source your agent can read</b> — so the next thing you build starts from code that already works, curated by the person who knows your taste: you. You don't need special phrasing; gesturing at your own collection is enough.</p>
   </div>
   <div class="loop-steps">
     <div class="lstep rv">
@@ -950,13 +950,11 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
     </div>
   </div>
   <div class="prompt-card rv">
-    <div class="prompt-head">a prompt worth stealing<button class="copy-btn" id="copyPrompt">copy</button></div>
-    <div class="prompt-body" id="promptBody">Build <span class="ph">&lt;feature&gt;</span>. We use <span class="ph">&lt;library&gt;</span>, cloned at
-~/reshelf/repos/<span class="ph">&lt;Category&gt;</span>/<span class="ph">&lt;library&gt;</span>.
-Before coding: search that clone for the correct API and
-patterns, then implement only the minimal function + one caller.
-Keep the diff small, and tell me which source files/functions
-you referenced.</div>
+    <div class="prompt-head">what to actually say<button class="copy-btn" id="copyPrompt">copy</button></div>
+    <div class="prompt-body" id="promptBody"><span class="ph">›</span> check my shelf — did I already save something that solves this?
+<span class="ph">›</span> read the real source in my clone before you write any of this.
+<span class="ph">›</span> what did I clone for the photos app, and can any of it go?
+<span class="ph">›</span> tell me which files you referenced, and check the licence first.</div>
   </div>
 </section>
 
@@ -964,8 +962,8 @@ you referenced.</div>
 <section class="wrap">
   <div class="sec-head">
     <div class="eyebrow">/reshelf skill · ships with the app</div>
-    <h2>ask your shelf a question.</h2>
-    <p>The skill maps what's on disk, reads the files that matter, and answers from real code — with receipts.</p>
+    <h2>stuck? ask your shelf.</h2>
+    <p>Not a separate step — you're mid-bug, you mention your shelf, and the skill maps what's on disk, reads the files that matter, and answers from real code. With receipts, and the licence checked.</p>
   </div>
   <div class="capture rv" id="agentDemo" style="max-width:840px">
     <div class="capture-bar">
@@ -1571,16 +1569,23 @@ you referenced.</div>
   runPalDemo();
 
   makeTerminal("agentBody", "agentDemo", [
-    {html:'<span class="p">you</span>&nbsp; <span class="hl">“how do my macOS clones handle global hotkeys?”</span>', d:250},
-    {html:'<span class="dim">$ shelf-map.sh "macOS"</span>', d:850},
-    {html:'  <span class="val">ghostty/</span>&nbsp;&nbsp;&nbsp;<span class="dim">swift · updated 3d ago · MIT</span>', d:480},
-    {html:'  <span class="val">maestral/</span>&nbsp;<span class="dim">python · updated 2w ago · MIT</span>', d:300},
-    {html:'<span class="dim">→ reading the clone, not guessing the api…</span>', d:700},
-    {html:'<span class="hl">ghostty registers one Carbon hotkey app-wide —</span>', d:750},
-    {html:'<span class="hl">RegisterEventHotKey, handler toggles the main window.</span>', d:400},
-    {html:'  <span class="cit">from ghostty/Sources/App/macOS/GlobalHotkey.swift:42</span>', d:550},
-    {html:'  <span class="ok">license MIT — adapt freely, keep the notice ✓</span>', d:450},
-    {html:'<span class="dim">want to</span> <span class="hl">learn</span> <span class="dim">the pattern or</span> <span class="hl">use</span> <span class="dim">it in your app?</span>', d:520}
+    {html:'<span class="p">you</span>&nbsp; <span class="hl">the hotkey registers but the window never comes forward.</span>', d:250},
+    {html:'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="hl">check my shelf — did I already save something that solves this?</span>', d:420},
+    {html:'<span class="dim">⏺ reshelf — mapping the shelf</span>', d:900},
+    {html:'<span class="dim">$ shelf-map.sh "macOS"</span>', d:520},
+    {html:'  <span class="val">KeyboardShortcuts/</span>&nbsp;<span class="dim">swift · 17 Jun · MIT · 57 files</span>', d:460},
+    {html:'  <span class="val">Loop/</span>&nbsp;<span class="dim">swift · 15 Jul · GPL-3.0 · 359 files</span>', d:300},
+    {html:'  <span class="dim">…19 more in macOS</span>', d:260},
+    {html:'<span class="dim">→ reading the clones, not guessing the api…</span>', d:820},
+    {html:'<span class="hl">KeyboardShortcuts wraps the Carbon call you\'re making by hand —</span>', d:820},
+    {html:'<span class="hl">and it <em>keeps</em> the EventHotKeyRef it gets back:</span>', d:380},
+    {html:'  <span class="cit">KeyboardShortcuts/Sources/KeyboardShortcuts/HotKey.swift:261</span>', d:520},
+    {html:'  <span class="val">private func registerEventHotKey(for hotKey: HotKey) -> EventHotKeyRef?</span>', d:400},
+    {html:'<span class="hl">That ref is what yours drops — so the re-bind never replaces</span>', d:700},
+    {html:'<span class="hl">the first registration, and the handler fires on a dead window.</span>', d:380},
+    {html:'  <span class="ok">license MIT — adapt freely, keep the notice ✓</span>', d:480},
+    {html:'  <span class="dim">Loop does it too, but it\'s GPL-3.0 — read it, don\'t copy it in.</span>', d:400},
+    {html:'<span class="dim">want to</span> <span class="hl">learn</span> <span class="dim">the pattern, or</span> <span class="hl">wire it into your app?</span>', d:560}
   ]);
 
   /* ---------- 4b. copy prompt ---------- */
