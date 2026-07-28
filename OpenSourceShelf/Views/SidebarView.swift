@@ -19,10 +19,6 @@ private struct SidebarFilterCounts {
 
 struct SidebarView: View {
     @Binding var selection: ShelfSelection?
-    /// Called when a folder's member row is picked, so the list selects that
-    /// project rather than only filtering to its folder.
-    var onSelectProject: (UUID) -> Void = { _ in }
-
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
     @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
@@ -66,11 +62,7 @@ struct SidebarView: View {
                         ForEach(folders) { folder in
                             FolderSidebarRow(
                                 folder: folder,
-                                members: memberProjects(of: folder),
-                                onSelectMember: { id in
-                                    selection = .folder(folder.id)
-                                    onSelectProject(id)
-                                }
+                                count: memberCount(of: folder)
                             )
                             .contextMenu {
                                 Button("Rename…") { renameTarget = folder }
@@ -147,10 +139,10 @@ struct SidebarView: View {
         .hidesTopScrollEdgeEffect()
     }
 
-    /// Members come from the already-loaded `@Query` rather than a fetch, so the
-    /// rows refresh when a project's folder changes.
-    private func memberProjects(of folder: CatalogFolder) -> [ToolProject] {
-        allProjects.filter { $0.folderID == folder.id }
+    /// Counted from the already-loaded `@Query` rather than a fetch, so a row
+    /// updates the moment a project's folder changes.
+    private func memberCount(of folder: CatalogFolder) -> Int {
+        allProjects.filter { $0.folderID == folder.id }.count
     }
 
     /// `.alert(isPresented:)` wants a Bool; the state that matters is which
@@ -163,51 +155,35 @@ struct SidebarView: View {
     }
 }
 
-/// A folder row: selectable like any other sidebar filter, and expandable to
-/// reveal what's inside without leaving the current filter.
+/// A folder row: a filter like any other, distinguished by the folder icon.
+/// Deliberately not expandable — selecting it already shows exactly its members,
+/// so a tree would list the same names twice.
 private struct FolderSidebarRow: View {
     let folder: CatalogFolder
-    let members: [ToolProject]
-    let onSelectMember: (UUID) -> Void
-
-    @State private var isExpanded = false
+    let count: Int
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(members) { project in
-                Button {
-                    onSelectMember(project.id)
-                } label: {
-                    Text(project.name)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
+        HStack {
+            Image(systemName: "folder")
+                .frame(width: 20)
+                .font(.system(size: 13))
+            Text(folder.name)
+                .font(.system(size: 13))
+            Spacer()
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.primary.opacity(0.08))
+                    )
             }
-        } label: {
-            HStack {
-                Image(systemName: "folder")
-                    .frame(width: 20)
-                    .font(.system(size: 13))
-                Text(folder.name)
-                    .font(.system(size: 13))
-                Spacer()
-                if !members.isEmpty {
-                    Text("\(members.count)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.primary.opacity(0.08))
-                        )
-                }
-            }
-            .padding(.vertical, 2)
-            .tag(ShelfSelection.folder(folder.id))
         }
+        .padding(.vertical, 2)
+        .tag(ShelfSelection.folder(folder.id))
     }
 }
 
