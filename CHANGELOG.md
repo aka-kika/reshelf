@@ -9,6 +9,28 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.9.1] — 2026-07-28
+
+### Fixed
+- **Quick Capture from the ⌘K palette no longer closes without opening.** Paste a
+  GitHub URL, press Enter, and the palette would dismiss while the capture sheet
+  never appeared — after which capture wouldn't open again until you relaunched.
+
+  The cause was the wedge-recovery watchdog added in 1.3.3. After asking for a
+  sheet it waited 1.2 seconds and, if no sheet window was on screen *at that
+  instant*, declared the app wedged and cleared every sheet binding — including
+  the request it had just made. Capture from the palette is the slow path: it can
+  spend up to 600ms waiting for the autofill popup to detach, and then a second
+  sheet cannot appear until the palette finishes dismissing. A perfectly healthy
+  presentation could cross 1.2 seconds and be cancelled by its own watchdog, and
+  clearing state mid-presentation left the presenter wedged for good.
+
+  A real wedge is permanent; a slow presentation is not. The watchdog now polls
+  instead of sampling once — any check that sees a sheet stands down, and only a
+  sheet that never arrives at all is treated as a wedge. A recovery check also
+  stands down if a newer request has been made since, so it can no longer cancel
+  someone else's sheet.
+
 ## [1.9.0] — 2026-07-28
 
 ### Added

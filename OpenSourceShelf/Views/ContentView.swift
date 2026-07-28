@@ -30,29 +30,65 @@ extension Notification.Name {
 /// 2. Recovery — after presenting, verify a sheet window actually appeared; if
 ///    not, post `.verifyWedgedSheets` so state owners can reset (see above).
 @MainActor
+private enum SheetPresentation {
+    /// Bumped on every attempt, so a recovery check scheduled for an earlier
+    /// attempt can tell it has been superseded and stay out of the way.
+    static var generation = 0
+}
+
+@MainActor
 func presentSheetAfterEndingTextEditing(_ present: @escaping () -> Void) {
     for window in NSApp.windows where window.firstResponder is NSTextView {
         window.makeFirstResponder(nil)
     }
-    presentOnceRemoteViewsDetach(present, attemptsLeft: 12)
+    SheetPresentation.generation += 1
+    presentOnceRemoteViewsDetach(present,
+                                 attemptsLeft: 12,
+                                 generation: SheetPresentation.generation)
 }
 
 @MainActor
-private func presentOnceRemoteViewsDetach(_ present: @escaping () -> Void, attemptsLeft: Int) {
+private func presentOnceRemoteViewsDetach(_ present: @escaping () -> Void,
+                                          attemptsLeft: Int,
+                                          generation: Int) {
     guard attemptsLeft > 0, textInputRemoteViewIsOnScreen() else {
         DispatchQueue.main.async {
             present()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                let sheetVisible = NSApp.windows.contains { $0.isVisible && $0.isSheet }
-                if !sheetVisible {
-                    NotificationCenter.default.post(name: .verifyWedgedSheets, object: nil)
-                }
-            }
+            confirmSheetAppeared(generation: generation, checksLeft: 8)
         }
         return
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-        presentOnceRemoteViewsDetach(present, attemptsLeft: attemptsLeft - 1)
+        presentOnceRemoteViewsDetach(present,
+                                     attemptsLeft: attemptsLeft - 1,
+                                     generation: generation)
+    }
+}
+
+/// Recovery, take two. This used to sample once at 1.2s: if no sheet window was
+/// on screen at that instant it declared a wedge and posted
+/// `.verifyWedgedSheets`, whose handler nils every sheet binding — including the
+/// request that had *just* been made. Capture from the ⌘K palette is the slow
+/// path (up to 600ms of remote-view polling, then a second sheet that cannot
+/// appear until the palette finishes dismissing), so a valid presentation could
+/// cross 1.2s and be cancelled by its own watchdog. The sheet never opened, and
+/// clearing state mid-presentation left the presenter wedged for good.
+///
+/// A real wedge is permanent; a slow presentation is not. So poll rather than
+/// sample — any check that sees a sheet stands down, and only a sheet that never
+/// arrives across the whole window is treated as a wedge.
+@MainActor
+private func confirmSheetAppeared(generation: Int, checksLeft: Int) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        // A newer attempt owns the presenter now — this check is stale, and
+        // clearing state here would cancel that newer request.
+        guard generation == SheetPresentation.generation else { return }
+        if NSApp.windows.contains(where: { $0.isVisible && $0.isSheet }) { return }
+        guard checksLeft > 1 else {
+            NotificationCenter.default.post(name: .verifyWedgedSheets, object: nil)
+            return
+        }
+        confirmSheetAppeared(generation: generation, checksLeft: checksLeft - 1)
     }
 }
 
