@@ -55,7 +55,7 @@
   --max:1388px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;overflow-x:hidden}
 body{
   background:var(--bg);
   color:var(--fg);
@@ -626,6 +626,8 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
   .privacy-in{grid-template-columns:1fr;gap:36px}
 }
 @media(max-width:880px){
+  /* Purely ornamental, and the cause of the horizontal overflow. */
+  .dots,.dots-behind{display:none}
   .nav-links{display:none}
   .win-body{grid-template-columns:190px 1fr}
   .insp{display:none}
@@ -655,6 +657,27 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
   .foot-cols{grid-template-columns:1fr 1fr;gap:28px}
   .foot-legal{gap:10px}
   .foot-legal .sp{display:none}
+  /* Nav has to hold brand + repo icon + Download inside 375px. */
+  .nav{gap:12px;height:56px}
+  .brand{font-size:14px}
+  .brand-icon{width:20px;height:20px}
+  .nav-right{gap:12px}
+  .btn-sm{padding:6px 11px;font-size:12.5px}
+  .hero{padding-top:116px}
+  .hero-ctas{gap:10px}
+  .hero-ctas .hint{margin-left:0;width:100%}
+  /* Monospace blocks at 13px wrap to ribbons on a phone. */
+  .capture-body{font-size:11.5px;line-height:1.75;min-height:0;padding:16px 16px 20px}
+  .prompt-body{font-size:11.5px;line-height:1.8;padding:16px 16px 20px}
+  .prompt-card{margin-top:40px}
+  .demo-stage{padding:12px 12px 16px;min-height:0}
+  .tree{font-size:11px;line-height:1.9;padding:18px 14px 20px;overflow-x:auto}
+  .fold-card,.ai-card{padding:18px 16px 20px}
+  .batch-row,.fold-row{font-size:12.5px}
+  .lstep{padding:24px 0 26px}
+  .sec-head{margin-bottom:36px}
+  .flow{margin-bottom:64px}
+  .final h2{max-width:none}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
