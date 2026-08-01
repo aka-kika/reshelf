@@ -3,13 +3,13 @@
     <channel>
         <title>reshelf</title>
         <item>
-            <title>1.9.1</title>
-            <pubDate>Tue, 28 Jul 2026 18:01:19 +0300</pubDate>
-            <sparkle:version>18</sparkle:version>
-            <sparkle:shortVersionString>1.9.1</sparkle:shortVersionString>
+            <title>1.10.0</title>
+            <pubDate>Sat, 01 Aug 2026 17:37:33 +0300</pubDate>
+            <sparkle:version>19</sparkle:version>
+            <sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:releaseNotesLink>https://aka-kika.github.io/reshelf/reshelf-1.9.1.html</sparkle:releaseNotesLink>
-            <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.9.1/reshelf-1.9.1.zip" length="8298820" type="application/octet-stream" sparkle:edSignature="710cdw2zsxgl1xQgRQczPqpono6dg1zE4h4SrVyYs4Nz8eObt8gQSsUK4GYOvcV26w7R5xo27cVWQxNYbtBXAw=="/>
+            <sparkle:releaseNotesLink>https://aka-kika.github.io/reshelf/reshelf-1.10.0.html</sparkle:releaseNotesLink>
+            <enclosure url="https://github.com/aka-kika/reshelf/releases/download/v1.10.0/reshelf-1.10.0.zip" length="8348296" type="application/octet-stream" sparkle:edSignature="tE5bw4rJdO6BUSCtrbEBMmLGHM7OujbOBY2MB2L+hANfe+Z+GOadjCN1QZkIBs8EX7D4Myeo1kv615/zC7PdBg=="/>
         </item>
     </channel>
 </rss>
