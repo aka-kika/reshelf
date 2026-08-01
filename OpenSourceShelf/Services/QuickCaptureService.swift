@@ -83,6 +83,7 @@ enum QuickCaptureService {
         var request = URLRequest(url: url)
         request.timeoutInterval = 10
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        GitHubAuth.authorize(&request)
 
         let data: Data
         let response: URLResponse
@@ -101,7 +102,7 @@ enum QuickCaptureService {
             return data
         case 404:
             // GitHub returns 404 both for missing repos and private repos the
-            // current (unauthenticated) request can't see.
+            // current request can't see.
             throw CaptureError.notFound(context)
         case 401:
             throw CaptureError.unauthorized
@@ -210,15 +211,25 @@ enum CaptureError: LocalizedError {
         case let .notFound(repo):
             "Couldn't find “\(repo)”. Check the URL — or it may be a private repo this app can't access."
         case .unauthorized:
-            "GitHub rejected the request (unauthorized). Check the repository URL."
+            if GitHubAuth.hasToken {
+                "GitHub rejected the saved token — it may be expired or revoked. Update it in Settings → Capture."
+            } else {
+                "GitHub rejected the request (unauthorized). Check the repository URL."
+            }
         case let .forbidden(repo):
             "GitHub blocked access to “\(repo)”. It may be private or restricted."
         case let .rateLimited(resetText):
-            if let resetText {
-                "GitHub rate limit reached. Try again \(resetText)."
-            } else {
-                "GitHub rate limit reached. Please wait a few minutes and try again."
-            }
+            {
+                var message = if let resetText {
+                    "GitHub rate limit reached. Try again \(resetText)."
+                } else {
+                    "GitHub rate limit reached. Please wait a few minutes and try again."
+                }
+                if !GitHubAuth.hasToken {
+                    message += " Adding a GitHub token in Settings → Capture raises the limit from 60 to 5,000 requests per hour."
+                }
+                return message
+            }()
         case let .httpError(code):
             "GitHub returned an unexpected error (HTTP \(code)). Please try again."
         case .decodingFailed:
