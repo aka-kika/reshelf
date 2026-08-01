@@ -25,6 +25,12 @@ struct SettingsView: View {
     @State private var isBackfilling = false
     @State private var backfillStatus = ""
 
+    // GitHub token (Keychain-backed; the field is only ever a new value to save)
+    @State private var githubTokenText = ""
+    @State private var githubTokenStored = false
+    @State private var githubTokenStatus = ""
+    @State private var isCheckingGitHubToken = false
+
     // Agent skill install feedback
     @State private var skillInstallStatus = ""
     @State private var isFillingLastUpdated = false
@@ -81,6 +87,7 @@ struct SettingsView: View {
             urlText = settings.ollamaBaseURL
             loadSettings()
             sectionOrder = settings.inspectorSectionOrder
+            githubTokenStored = GitHubAuth.hasToken
             if settings.ollamaEnabled {
                 fetchModels()
             }
@@ -301,6 +308,62 @@ struct SettingsView: View {
                     }
 
                     Text("Reads each cloned repo's last commit date off disk so you can sort by Recently Updated. Offline and instant — no GitHub calls, no rate limit. Repos you haven't cloned fill in the next time their details are fetched.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
+
+                // MARK: - GitHub token (raises the API rate limit)
+                sectionHeader("GitHub")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        SecureField(githubTokenStored ? "Enter a new token to replace the saved one"
+                                                      : "Personal access token (optional)",
+                                    text: $githubTokenText)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12, design: .monospaced))
+                            .onSubmit { saveGitHubToken() }
+
+                        Button("Save") { saveGitHubToken() }
+                            .disabled(githubTokenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                        if githubTokenStored {
+                            Button("Remove") { removeGitHubToken() }
+                        }
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: githubTokenStored ? "key.fill" : "key")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text(githubTokenStored ? "A token is saved in your Keychain." : "No token saved.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(githubTokenStored ? .green : .secondary)
+
+                        if githubTokenStored {
+                            Button(isCheckingGitHubToken ? "Checking…" : "Test") { checkGitHubToken() }
+                                .buttonStyle(.borderless)
+                                .controlSize(.small)
+                                .font(.system(size: 11))
+                                .disabled(isCheckingGitHubToken)
+                        }
+
+                        if !githubTokenStatus.isEmpty {
+                            Text(githubTokenStatus)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Text("Optional. Without a token GitHub allows about 60 requests per hour, so bulk imports and busy capture sessions can hit the rate limit. A personal access token raises that to 5,000 per hour and lets Quick Capture see your private repos. A fine-grained token with read-only access to public repositories is enough — create one at github.com/settings/tokens. Stored securely in the macOS Keychain, used only for GitHub API requests.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -581,6 +644,44 @@ struct SettingsView: View {
         panel.directoryURL = CloneLocation.rootURL
         if panel.runModal() == .OK, let url = panel.url {
             cloneRootPath = url.path
+        }
+    }
+
+    /// Saves the entered token to the Keychain and immediately verifies it
+    /// against GitHub's /rate_limit endpoint (which doesn't count against quota).
+    private func saveGitHubToken() {
+        let trimmed = githubTokenText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        GitHubAuth.setToken(trimmed)
+        githubTokenText = ""
+        githubTokenStored = true
+        githubTokenStatus = "Saved."
+        checkGitHubToken()
+    }
+
+    private func removeGitHubToken() {
+        GitHubAuth.removeToken()
+        githubTokenText = ""
+        githubTokenStored = false
+        githubTokenStatus = "Removed."
+    }
+
+    private func checkGitHubToken() {
+        isCheckingGitHubToken = true
+        Task {
+            let result = await GitHubAuth.checkToken()
+            await MainActor.run {
+                isCheckingGitHubToken = false
+                switch result {
+                case let .working(limitPerHour):
+                    let formatted = limitPerHour.formatted()
+                    githubTokenStatus = "Working — \(formatted) requests/hour."
+                case .rejected:
+                    githubTokenStatus = "GitHub rejected this token — check it hasn't expired."
+                case let .failed(detail):
+                    githubTokenStatus = "Couldn't verify: \(detail)"
+                }
+            }
         }
     }
 

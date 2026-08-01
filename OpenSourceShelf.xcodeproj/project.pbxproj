@@ -359,6 +359,13 @@
 			path = "OpenSourceShelf/Services/GitHubDate.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		GHAUTH00134567890ABCDE01 /* GitHubAuth.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "GitHubAuth.swift";
+			path = "OpenSourceShelf/Services/GitHubAuth.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		5PARKLE0004234567890ABCD /* UpdaterService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -638,6 +645,7 @@
 				F0LDER001234567890ABCD /* CatalogFolder.swift */,
 				LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */,
 				LUPD00001234567890ABCD /* GitHubDate.swift */,
+				GHAUTH00134567890ABCDE01 /* GitHubAuth.swift */,
 				5PARKLE0004234567890ABCD /* UpdaterService.swift */,
 				CC01A2B3D4E5F60789ABCDE0 /* CategoryClassifier.swift */,
 				011EDAC97AD3411BF259663B /* GitHubRepositoryURL.swift */,
@@ -683,6 +691,10 @@
 		LUPD00002234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = LUPD00001234567890ABCD;
+		};
+		GHAUTH00134567890ABCDE02 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = GHAUTH00134567890ABCDE01;
 		};
 		5PARKLE0005234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -1032,6 +1044,7 @@
 				F0LDER002234567890ABCD,
 				LUPD00012234567890ABCD,
 				LUPD00002234567890ABCD,
+				GHAUTH00134567890ABCDE02,
 				5PARKLE0005234567890ABCD,
 				IMPCAT01234567890ABCDEF04,
 				IMPCAT01234567890ABCDEF02,

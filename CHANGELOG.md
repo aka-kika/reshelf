@@ -5,6 +5,15 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+- **GitHub token in Settings → Capture.** Without a token GitHub allows about 60
+  API requests per hour per IP, so bulk imports and busy capture sessions could
+  hit "rate limit reached". Paste a personal access token (a fine-grained,
+  read-only one is enough) and the limit rises to 5,000/hour — and Quick Capture
+  can see your own private repos. The token lives in the macOS Keychain and is
+  sent only to the GitHub API; a Test button confirms it works, and the
+  rate-limit error now points at the setting when no token is saved.
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
