@@ -9,6 +9,24 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.10.1] — 2026-08-19
+
+### Fixed
+- **Intermittent stuck UI after captures and intelligence refreshes.** The
+  refresh bus posted its notification on whatever thread called it, and
+  NotificationCenter delivers to SwiftUI's `onReceive` on the posting thread.
+  The capture and ingestion services emit from background tasks, so every
+  capture save or metadata ingest mutated the app's published refresh state
+  off the main thread — SwiftUI's "Publishing changes from background threads
+  is not allowed" fault, and the source of the app occasionally freezing in
+  day-to-day use. The bus now always delivers on the main thread, which fixes
+  every emitter at once. Verified live: the capture → fetch → save → ingest
+  path runs with zero faults where it used to fire one per save.
+- **`--oss-db-smoke` actually works now.** The debug smoke command read the
+  schema summary without ever opening the database, so it failed on every run
+  since it shipped. It now initializes (and migrates) the database first, which
+  is the check it was meant to be.
+
 ## [1.10.0] — 2026-08-01
 
 ### Added
