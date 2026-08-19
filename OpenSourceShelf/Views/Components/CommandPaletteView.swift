@@ -12,6 +12,12 @@ struct CommandPaletteView: View {
     @State private var query: String = ""
     @FocusState private var isSearchFocused: Bool
 
+    /// Keyboard highlight over the actionable rows (capture row first when
+    /// shown, then results). `nil` until the user arrows down — so Return
+    /// without arrowing keeps its original meaning (apply as list search),
+    /// and Return after arrowing opens the highlighted row.
+    @State private var highlightedIndex: Int?
+
     @State private var dismissMonitors: [Any] = []
 
     var body: some View {
@@ -26,11 +32,19 @@ struct CommandPaletteView: View {
             isSearchFocused = true
             dismissMonitors = [
                 NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                    if event.keyCode == 53 {
+                    switch event.keyCode {
+                    case 53: // Escape
                         isPresented = false
                         return nil
+                    case 125: // Down arrow — the field keeps focus; we steer the list
+                        moveHighlight(1)
+                        return nil
+                    case 126: // Up arrow
+                        moveHighlight(-1)
+                        return nil
+                    default:
+                        return event
                     }
-                    return event
                 },
                 // Menu-style dismissal: a click anywhere outside the palette's
                 // sheet window closes it (the main window is blocked by sheet
@@ -49,6 +63,9 @@ struct CommandPaletteView: View {
         .onDisappear {
             dismissMonitors.forEach(NSEvent.removeMonitor)
             dismissMonitors = []
+        }
+        .onChange(of: query) {
+            highlightedIndex = nil
         }
     }
 
@@ -78,17 +95,21 @@ struct CommandPaletteView: View {
     }
 
     private var resultsList: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(spacing: 0) {
                 if isGitHubURL(query) {
                     captureRow
+                        .id(0)
                 }
 
                 let matches = filteredProjects
+                let offset = isGitHubURL(query) ? 1 : 0
                 if !matches.isEmpty {
                     Section {
-                        ForEach(matches) { project in
-                            paletteProjectRow(project)
+                        ForEach(Array(matches.enumerated()), id: \.element.id) { index, project in
+                            paletteProjectRow(project, isHighlighted: highlightedIndex == index + offset)
+                                .id(index + offset)
                         }
                     } header: {
                         sectionHeader(query.isEmpty ? "Recently Added" : "\(matches.count) result\(matches.count == 1 ? "" : "s")")
@@ -106,6 +127,12 @@ struct CommandPaletteView: View {
                     .padding(.top, 40)
                 }
             }
+        }
+        .onChange(of: highlightedIndex) {
+            if let index = highlightedIndex {
+                proxy.scrollTo(index, anchor: nil)
+            }
+        }
         }
     }
 
@@ -136,10 +163,10 @@ struct CommandPaletteView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(Color.accentColor.opacity(0.06))
+        .background(Color.accentColor.opacity(highlightedIndex == 0 ? 0.15 : 0.06))
     }
 
-    private func paletteProjectRow(_ project: ToolProject) -> some View {
+    private func paletteProjectRow(_ project: ToolProject, isHighlighted: Bool = false) -> some View {
         Button {
             selectProject(project)
         } label: {
@@ -168,6 +195,7 @@ struct CommandPaletteView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .background(isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear)
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -191,7 +219,43 @@ struct CommandPaletteView: View {
         return allProjects.filter { $0.matchesSearch(term) }
     }
 
+    /// One slot per actionable row: the capture row (when the query is a
+    /// GitHub URL) followed by the visible results.
+    private var highlightableCount: Int {
+        (isGitHubURL(query) ? 1 : 0) + filteredProjects.count
+    }
+
+    private func moveHighlight(_ delta: Int) {
+        let count = highlightableCount
+        guard count > 0 else { return }
+        guard let current = highlightedIndex else {
+            // First Down enters the list at the top; Up from the field is a no-op.
+            if delta > 0 { highlightedIndex = 0 }
+            return
+        }
+        highlightedIndex = min(max(current + delta, 0), count - 1)
+    }
+
+    /// Opens the highlighted row. Returns false when nothing is highlighted so
+    /// Return can fall through to its original meaning.
+    private func activateHighlighted() -> Bool {
+        guard let index = highlightedIndex else { return false }
+        let hasCaptureRow = isGitHubURL(query)
+        if hasCaptureRow && index == 0 {
+            quickCaptureURL = query.trimmingCharacters(in: .whitespaces)
+            isPresented = false
+            return true
+        }
+        let projects = filteredProjects
+        let projectIndex = index - (hasCaptureRow ? 1 : 0)
+        guard projects.indices.contains(projectIndex) else { return false }
+        selectProject(projects[projectIndex])
+        return true
+    }
+
     private func handleSubmit() {
+        if activateHighlighted() { return }
+
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
 
