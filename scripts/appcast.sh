@@ -46,7 +46,10 @@ cp -f "$DIST/reshelf-$VERSION.zip" "$STAGE/"
 # Release notes: generate_appcast embeds "<archive-basename>.html" if it sits
 # beside the archive. Pull this version's CHANGELOG section and wrap it as
 # minimal HTML — bullets become list items, everything else a paragraph.
-echo "▶︎ Rendering release notes for $VERSION…"
+# Braces required: with an ellipsis glued to the name, some locale/bash-3.2
+# combinations parse the multibyte char into the identifier and set -u aborts
+# on an unbound "VERSION…".
+echo "▶︎ Rendering release notes for ${VERSION}…"
 # Literal prefix match, not a regex: awk -v collapses backslash escapes, so a
 # quoted "## \[1.5.0\]" degrades into the character class [1.5.0] and matches
 # nothing useful. index() sidesteps the whole problem.
