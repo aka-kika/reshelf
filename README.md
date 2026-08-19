@@ -191,7 +191,7 @@ explicitly welcome.
 
 ## Privacy and network
 
-- **GitHub API** — only when you use Quick Capture (repo metadata, optional README).
+- **GitHub API** — only when you use Quick Capture (repo metadata).
 - **AI** — never leaves the Mac. Capture Assist runs on-device Apple Intelligence; there is no cloud provider to configure.
 - **Update checks** — Sparkle fetches a static appcast from GitHub Pages. Nothing about you is sent; it's a plain file request.
 - No sign-in, no required cloud sync. Credentials (when used) live in the macOS Keychain.

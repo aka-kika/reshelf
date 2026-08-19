@@ -5,6 +5,40 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Fixed
+- **Backups can't eat their own safety net.** The pre-delete snapshot Remove
+  Duplicate Repos writes was overwritten seconds later by the post-delete
+  snapshot landing on the same second-resolution filename; snapshot names are
+  now never reused. The change fingerprint also covers every exported field —
+  edits touching only description, license, website, local-first/self-hosted,
+  or added date used to be judged "unchanged", never snapshotted, and silently
+  reverted by a later restore.
+- **Two SwiftData crash classes.** The icon fetcher's download completion now
+  re-fetches its project by id instead of mutating a captured model that may
+  have been deleted mid-flight, and the clone/capture services keep all model
+  reads on the main actor instead of racing them from the cooperative pool.
+- **Clone identity.** Origin matching compares exact `owner/repo` slugs — a
+  substring check used to let a fork's checkout be adopted as upstream's clone.
+  Parsed GitHub URLs also strip a trailing `.git`, so pasting GitHub's
+  copy-clone URL into Quick Capture no longer fails with a bogus 404.
+- **Capture and import correctness.** Editing the URL after a fetch
+  invalidates the fetched metadata (no more saving repo A's data under repo
+  B's address); both import paths dedupe with the same normalized key as
+  Quick Capture and the bulk sheet dedupes within its own run; metadata
+  ingestion no longer fails permanently when a renamed repo sits on the shelf
+  under both slugs; the empty-state Add Project button goes through the sheet
+  wedge guard.
+- **Hardening.** No force-unwrapped URLs from the user-edited Ollama base
+  URL; the titlebar backdrop KVO guards no longer accumulate forever;
+  intelligence-database initialization is serialized; deleting from the
+  inspector clears the selection.
+
+### Removed
+- A dead-code sweep: the unreachable quick-action center, collapsed-sidebar
+  rail, catalog menu notifications, catalog ingestion service, vector math,
+  and a dozen orphaned functions and types. No behavior changes — nothing
+  removed was reachable from any code path.
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
