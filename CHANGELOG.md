@@ -5,6 +5,15 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Fixed
+- **Typing in search no longer rebuilds the whole list per keystroke.** The
+  filter now runs once per pause (200ms debounce) while the field echoes every
+  character; clearing skips the delay. Pattern borrowed from Applite — a repo
+  on the shelf, found by the reshelf skill.
+- **⌘K palette works from the keyboard.** Down enters the results, up/down
+  move the highlight, Return opens the highlighted row (Return without
+  arrowing still applies the text as the list search).
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
