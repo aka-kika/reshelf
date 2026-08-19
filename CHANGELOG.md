@@ -5,6 +5,12 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.10.2] — 2026-08-19
+
 ### Fixed
 - **Backups can't eat their own safety net.** The pre-delete snapshot Remove
   Duplicate Repos writes was overwritten seconds later by the post-delete
@@ -38,10 +44,6 @@ All notable changes to **reshelf** are documented here. This project follows
   rail, catalog menu notifications, catalog ingestion service, vector math,
   and a dozen orphaned functions and types. No behavior changes — nothing
   removed was reachable from any code path.
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.10.1] — 2026-08-19
 
