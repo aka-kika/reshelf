@@ -4,7 +4,11 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## To do (added 2026-06-13)
 
-- [ ] 🐞 **Fix the header toolbar icons (title-bar click bug)** — the sidebar-toggle, sort, search, and inspector icons in the column header don't respond to real mouse/trackpad clicks. The header is laid out flush in the macOS title-bar band (`titlebarAppearsTransparent` + `.fullSizeContentView` + `.ignoresSafeArea(.top)`), so the system `NSTitlebarView` sits in front and eats the clicks (turns them into window-drags). ⌘K works, so only click *delivery* is broken. **Note:** automated/accessibility clicks false-pass — test with a real click. Fix direction = render the header inside an `NSTitlebarAccessoryViewController` instead of fighting the title bar. Full diagnosis + dead ends captured in `../reshelf-claude/CLAUDE.md`. Keep the look (change only as much as needed to make it work).
+- [x] 🐞 ~~**Fix the header toolbar icons (title-bar click bug)**~~ — fixed in 1.1.0:
+      invisible click-router accessory (`MainWindowChromeConfigurator` +
+      `.titlebarClickable(action:)`) routes real clicks through the title-bar band.
+      (Box ticked retroactively 2026-08-19 — the fix had shipped but this entry was
+      never closed.)
 - [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
 - [ ] ⏳ *[later]* **Extend the reshelf skill beyond cloned repos** — a skill like the current one, but running across the whole **Collection** and **Top Shelf**, not just cloned repos. The current cloned-repo skill works great; this is an expansion for later.
 - [x] **Remove the empty "Format" menu** from the top macOS menu bar — done in 1.3.0: pruned at the AppKit level (`FormatMenuPruner`), survives menu-bar rebuilds.
