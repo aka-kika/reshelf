@@ -196,6 +196,50 @@ explicitly welcome.
 - **Update checks** — Sparkle fetches a static appcast from GitHub Pages. Nothing about you is sent; it's a plain file request.
 - No sign-in, no required cloud sync. Credentials (when used) live in the macOS Keychain.
 
+## FAQ
+
+### Is reshelf free?
+
+Yes — free and open source under the MIT license. Download the signed, notarized
+`reshelf.dmg` from [Releases](https://github.com/aka-kika/reshelf/releases/latest),
+or build it from source.
+
+### How is this different from GitHub stars or browser bookmarks?
+
+Stars are a flat, ever-growing pile on GitHub's servers; bookmarks disappear into the
+browser. reshelf is a GitHub repository organizer that lives on your Mac: every repo
+you capture is auto-categorized, sorted onto a shelf by how much you value it, and
+groupable into folders by project — so "what did I save for X, and which one should I
+actually use?" takes seconds, not a scroll through hundreds of stars. And when you're
+ready to use a repo, reshelf clones it into an organized local library and tells you
+when it's behind upstream.
+
+### Does it run on Apple Silicon and Intel Macs?
+
+Yes. Every release is a universal binary (arm64 + x86_64) for macOS 14 or later,
+signed and notarized with a Developer ID — it opens with no Gatekeeper warnings.
+
+### Does reshelf need an account or send my data anywhere?
+
+No account, no cloud, no telemetry. Your catalog and clones stay on your Mac. The
+GitHub API is called only when you capture a repo, and the optional Capture Assist
+runs entirely on-device with Apple Intelligence — there is no cloud AI provider to
+configure at all.
+
+### Can AI coding agents use my shelf?
+
+Yes — clones land in a predictable `~/reshelf/repos/<Category>/<repo>` layout, the
+catalog exports as plain JSON, and reshelf ships
+[Claude Code skills](#extending-reshelf-with-skills-) that let an agent search the
+real source you curated instead of guessing from stale docs.
+
+### Where does my data live, and can I lose it?
+
+Everything sits under `~/reshelf/` in open formats (SwiftData store, SQLite, plain
+git clones, JSON backups) — see [Where data lives](#where-data-lives). reshelf keeps
+the last 30 automatic JSON backups and restores from them if the catalog ever comes
+up empty.
+
 ## Stack
 
 - **SwiftUI** — interface · **SwiftData** — the catalog you see
