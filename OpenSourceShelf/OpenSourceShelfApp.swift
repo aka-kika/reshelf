@@ -330,6 +330,7 @@ private extension OpenSourceShelfApp {
 
         do {
             let database = IntelligenceDatabase.shared
+            try database.initialize()
             print(try database.debugSchemaSummary())
             exit(EXIT_SUCCESS)
         } catch {
