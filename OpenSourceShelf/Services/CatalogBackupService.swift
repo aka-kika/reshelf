@@ -44,7 +44,18 @@ enum CatalogBackupService {
             return // unchanged since last snapshot
         }
 
-        let url = backupsDirectory.appendingPathComponent("catalog-\(timestamp()).json")
+        // Never reuse an existing snapshot's name. Two writes can land in the
+        // same instant — Remove Duplicate Repos writes its pre-delete safety
+        // snapshot and the count-change observer writes the post-delete state
+        // in the same runloop tick — and an atomic write to the same filename
+        // would replace the safety copy with exactly what it was protecting
+        // against.
+        var url = backupsDirectory.appendingPathComponent("catalog-\(timestamp()).json")
+        var attempt = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = backupsDirectory.appendingPathComponent("catalog-\(timestamp())-\(attempt).json")
+            attempt += 1
+        }
         do {
             try data.write(to: url, options: .atomic)
             prune()
@@ -141,6 +152,16 @@ enum CatalogBackupService {
             hasher.combine(row.githubURL)
             hasher.combine(row.lastUpdatedDate)
             hasher.combine(row.lastCheckedDate)
+            // Every remaining exported field. Anything the snapshot stores but
+            // the fingerprint skips is a field whose edits are never backed up —
+            // and that a restore then silently reverts.
+            hasher.combine(row.shortDescription)
+            hasher.combine(row.longDescription)
+            hasher.combine(row.websiteURL)
+            hasher.combine(row.license)
+            hasher.combine(row.isLocalFirst)
+            hasher.combine(row.isSelfHosted)
+            hasher.combine(row.addedDate)
             // Moving a project between folders is a real change — without this,
             // a regrouped catalog would look identical and no snapshot would be
             // written, which is the exact bug the content comparison replaced
