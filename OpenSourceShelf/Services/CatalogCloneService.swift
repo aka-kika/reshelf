@@ -115,10 +115,10 @@ enum CatalogCloneService {
     /// Whether the git clone at `dir` is actually this owner/repo (so a same-named
     /// folder for a *different* repo doesn't get mistaken for it).
     private static func originMatches(_ dir: URL, owner: String, repo: String) -> Bool {
-        guard let config = try? String(contentsOf: dir.appendingPathComponent(".git/config"), encoding: .utf8) else {
-            return false
-        }
-        return config.lowercased().contains("\(owner)/\(repo)".lowercased())
+        // Exact slug comparison, not substring: `contains("kika/tool")` also
+        // matched a clone of "akika/tool", silently adopting a different repo's
+        // checkout as this one's clone.
+        originSlug(fromConfigAt: dir) == "\(owner)/\(repo)".lowercased()
     }
 
     /// The existing clone for a project, if one is present. O(1) lookup in the
@@ -190,6 +190,12 @@ enum CatalogCloneService {
 
     /// Clones the project (full clone). Returns the local path; returns the existing
     /// path if already cloned. Clears an empty/failed leftover at the target first.
+    ///
+    /// @MainActor (like `updateStatus`/`pull` below): these take a SwiftData
+    /// @Model bound to the main context, and a nonisolated async func hops to
+    /// the cooperative pool (SE-0338), racing its model reads against
+    /// main-actor writes. Git itself still runs off-main inside GitClient.
+    @MainActor
     static func clone(_ project: ToolProject) async throws -> URL {
         if let existing = existingClone(for: project) { return existing }
         // The index only self-heals stale HITS (folder deleted behind its back),
@@ -252,6 +258,7 @@ enum CatalogCloneService {
 
     /// Compares the local clone's commit to the remote default branch's tip via a
     /// cheap `ls-remote` (no fetch). Different SHA → upstream has updates.
+    @MainActor
     static func updateStatus(for project: ToolProject) async -> UpdateStatus {
         guard let dir = existingClone(for: project) else { return .error("Not cloned.") }
         let git = GitClient()
@@ -271,6 +278,7 @@ enum CatalogCloneService {
     /// (e.g. the project force-pushed/rebased its default branch) so updates don't
     /// get stuck. Throws `GitClientError.localChangesPresent` — leaving the clone
     /// untouched — if the working tree has local edits.
+    @MainActor
     static func pull(_ project: ToolProject) async throws {
         guard let dir = existingClone(for: project) else { throw CloneError.invalidURL }
         try await GitClient().syncToUpstream(repositoryURL: dir)

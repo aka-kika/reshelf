@@ -36,8 +36,17 @@ enum IconFetcher {
             let resized = resizeIfNeeded(data, maxSize: 64) ?? data
 
             DispatchQueue.main.async {
-                guard project.iconData == nil else { return }
-                project.iconData = resized
+                // Re-fetch by id instead of touching the captured model: the
+                // project can be deleted while the download is in flight (bulk
+                // import + Remove Duplicate Repos is the common case), and
+                // reading or writing a deleted PersistentModel is a fatal error.
+                var descriptor = FetchDescriptor<ToolProject>(
+                    predicate: #Predicate { $0.id == projectID }
+                )
+                descriptor.fetchLimit = 1
+                guard let live = try? context.fetch(descriptor).first,
+                      live.iconData == nil else { return }
+                live.iconData = resized
                 try? context.save()
             }
         }.resume()
@@ -78,7 +87,16 @@ enum IconFetcher {
             .filter { !$0.isEmpty && $0 != "tree" && $0 != "blob" }
 
         guard parts.count >= 2 else { return nil }
-        return (String(parts[0]), String(parts[1]))
+        var repo = String(parts[1])
+        // GitHub's copy-clone URL ends in ".git"; the API 404s on
+        // "repos/owner/repo.git", so strip it here where every consumer
+        // (capture, dedup key, avatar URL) shares one parse.
+        if repo.lowercased().hasSuffix(".git") { repo = String(repo.dropLast(4)) }
+        if let cut = repo.firstIndex(where: { $0 == "?" || $0 == "#" }) {
+            repo = String(repo[..<cut])
+        }
+        guard !repo.isEmpty else { return nil }
+        return (String(parts[0]), repo)
     }
 
     /// A normalized key for detecting duplicate captures of the same repo. Uses
