@@ -381,8 +381,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 extension Notification.Name {
     static let addProject = Notification.Name("addProject")
     static let quickCapture = Notification.Name("quickCapture")
-    static let openQueue = Notification.Name("openQueue")
     static let openCommandPalette = Notification.Name("openCommandPalette")
+    /// Sidebar navigation from the app's View menu (userInfo["item"]: SidebarItem rawValue).
+    static let selectSidebarItem = Notification.Name("selectSidebarItem")
     static let toggleSidebarColumn = Notification.Name("toggleSidebarColumn")
     static let toggleInspectorColumn = Notification.Name("toggleInspectorColumn")
     static let exportCatalog = Notification.Name("exportCatalog")

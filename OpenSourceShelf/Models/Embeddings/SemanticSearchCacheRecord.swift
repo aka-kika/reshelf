@@ -24,11 +24,3 @@ struct SemanticIndexState: Codable, Equatable {
     var chunkCount: Int
     var embeddingModel: String
 }
-
-struct SemanticMatch: Identifiable, Equatable, Codable {
-    var id: String
-    var repositoryID: String
-    var sourceType: String
-    var chunkText: String
-    var similarity: Double
-}

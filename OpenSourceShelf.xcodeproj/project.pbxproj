@@ -172,13 +172,6 @@
 			path = "OpenSourceShelf/Persistence/IntelligenceMigrations.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		3C99B3F72AA294BDE04C273B /* VectorMath.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "VectorMath.swift";
-			path = "OpenSourceShelf/Persistence/VectorIndex/VectorMath.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		EB786603BBB0BDBED26DFAA5 /* AddProjectSheet.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -240,13 +233,6 @@
 			name = "CommandPaletteView.swift";
 			path = "OpenSourceShelf/Views/Components/CommandPaletteView.swift";
 		};
-		R9S4F001234567890ABCDEF08 /* CollapsedSidebarRail.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "CollapsedSidebarRail.swift";
-			path = "OpenSourceShelf/Views/Components/CollapsedSidebarRail.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		R9S1F001234567890ABCDEF04 /* ReshelfBrandHeader.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -259,13 +245,6 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "ReshelfBrandImage.swift";
 			path = "OpenSourceShelf/Views/Components/ReshelfBrandImage.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		R9S3F001234567890ABCDEF06 /* CatalogMenuNotifications.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "CatalogMenuNotifications.swift";
-			path = "OpenSourceShelf/Services/CatalogMenuNotifications.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		R9R2F001234567890ABCDEF09 /* AppIcon.icns */ = {
@@ -506,13 +485,6 @@
 			path = "OpenSourceShelf/Services/Ingestion/RepositoryIngestionService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		2BB066C8C2214BE74AC5968E /* CatalogIntelligenceIngestionService.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "CatalogIntelligenceIngestionService.swift";
-			path = "OpenSourceShelf/Services/Catalog/CatalogIntelligenceIngestionService.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		A1B2C3D4E5F6012345678AB01 /* CatalogCaptureIntelligenceService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -532,13 +504,6 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "IntelligenceRepositoryBridge.swift";
 			path = "OpenSourceShelf/Services/Intelligence/IntelligenceRepositoryBridge.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		4C05B086E7E5C1A58482F0CD /* AppQuickAction.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AppQuickAction.swift";
-			path = "OpenSourceShelf/Services/AppRefresh/AppQuickAction.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		24F7D18C66254538ECAB4B8D /* AppRefreshBus.swift */ = {
@@ -604,7 +569,6 @@
 				BB6B6F1B82553D9F614693EB /* ExplorationQueryRecord.swift */,
 				8E8C0D2D278A4F10E4F2006F /* IntelligenceDatabase.swift */,
 				A4C3FBD350354C15CD25D4C1 /* IntelligenceMigrations.swift */,
-				3C99B3F72AA294BDE04C273B /* VectorMath.swift */,
 				EB786603BBB0BDBED26DFAA5 /* AddProjectSheet.swift */,
 				E0ABEAC1B1EDF262B954C1D2 /* ContentView.swift */,
 				C1A2F301234567890ABCDEF01 /* CatalogInspectorPane.swift */,
@@ -612,7 +576,6 @@
 				08AA80B2ED996532C6A706ED /* InspectView.swift */,
 				9DBC736C4AFEEAF6F58693F5 /* MainWindowChromeConfigurator.swift */,
 				ED23E12287561711F05EC690 /* ProjectListView.swift */,
-				R9S3F001234567890ABCDEF06 /* CatalogMenuNotifications.swift */,
 				12114FB947EC0105FC94A269 /* QuickCaptureSheet.swift */,
 				CE03F1A2B3C4D5E6F7080003 /* ImportURLsSheet.swift */,
 				CE07F1A2B3C4D5E6F7080007 /* RestoreBackupSheet.swift */,
@@ -624,7 +587,6 @@
 				47416AA68AE688A1778CB490 /* ShelfLayout.swift */,
 				RD01F001234567890ABCDEF09 /* ResizeDivider.swift */,
 				CP01F001234567890ABCDEF10 /* CommandPaletteView.swift */,
-				R9S4F001234567890ABCDEF08 /* CollapsedSidebarRail.swift */,
 				R9S1F001234567890ABCDEF04 /* ReshelfBrandHeader.swift */,
 				R9S2F001234567890ABCDEF05 /* ReshelfBrandImage.swift */,
 				R9R2F001234567890ABCDEF09 /* AppIcon.icns */,
@@ -651,11 +613,9 @@
 				011EDAC97AD3411BF259663B /* GitHubRepositoryURL.swift */,
 				CAB6FC28BA83F90F9A18E66C /* RepositoryCloneService.swift */,
 				7B1335C2DE6DAD98FE5609C2 /* RepositoryIngestionService.swift */,
-				2BB066C8C2214BE74AC5968E /* CatalogIntelligenceIngestionService.swift */,
 				A1B2C3D4E5F6012345678AB01 /* CatalogCaptureIntelligenceService.swift */,
 				9CACB97C7EAF0552E46AD707 /* CatalogIntelligenceStatusResolver.swift */,
 				1A4489A5F8DD88CE295CD524 /* IntelligenceRepositoryBridge.swift */,
-				4C05B086E7E5C1A58482F0CD /* AppQuickAction.swift */,
 				24F7D18C66254538ECAB4B8D /* AppRefreshBus.swift */,
 				9CEC687FA0FD5B3C1886B488 /* AppRefreshEvent.swift */,
 				F13902D1FEB725A89536E07C /* AppRefreshStore.swift */,
@@ -800,10 +760,6 @@
 			isa = PBXBuildFile;
 			fileRef = A4C3FBD350354C15CD25D4C1;
 		};
-		4FDED45C42F91E5AF3826062 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 3C99B3F72AA294BDE04C273B;
-		};
 		8CAEF096D0677D6D7640C435 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = EB786603BBB0BDBED26DFAA5;
@@ -832,7 +788,7 @@
 			isa = PBXBuildFile;
 			fileRef = C1A2F301234567890ABCDEF01;
 		};
-		LAB1BUILD1234567890ABCDEF01 /* LabsFeatures.swift in Sources */ = {
+		LAB1BUILD1234567890ABCDEF01 /* CaptureAssist.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = LAB1REF01234567890ABCDEF01;
 		};
@@ -848,10 +804,6 @@
 			isa = PBXBuildFile;
 			fileRef = CP01F001234567890ABCDEF10;
 		};
-		R9S4B011234567890ABCDEF08 /* CollapsedSidebarRail.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = R9S4F001234567890ABCDEF08;
-		};
 		R9S1B011234567890ABCDEF04 /* ReshelfBrandHeader.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = R9S1F001234567890ABCDEF04;
@@ -859,10 +811,6 @@
 		R9S2B011234567890ABCDEF05 /* ReshelfBrandImage.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = R9S2F001234567890ABCDEF05;
-		};
-		R9S3B011234567890ABCDEF06 /* CatalogMenuNotifications.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = R9S3F001234567890ABCDEF06;
 		};
 		R9R2B011234567890ABCDEF09 /* AppIcon.icns in Resources */ = {
 			isa = PBXBuildFile;
@@ -960,10 +908,6 @@
 			isa = PBXBuildFile;
 			fileRef = 7B1335C2DE6DAD98FE5609C2;
 		};
-		F7FEBABA3E4F8A8F7305891B /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 2BB066C8C2214BE74AC5968E;
-		};
 		B2C3D4E5F6012345678ABCD01 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = A1B2C3D4E5F6012345678AB01;
@@ -975,10 +919,6 @@
 		973B5B8D42EBB964A0579EF3 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 1A4489A5F8DD88CE295CD524;
-		};
-		9D37177926F921946B53C89E /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 4C05B086E7E5C1A58482F0CD;
 		};
 		E0AE16AA09670B59E9621B8E /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -1075,7 +1015,6 @@
 				D2215AFE01E36666F2D1C9EC,
 				D8C9EE93B8029986AD6BFE12,
 				471D22C667DA0F6EAF230ABE,
-				4FDED45C42F91E5AF3826062,
 				8CAEF096D0677D6D7640C435,
 				A650AF434AD64939BBDF1DFC,
 				23A67F25FEBBEE9AC0709693,
@@ -1087,10 +1026,8 @@
 				CLS1BUILD1234567890ABCDEF01,
 				RD01B011234567890ABCDEF09,
 				CP01B011234567890ABCDEF10,
-				R9S4B011234567890ABCDEF08,
 				R9S1B011234567890ABCDEF04,
 				R9S2B011234567890ABCDEF05,
-				R9S3B011234567890ABCDEF06,
 				5E1C4978C31F9EFDF48EDF16,
 				B4806532CE31844FFC7639DC,
 				C0C6D61F8DE22A143FF4F43F,
@@ -1107,11 +1044,9 @@
 				857F7E93C32C47A1DC69444E,
 				04AC25DD035CDA826DF27EEB,
 				DA4BBAA58796583497B507BF,
-				F7FEBABA3E4F8A8F7305891B,
 				B2C3D4E5F6012345678ABCD01,
 				5B39C7B3A378B1A690B9D271,
 				973B5B8D42EBB964A0579EF3,
-				9D37177926F921946B53C89E,
 				E0AE16AA09670B59E9621B8E,
 				D6270638B39BC304C3503AAB,
 				AFD087A4862C9B38B43C73C7,

@@ -58,25 +58,6 @@ enum QuickCaptureService {
         }
     }
 
-    // Try to fetch README for richer context
-    static func fetchReadme(githubURL: String) async throws -> String {
-        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: githubURL) else {
-            throw CaptureError.invalidURL
-        }
-
-        let apiURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/readme")!
-        let data = try await getJSON(from: apiURL, context: "\(owner)/\(repo)")
-
-        // GitHub returns base64-encoded content
-        struct ReadmeResponse: Codable { let content: String }
-        guard let decoded = try? JSONDecoder().decode(ReadmeResponse.self, from: data),
-              let decodedData = Data(base64Encoded: decoded.content.replacingOccurrences(of: "\n", with: "")),
-              let text = String(data: decodedData, encoding: .utf8) else {
-            throw CaptureError.decodingFailed
-        }
-        return text
-    }
-
     /// Performs the request and maps GitHub's HTTP responses to clear `CaptureError`s.
     /// `context` (e.g. "owner/repo") is woven into user-facing messages.
     private static func getJSON(from url: URL, context: String) async throws -> Data {

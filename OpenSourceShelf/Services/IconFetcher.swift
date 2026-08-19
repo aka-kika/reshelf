@@ -66,13 +66,6 @@ enum IconFetcher {
 
     // MARK: - Helpers
 
-    static func iconForProject(_ project: ToolProject) -> NSImage? {
-        if let data = project.iconData {
-            return NSImage(data: data)
-        }
-        return nil
-    }
-
     static func extractOwnerRepo(from url: String) -> (owner: String, repo: String)? {
         let cleaned = url
             .trimmingCharacters(in: .whitespaces)

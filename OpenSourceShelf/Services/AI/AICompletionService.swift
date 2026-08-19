@@ -55,41 +55,4 @@ enum AICompletionService {
         return "⚠️ Your preferred provider isn’t ready. Check Settings → AI Providers."
     }
 
-    /// Background-safe routing using UserDefaults + Keychain (no SwiftData context).
-    static func generateFromStoredPreferences(prompt: String) async -> (text: String, provider: AIProviderKind?) {
-        let provider = AISettingsSnapshot.resolvedProvider()
-        guard AISettingsSnapshot.isConfigured(provider) else {
-            return (configurationHintFromSnapshot(), nil)
-        }
-
-        switch provider {
-        case .ollama:
-            let baseURL = UserDefaults.standard.string(forKey: "reshelf.ollamaBaseURL") ?? "http://localhost:11434"
-            let model = AISettingsSnapshot.model(for: .ollama)
-            guard await OllamaService.testConnection(baseURL: baseURL) else {
-                return ("⚠️ Could not reach Ollama at \(baseURL).", nil)
-            }
-            let text = await OllamaService.generateCompletion(baseURL: baseURL, model: model, prompt: prompt)
-            return (text, .ollama)
-
-        case .appleIntelligence:
-            do {
-                let text = try await AppleIntelligenceService.generateText(prompt: prompt)
-                return (text, .appleIntelligence)
-            } catch {
-                return ("⚠️ Apple Intelligence: \(error.localizedDescription)", nil)
-            }
-
-        case .openAI, .anthropic, .gemini, .githubCopilot:
-            // See `generate(prompt:settings:)` — no cloud path exists any more.
-            return (configurationHintFromSnapshot(), nil)
-        }
-    }
-
-    private static func configurationHintFromSnapshot() -> String {
-        if AIProviderKind.allCases.contains(where: { AISettingsSnapshot.isConfigured($0) }) {
-            return "⚠️ Your preferred provider isn’t ready. Check Settings → AI Providers."
-        }
-        return "⚠️ Enable a provider and add credentials in Settings → AI Providers."
-    }
 }

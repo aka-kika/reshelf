@@ -44,17 +44,6 @@ enum CategoryClassifier {
         return isLanguageName(current) ? "" : currentCategory
     }
 
-    /// Check if a category is one the classifier itself produces.
-    static func isMeaningfulCategory(_ category: String) -> Bool {
-        let meaningful: Set<String> = [
-            "Database", "MCP", "AI / Agent", "Coding Agents", "Computer Use", "AI Memory",
-            "macOS", "SwiftUI", "Workspace", "Internal Tools",
-            "Backend", "Knowledge", "CLI", "DevOps", "Media", "Design",
-            "Automation", "Security", "Utility", "Editor", "Frontend", "Games"
-        ]
-        return meaningful.contains(category)
-    }
-
     /// Raw language names that older captures leaked into the category field —
     /// besides empty values, the ONLY stored categories reclassification may
     /// overwrite without `force`. Anything else a user typed is theirs to keep.

@@ -163,27 +163,4 @@ private struct CaptureSuggestionGeneration {
     @Guide(description: "True only if the tool is designed to be self-hosted")
     var isSelfHosted: Bool
 }
-
-@available(macOS 26.0, *)
-@Generable
-private struct RepositoryAnalysisGeneration {
-    @Guide(description: "One short paragraph: what the repository is and does")
-    var summary: String
-    @Guide(description: "Why this repo may matter in practical workflows")
-    var usefulness: String
-    @Guide(description: "Short classification labels, e.g. 'CLI tool', 'macOS app', 'AI agent framework'")
-    var classifications: [String]
-    @Guide(description: "Short risk labels or sentences covering license, maintenance, or security concerns")
-    var risks: [String]
-    @Guide(description: "Setup difficulty: 0 is trivial, 10 is difficult")
-    var setupComplexity: Int
-    @Guide(description: "0 to 10, higher means more local, self-hosted, or offline-friendly")
-    var localFirstScore: Int
-    @Guide(description: "0 to 10, higher means worth experimenting with soon")
-    var experimentationPriority: Int
-    @Guide(description: "0 to 10 relevance to local AI, macOS tooling, agent workflows, or developer productivity")
-    var personalRelevance: Int
-    @Guide(description: "Lightweight hints about related tools or ecosystems")
-    var relationshipHints: [String]
-}
 #endif
