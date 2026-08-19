@@ -3,6 +3,10 @@ import SwiftData
 
 struct InspectView: View {
     let project: ToolProject
+    /// Called after the project is deleted so the owner clears its selection —
+    /// otherwise the stale selection keeps pointing at a row that no longer
+    /// exists.
+    var onDelete: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
@@ -628,6 +632,7 @@ struct InspectView: View {
     private func deleteProject() {
         modelContext.delete(project)
         try? modelContext.save()
+        onDelete?()
     }
 
  

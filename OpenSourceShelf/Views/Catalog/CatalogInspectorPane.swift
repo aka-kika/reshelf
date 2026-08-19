@@ -11,7 +11,7 @@ struct CatalogInspectorPane: View {
     var body: some View {
         Group {
             if let project = resolvedProject {
-                InspectView(project: project)
+                InspectView(project: project, onDelete: { onSelectionChange(nil) })
                     .id(project.id)
             } else {
                 EmptyInspectorView()

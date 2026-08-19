@@ -34,7 +34,14 @@ final class IntelligenceDatabase {
             .appendingPathComponent("opensource-shelf.sqlite", isDirectory: false)
     }
 
+    private let initializeLock = NSLock()
+
     func initialize() throws {
+        // Serialized: initialize() is called from several services, and an
+        // unsynchronized check-then-assign let two threads race to create two
+        // DatabaseQueues over the same file.
+        initializeLock.lock()
+        defer { initializeLock.unlock() }
         if databaseQueue != nil {
             return
         }

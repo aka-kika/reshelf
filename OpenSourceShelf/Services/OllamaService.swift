@@ -27,7 +27,10 @@ struct OllamaModelsResponse: Codable {
 
 enum OllamaService {
     static func fetchModels(baseURL: String) async throws -> [OllamaModel] {
-        let url = URL(string: "\(baseURL)/api/tags")!
+        // baseURL is user-edited in Settings — never force-unwrap it.
+        guard let url = URL(string: "\(baseURL)/api/tags") else {
+            throw OllamaError.connectionFailed
+        }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
 
@@ -44,7 +47,7 @@ enum OllamaService {
 
     static func testConnection(baseURL: String) async -> Bool {
         do {
-            let url = URL(string: "\(baseURL)/api/tags")!
+            guard let url = URL(string: "\(baseURL)/api/tags") else { return false }
             var request = URLRequest(url: url)
             request.timeoutInterval = 5
             let (_, response) = try await URLSession.shared.data(for: request)

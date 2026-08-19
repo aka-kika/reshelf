@@ -112,7 +112,7 @@ enum ShelfWindowChrome {
     /// sidebar List's scroll view, which the split-view scan below cannot reach.
     /// Verified live — the stray pair was `NSScrollPocket` + `BackdropView` on
     /// `ListCoreScrollView` at exactly the sidebar width, blurring its top rows.
-    private static var backdropGuards: [ObjectIdentifier: NSKeyValueObservation] = [:]
+    private static var backdropGuardKey: UInt8 = 0
 
     static func hideTitlebarBackdrops(in window: NSWindow) {
         guard let contentView = window.contentView else { return }
@@ -142,11 +142,15 @@ enum ShelfWindowChrome {
     /// so a KVO guard reverts each re-show instantly.
     private static func hideAndPin(_ view: NSView) {
         view.isHidden = true
-        let key = ObjectIdentifier(view)
-        guard backdropGuards[key] == nil else { return }
-        backdropGuards[key] = view.observe(\.isHidden) { view, _ in
+        // The observation lives on the view itself (associated object), not in
+        // a static map: a map keyed by ObjectIdentifier never released dead
+        // observations, and a new view allocated at a reused address would
+        // have been skipped as "already guarded".
+        guard objc_getAssociatedObject(view, &backdropGuardKey) == nil else { return }
+        let observation = view.observe(\.isHidden) { view, _ in
             if !view.isHidden { view.isHidden = true }
         }
+        objc_setAssociatedObject(view, &backdropGuardKey, observation, .OBJC_ASSOCIATION_RETAIN)
     }
 
     private static func clearShadow(on view: NSView) {
