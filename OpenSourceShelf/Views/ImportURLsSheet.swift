@@ -99,8 +99,12 @@ struct ImportURLsSheet: View {
         progress = 0; imported = 0; skipped = 0; failed = []
 
         Task {
+            // Grows as the run imports: the same URL pasted twice in one list
+            // must dedupe against what this run already added, not just
+            // against the pre-import catalog.
+            var seen = existingURLs
             for url in list {
-                if existingURLs.contains(normalize(url)) {
+                if seen.contains(normalize(url)) {
                     await MainActor.run { skipped += 1; progress += 1 }
                     continue
                 }
@@ -132,6 +136,7 @@ struct ImportURLsSheet: View {
                         imported += 1
                         progress += 1
                     }
+                    seen.insert(normalize(url))
                 } catch {
                     await MainActor.run {
                         failed.append(url.split(separator: "/").suffix(2).joined(separator: "/"))
@@ -149,11 +154,10 @@ struct ImportURLsSheet: View {
         count >= 1000 ? String(format: "%.1fk", Double(count) / 1000.0) : "\(count)"
     }
 
+    /// The same dedup key Quick Capture uses — a weaker normalizer here (no
+    /// www./.git//tree collapse) let bulk import create the exact duplicates
+    /// capture prevents.
     private func normalize(_ raw: String) -> String {
-        raw.lowercased()
-            .trimmingCharacters(in: .whitespaces)
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        IconFetcher.repoDedupKey(for: raw)
     }
 }

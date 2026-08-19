@@ -95,7 +95,22 @@ enum RepositoryIngestionService {
 
             let canonicalURL = info.htmlUrl.flatMap(GitHubRepositoryURL.parse)
             let canonicalFullName = info.fullName.flatMap(GitHubRepositoryURL.parseFullName)
-            let repositoryIdentity = canonicalURL ?? canonicalFullName ?? parsedURL
+            var repositoryIdentity = canonicalURL ?? canonicalFullName ?? parsedURL
+
+            // A renamed repo can sit on the shelf under both its old and new
+            // slugs; GitHub redirects the old one and reports the new
+            // canonical identity. If another repository row already owns that
+            // identity, keep this row's own slug — adopting the canonical one
+            // collides with the UNIQUE full_name/github_url columns and the
+            // job would fail permanently on every retry.
+            if repositoryIdentity.fullName != parsedURL.fullName {
+                let fullNameOwner = (try? database.fetchRepository(fullName: repositoryIdentity.fullName)) ?? nil
+                let urlOwner = (try? database.fetchRepository(githubURL: repositoryIdentity.canonicalURL)) ?? nil
+                if fullNameOwner.map({ $0.id != repositoryID }) == true
+                    || urlOwner.map({ $0.id != repositoryID }) == true {
+                    repositoryIdentity = parsedURL
+                }
+            }
 
             let repository = RepositoryRecord(
                 id: repositoryID,

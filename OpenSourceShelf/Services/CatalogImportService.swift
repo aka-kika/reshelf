@@ -181,11 +181,12 @@ enum CatalogImportService {
     /// repo was captured separately on each Mac). Falls back to the id for rows
     /// with no URL.
     static func key(forURL url: String, id: String) -> String {
-        let normalized = url.lowercased()
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
-        return normalized.isEmpty ? "id:\(id)" : normalized
+        // Same normalizer as Quick Capture's duplicate guard: URLs differing
+        // only by www. / .git / /tree/... must collapse to one key, or an
+        // import from another machine duplicates rows despite the additive-
+        // merge "never duplicates" contract.
+        guard !url.trimmingCharacters(in: .whitespaces).isEmpty else { return "id:\(id)" }
+        return IconFetcher.repoDedupKey(for: url)
     }
 
     @MainActor

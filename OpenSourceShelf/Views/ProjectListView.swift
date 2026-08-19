@@ -754,8 +754,13 @@ struct ProjectListView: View {
                 HStack(spacing: 8) {
                     Button("Quick Capture") { onQuickCapture() }
                         .controlSize(.small)
-                    Button("Add Project") { showingAddSheet = true }
-                        .controlSize(.small)
+                    // Through the wedge guard like every other sheet path —
+                    // this empty state can render mid-search, where a focused
+                    // field's autofill popup is exactly the 1.3.x hazard.
+                    Button("Add Project") {
+                        presentSheetAfterEndingTextEditing { showingAddSheet = true }
+                    }
+                    .controlSize(.small)
                 }
                 .padding(.top, 4)
             }

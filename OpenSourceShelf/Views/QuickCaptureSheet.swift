@@ -15,6 +15,10 @@ struct QuickCaptureSheet: View {
     @State private var isFetching: Bool = false
     @State private var errorMessage: String?
     @State private var fetchedInfo: GitHubRepoInfo?
+    /// The URL `fetchedInfo` belongs to — editing the field to a different URL
+    /// invalidates the fetch, otherwise Enter/Save would file repo A's metadata
+    /// under repo B's address.
+    @State private var fetchedURL: String = ""
     @State private var isGeneratingAI: Bool = false
     @State private var aiSuggestion: String = ""
     @State private var hasGeneratedAISuggestion: Bool = false
@@ -86,6 +90,12 @@ struct QuickCaptureSheet: View {
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: 13))
                                 .onSubmit { handleSubmit() }
+                                .onChange(of: urlText) {
+                                    guard fetchedInfo != nil,
+                                          urlText.trimmingCharacters(in: .whitespaces) != fetchedURL else { return }
+                                    fetchedInfo = nil
+                                    errorMessage = nil
+                                }
                             Button(action: fetchRepo) {
                                 if isFetching {
                                     ProgressView().scaleEffect(0.6).frame(width: 16, height: 16)
@@ -442,6 +452,7 @@ struct QuickCaptureSheet: View {
                 let info = try await QuickCaptureService.fetchRepoInfo(githubURL: trimmed)
                 await MainActor.run {
                     fetchedInfo = info
+                    fetchedURL = trimmed
                     populateFields(from: info, url: trimmed)
                     isFetching = false
                     // The AI section appears now — pre-flight the active provider so
