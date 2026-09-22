@@ -5,6 +5,32 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.11.0] — 2026-09-23
+
+### Added
+- **⌘V to capture.** With a GitHub repo link on the clipboard and no text
+  field focused, ⌘V anywhere in the main window opens Quick Capture with it.
+- **Already shelved? Jump to it.** Capturing a repo you already have skips the
+  fetch and shows an "Already on your shelf" card; Return (or **Show in
+  List**) closes the sheet and selects + scrolls to it in All Projects.
+- **Collapsible sidebar sections.** Click the **Folders**, **Categories** or
+  **Tags** heading to hide/show it; remembered between launches.
+- **Tags in the sidebar.** A new **Tags** section lists 15 GitHub topics —
+  the easy way to find, say, every Swift repo whatever its category. Which
+  ones is a setting (**Settings → General → Sidebar Tags**): *Most used* on
+  the whole shelf, or *Recently added*. Spelling twins merge
+  (menu-bar = menubar). Click one to filter the list.
+- **Pull a folder's repos.** Right-click a folder → **Pull Repos** checks just
+  that folder's clones against GitHub and updates the ones that are behind.
+  Same safety as ⌘U: clones with local edits are skipped, never overwritten.
+- **Tidier Quick Capture.** The sheet hugs its content (no blank band at the
+  bottom, scrolls only when More details is long), Category is a menu of the
+  real categories instead of free text.
+
 ### Fixed
 - **Typing in search no longer rebuilds the whole list per keystroke.** The
   filter now runs once per pause (200ms debounce) while the field echoes every
@@ -13,10 +39,6 @@ All notable changes to **reshelf** are documented here. This project follows
 - **⌘K palette works from the keyboard.** Down enters the results, up/down
   move the highlight, Return opens the highlighted row (Return without
   arrowing still applies the text as the list search).
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.10.2] — 2026-08-19
 
