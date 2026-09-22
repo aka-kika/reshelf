@@ -1,0 +1,33 @@
+<html><body>
+<h3>Added</h3>
+<ul>
+<li>⌘V to capture. With a GitHub repo link on the clipboard and no text</li>
+    field focused, ⌘V anywhere in the main window opens Quick Capture with it.
+<li>Already shelved? Jump to it. Capturing a repo you already have skips the</li>
+    fetch and shows an "Already on your shelf" card; Return (or Show in
+    List) closes the sheet and selects + scrolls to it in All Projects.
+<li>Collapsible sidebar sections. Click the Folders, Categories or</li>
+    Tags heading to hide/show it; remembered between launches.
+<li>Tags in the sidebar. A new Tags section lists 15 GitHub topics —</li>
+    the easy way to find, say, every Swift repo whatever its category. Which
+    ones is a setting (Settings → General → Sidebar Tags): *Most used* on
+    the whole shelf, or *Recently added*. Spelling twins merge
+    (menu-bar = menubar). Click one to filter the list.
+<li>Pull a folder's repos. Right-click a folder → Pull Repos checks just</li>
+    that folder's clones against GitHub and updates the ones that are behind.
+    Same safety as ⌘U: clones with local edits are skipped, never overwritten.
+<li>Tidier Quick Capture. The sheet hugs its content (no blank band at the</li>
+    bottom, scrolls only when More details is long), Category is a menu of the
+    real categories instead of free text.
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Typing in search no longer rebuilds the whole list per keystroke. The</li>
+    filter now runs once per pause (200ms debounce) while the field echoes every
+    character; clearing skips the delay. Pattern borrowed from Applite — a repo
+    on the shelf, found by the reshelf skill.
+<li>⌘K palette works from the keyboard. Down enters the results, up/down</li>
+    move the highlight, Return opens the highlighted row (Return without
+    arrowing still applies the text as the list search).
+</ul>
+</body></html>
