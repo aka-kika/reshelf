@@ -83,3 +83,11 @@ xcodebuild -project OpenSourceShelf.xcodeproj -scheme "OpenSource Shelf" -destin
 
 - Only commit when the maintainer/user asks.
 - No force-push to `main`/`master`.
+
+## OpenSourceShelf (reshelf) facts
+
+Moved here from ~/AGENTS.md on 2026-09-18 (they only matter inside this project).
+
+- OpenSourceShelf: macOS SwiftUI/SwiftData catalog with GRDB intelligence at `~/OpenSourceShelf/database/opensource-shelf.sqlite` (through migration `v10_graph_search_cache`); includes ingestion/clone queue, static stack analysis, graph relationships, recommendations, ecosystem discovery, Explore with hybrid Ollama embeddings, bounded graph visualization, and graph search/deep linking. (Fact as recorded before 2026-09-18; verify against the code before relying on it.)
+- On macOS `NavigationSplitView`, attach `.toolbar` to the detail column only; use matching fixed-height column headers (e.g. 44pt) so dividers align across columns.
+- Avoid SwiftUI `.inspector()` on split-view detail: it adds a 4th column; embed metadata inside the detail pane instead.

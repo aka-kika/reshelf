@@ -7,6 +7,7 @@ Ideas **not** built yet — a backlog, not a commitment. The headline next item
 
 - [ ] Non-GitHub hosts (GitLab, Codeberg) + manual homepage-only capture
 - [ ] Clipboard watcher / drag-URL-to-Dock → Quick Capture without raising the window
+      (in-app half shipped in 1.11.0: ⌘V with a GitHub link opens Quick Capture)
 - [ ] User-controlled periodic GitHub metadata refresh (rate-limited)
 - [ ] "Not checked in 90 days" view using `lastCheckedDate`
 

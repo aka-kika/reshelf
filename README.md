@@ -39,8 +39,10 @@
 
 ## What it does
 
-- **Capture fast** — paste a GitHub URL (⌘K or ⌘⇧N); reshelf fetches the metadata
-  and **auto-categorizes** it (Database, AI / Agent, macOS, …) — no AI required.
+- **Capture fast** — copy a GitHub link and press **⌘V** anywhere in the window (or
+  paste into ⌘K / ⌘⇧N); reshelf fetches the metadata and **auto-categorizes** it
+  (Database, AI / Agent, macOS, …) — no AI required. Already have it? You get an
+  "Already on your shelf" card, and Return jumps to it.
 - **Capture Assist (optional, fully on-device)** — on Macs with Apple Intelligence,
   each capture can auto-fill **use cases, a note, and tags** right after you save,
   and a one-click backfill fills entries that have none. No setup, no API keys,
@@ -49,7 +51,8 @@
 - **Organize onto shelves** — **Top Shelf** (keepers), **The Collector** (default),
   **Yard Sale** (not sure / let go). Move with one keystroke (⌘T / ⌘Y).
 - **Browse by anything** — sidebar filters by shelf, **live category list**, **folders**,
-  or **Cloned**. Sort by Recently Added / Name / Most Stars / Last Updated.
+  **tags** (most used or recently added — your pick in Settings), or **Cloned**. Every
+  sidebar section folds away with a click on its heading. Sort by Recently Added / Name / Most Stars / Last Updated.
 - **Folders for what you got them for** — clone thirty repos for one project and group
   them: right-click → **Add to Folder**. Folders are yours to name, sit in their own
   sidebar section, and are separate from categories (what a repo *is*) and shelves (how
@@ -61,7 +64,8 @@
   `~/reshelf/repos/<Category>/<repo>`, so you can point an AI agent at one category.
   Works without `git-lfs`.
 - **Update checks** — a read-only `git ls-remote` tells you which clones are behind;
-  one-click **Pull**, or **Check Clones for Updates** (⌘⇧U) to sweep them all.
+  one-click **Pull**, **Check Clones for Updates** (⌘⇧U) to sweep them all, or
+  right-click a folder → **Pull Repos** to update just that project's clones.
 - **Understand licenses** — an ⓘ next to any license explains in plain language what
   you can and must do, with an optional caution for copyleft / source-available ones.
 - **No duplicates** — capture detects a repo that's already in your catalog;
