@@ -226,3 +226,30 @@ struct EditProjectSheet: View {
         isPresented = false
     }
 }
+
+/// The main category as a menu of the sidebar taxonomy — a typed name the
+/// sidebar doesn't know would leave the repo in no category at all. A stored
+/// custom value stays selectable so opening this never silently changes it.
+struct CategoryMenuPicker: View {
+    @Binding var selection: String
+
+    var body: some View {
+        Picker("", selection: $selection) {
+            Text("None").tag("")
+            if isCustom {
+                Text(selection).tag(selection)
+            }
+            Divider()
+            ForEach(SidebarItem.assignableCategoryTitles, id: \.self) { title in
+                Text(title).tag(title)
+            }
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .fixedSize()
+    }
+
+    private var isCustom: Bool {
+        !selection.isEmpty && !SidebarItem.assignableCategoryTitles.contains(selection)
+    }
+}

@@ -5,6 +5,9 @@ struct QuickCaptureSheet: View {
     @Binding var isPresented: Bool
     var onSave: (ToolProject) -> Void
     var initialURL: String = ""
+    /// Called when the pasted repo is already on the shelf and the user asks to
+    /// see it (Return / "Show in List") — the owner selects it in the list.
+    var onOpenExisting: ((ToolProject) -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
     @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
@@ -54,6 +57,9 @@ struct QuickCaptureSheet: View {
     /// The rarely-touched fields live behind this disclosure — capture is
     /// paste → Enter → Enter, so the default view is just the card + two decisions.
     @State private var showsMoreDetails: Bool = false
+    /// Measured height of the scrollable body, so the sheet hugs its content
+    /// instead of guessing fixed heights (which left a blank band or clipped).
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,7 +70,12 @@ struct QuickCaptureSheet: View {
                 Spacer()
                 Button("Cancel") { isPresented = false }
                     .buttonStyle(.borderless).font(.system(size: 13))
-                if fetchedInfo != nil {
+                if duplicateProject != nil {
+                    Button("Show in List") { openExisting() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small).font(.system(size: 13))
+                        .keyboardShortcut(.defaultAction)
+                } else if fetchedInfo != nil {
                     Button("Save") { saveProject() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small).font(.system(size: 13))
@@ -106,7 +117,7 @@ struct QuickCaptureSheet: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
-                            .disabled(urlText.isEmpty || isFetching)
+                            .disabled(urlText.isEmpty || isFetching || duplicateProject != nil)
                         }
                         if let error = errorMessage {
                             Text(error)
@@ -115,23 +126,13 @@ struct QuickCaptureSheet: View {
                     }
 
                     if let dup = duplicateProject {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(.blue)
-                            Text("“\(dup.name)” is already in your catalog — saving is disabled to avoid a duplicate.")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.08)))
+                        existingCard(dup)
                     }
 
                     if let info = fetchedInfo {
                         repoCard(info)
 
-                        // The only two decisions worth making at capture time.
+                        // The decisions worth making at capture time.
                         HStack(alignment: .top, spacing: 16) {
                             field("Shelf") {
                                 Picker("", selection: $status) {
@@ -142,8 +143,9 @@ struct QuickCaptureSheet: View {
                                 .pickerStyle(.menu).labelsHidden().fixedSize()
                             }
                             field("Category") {
-                                TextField("e.g. Database, AI", text: $category)
+                                CategoryMenuPicker(selection: $category)
                             }
+                            Spacer(minLength: 0)
                         }
 
                         field("Why") {
@@ -154,22 +156,54 @@ struct QuickCaptureSheet: View {
                     }
                 }
                 .padding(20)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(key: CaptureContentHeightKey.self, value: geo.size.height)
+                })
             }
+            // Grows with the content up to a cap, then scrolls (More details).
+            .frame(height: min(contentHeight, 640))
+            .onPreferenceChange(CaptureContentHeightKey.self) { contentHeight = $0 }
         }
-        .frame(width: 520, height: sheetHeight)
-        .animation(.easeInOut(duration: 0.2), value: sheetHeight)
+        .frame(width: 520)
+        .animation(.easeInOut(duration: 0.2), value: contentHeight)
         .onAppear {
             if !initialURL.isEmpty {
                 urlText = initialURL
-                fetchRepo()
+                // Already shelved: nothing to fetch — the card says so and
+                // Return jumps to it.
+                if duplicateProject == nil { fetchRepo() }
             }
         }
     }
 
-    /// Short before fetch, card-sized after, taller when details are expanded.
-    private var sheetHeight: CGFloat {
-        if fetchedInfo == nil { return 240 }
-        return showsMoreDetails ? 740 : 600
+    /// Shown instead of a fetch when the URL is already on the shelf.
+    private func existingCard(_ project: ToolProject) -> some View {
+        HStack(spacing: 12) {
+            ProjectIcon(project: project, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Already on your shelf")
+                    .font(.system(size: 13, weight: .semibold))
+                Text([project.name, project.status.displayName, project.category]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " · "))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text("Return to show it")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.08)))
+    }
+
+    private func openExisting() {
+        guard let dup = duplicateProject else { return }
+        onOpenExisting?(dup)
+        isPresented = false
     }
 
     /// The repo the way the shelf will remember it: identity + facts, not fields.
@@ -435,7 +469,9 @@ struct QuickCaptureSheet: View {
     /// Return-key handler: fetch when nothing is fetched yet, otherwise save.
     /// Keeps the whole capture keyboard-only (paste → Enter → Enter).
     private func handleSubmit() {
-        if fetchedInfo == nil {
+        if duplicateProject != nil {
+            openExisting()
+        } else if fetchedInfo == nil {
             fetchRepo()
         } else if !name.isEmpty {
             saveProject()
@@ -444,7 +480,7 @@ struct QuickCaptureSheet: View {
 
     private func fetchRepo() {
         let trimmed = urlText.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, duplicateProject == nil else { return }
         isFetching = true; errorMessage = nil
 
         Task {
@@ -717,5 +753,12 @@ struct QuickCaptureSheet: View {
         }
         onSave(project)
         isPresented = false
+    }
+}
+
+private struct CaptureContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

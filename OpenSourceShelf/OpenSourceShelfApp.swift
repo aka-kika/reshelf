@@ -386,12 +386,16 @@ extension Notification.Name {
     static let selectSidebarItem = Notification.Name("selectSidebarItem")
     static let toggleSidebarColumn = Notification.Name("toggleSidebarColumn")
     static let toggleInspectorColumn = Notification.Name("toggleInspectorColumn")
+    /// Scroll the project list to a row (object: the project's UUID).
+    static let revealProjectInList = Notification.Name("revealProjectInList")
     static let exportCatalog = Notification.Name("exportCatalog")
     static let importURLs = Notification.Name("importURLs")
     static let importCatalog = Notification.Name("importCatalog")
     static let restoreBackup = Notification.Name("restoreBackup")
     static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
     static let pullCloneUpdates = Notification.Name("pullCloneUpdates")
+    /// Check + pull the cloned repos in one folder (object: the folder's UUID).
+    static let pullFolderClones = Notification.Name("pullFolderClones")
     /// Move the currently selected repo to a shelf; object is the ProjectStatus rawValue.
     static let moveSelectedToShelf = Notification.Name("moveSelectedToShelf")
     /// A clone's update status became known (object: project id string, userInfo["behind"]: Bool)

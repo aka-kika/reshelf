@@ -10,6 +10,8 @@ import Foundation
 enum ShelfSelection: Hashable {
     case builtin(SidebarItem)
     case folder(UUID)
+    /// A GitHub topic from the sidebar's Tags section (`SidebarTagRanking.key`).
+    case tag(String)
 
     var builtinItem: SidebarItem? {
         if case let .builtin(item) = self { return item }
@@ -18,6 +20,11 @@ enum ShelfSelection: Hashable {
 
     var folderID: UUID? {
         if case let .folder(id) = self { return id }
+        return nil
+    }
+
+    var tagName: String? {
+        if case let .tag(name) = self { return name }
         return nil
     }
 }

@@ -20,6 +20,7 @@ struct SettingsView: View {
     @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
     @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
+    @AppStorage(SidebarTagRanking.modeKey) private var sidebarTagsMode: SidebarTagRanking.Mode = .top
 
     // Capture Assist backfill of entries without use cases
     @State private var isBackfilling = false
@@ -171,6 +172,30 @@ struct SettingsView: View {
                     .labelsHidden()
 
                     Text("Choose how reshelf looks. “System” follows your macOS appearance.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .padding(.bottom, 12)
+
+                // MARK: - Sidebar tags
+                sectionHeader("Sidebar Tags")
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Sidebar Tags", selection: $sidebarTagsMode) {
+                        Text("Most used").tag(SidebarTagRanking.Mode.top)
+                        Text("Recently added").tag(SidebarTagRanking.Mode.recent)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+
+                    Text("Which tags the sidebar's Tags section lists. “Most used” = the most common tags on your whole shelf. “Recently added” = tags from the repos you saved lately.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)

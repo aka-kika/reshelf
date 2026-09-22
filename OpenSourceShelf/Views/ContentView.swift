@@ -116,6 +116,63 @@ private func textInputRemoteViewIsOnScreen() -> Bool {
 // columnVisibility controls only the sidebar (.all = visible, .doubleColumn = hidden).
 // showsInspectorColumn toggles the inspector inside the HStack — the list expands naturally.
 
+/// Catches ⌘V in the main window when no text field has focus, and hands a
+/// GitHub repo link from the clipboard to Quick Capture. Anything else — a text
+/// field focused, a sheet up, a non-GitHub clipboard — passes through untouched,
+/// so normal pasting never changes.
+///
+/// Hangs off `viewDidMoveToWindow` (like MainWindowChromeConfigurator) so it
+/// only reacts to key events for *this* window, not Settings or the Queue.
+struct ClipboardCaptureMonitor: NSViewRepresentable {
+    var onPasteRepoURL: (String) -> Void
+
+    func makeNSView(context: Context) -> MonitorView {
+        let view = MonitorView()
+        view.onPasteRepoURL = onPasteRepoURL
+        return view
+    }
+
+    func updateNSView(_ view: MonitorView, context: Context) {
+        view.onPasteRepoURL = onPasteRepoURL
+    }
+
+    final class MonitorView: NSView {
+        var onPasteRepoURL: ((String) -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, self.handles(event) else { return event }
+                return nil
+            }
+        }
+
+        private func handles(_ event: NSEvent) -> Bool {
+            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard mods == .command,
+                  event.charactersIgnoringModifiers?.lowercased() == "v",
+                  let window, event.window === window,
+                  window.attachedSheet == nil,
+                  !(window.firstResponder is NSText),
+                  let text = NSPasteboard.general.string(forType: .string)?
+                      .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !text.contains(where: \.isNewline),
+                  IconFetcher.extractOwnerRepo(from: text) != nil
+            else { return false }
+            onPasteRepoURL?(text)
+            return true
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
+}
+
 struct QuickCaptureRequest: Identifiable {
     let id = UUID()
     let url: String
@@ -168,7 +225,8 @@ struct ContentView: View {
                         listSelection = .project(project.id)
                         searchText = ""
                     },
-                    initialURL: request.url
+                    initialURL: request.url,
+                    onOpenExisting: { project in revealProject(project.id) }
                 )
             }
             .sheet(isPresented: $showingCommandPalette, onDismiss: handleCommandPaletteDismiss) {
@@ -314,6 +372,28 @@ struct ContentView: View {
         )
     }
 
+    /// Shows a project in the list no matter what's filtered: back to All
+    /// Projects, search cleared, row selected and scrolled into view.
+    private func revealProject(_ id: UUID) {
+        sidebarSelection = .builtin(.allProjects)
+        searchText = ""
+        listSelection = .project(id)
+        // Next tick: if the list was showing its empty state (a search with no
+        // hits), the scrollable rows only exist after this reset renders.
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .revealProjectInList, object: id)
+        }
+    }
+
+    /// ⌘V with a GitHub repo link on the clipboard (and no text field focused):
+    /// open Quick Capture with it. The sheet itself handles "already shelved".
+    private func captureFromClipboard(_ url: String) {
+        guard quickCaptureRequest == nil, !showingCommandPalette, !showingAddSheet else { return }
+        presentSheetAfterEndingTextEditing {
+            quickCaptureRequest = QuickCaptureRequest(url: url)
+        }
+    }
+
     private func selectSidebarItem(_ item: SidebarItem) {
         sidebarSelection = .builtin(item)
     }
@@ -335,6 +415,7 @@ struct ContentView: View {
                 .ignoresSafeArea()
         }
         .background(MainWindowChromeConfigurator())
+        .background(ClipboardCaptureMonitor(onPasteRepoURL: captureFromClipboard))
         .onChange(of: columnVisibility) { _, newValue in
             guard !isApplyingColumnVisibility else { return }
             isSidebarVisible = (newValue == .all)

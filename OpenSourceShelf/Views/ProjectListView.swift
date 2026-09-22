@@ -116,27 +116,40 @@ struct ProjectListView: View {
                 if filteredProjects.isEmpty {
                     catalogListEmptyState
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(filteredProjects) { project in
-                                ProjectRowView(
-                                    project: project,
-                                    isSelected: listSelection?.projectID == project.id
-                                        || batchSelection.contains(project.id),
-                                    statusKey: project.statusRaw,
-                                    isCloning: cloningProjectIDs.contains(project.id),
-                                    isClonedLocally: CatalogCloneService.isCloned(project),
-                                    isBehind: behindProjectIDs.contains(project.id),
-                                    onSelect: { selectProject(project, modifiers: $0) }
-                                )
-                                .equatable()
-                                .contextMenu {
-                                    catalogContextMenu(for: project)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filteredProjects) { project in
+                                    ProjectRowView(
+                                        project: project,
+                                        isSelected: listSelection?.projectID == project.id
+                                            || batchSelection.contains(project.id),
+                                        statusKey: project.statusRaw,
+                                        isCloning: cloningProjectIDs.contains(project.id),
+                                        isClonedLocally: CatalogCloneService.isCloned(project),
+                                        isBehind: behindProjectIDs.contains(project.id),
+                                        onSelect: { selectProject(project, modifiers: $0) }
+                                    )
+                                    .equatable()
+                                    .contextMenu {
+                                        catalogContextMenu(for: project)
+                                    }
+                                }
+                            }
+                            .padding(.top, 8)
+                            .padding(.bottom, 4)
+                        }
+                        // A jump from outside the list (e.g. capturing a repo that's
+                        // already shelved). Deferred a tick: the sidebar/search reset
+                        // that precedes it has to rebuild the rows first.
+                        .onReceive(NotificationCenter.default.publisher(for: .revealProjectInList)) { note in
+                            guard let id = note.object as? UUID else { return }
+                            DispatchQueue.main.async {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    proxy.scrollTo(id, anchor: .center)
                                 }
                             }
                         }
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
                     }
                 }
             }
@@ -193,7 +206,10 @@ struct ProjectListView: View {
             onPullCloneUpdates: { pullFlaggedClones() },
             onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) },
             onCloneStatusKnown: { note in syncBehindBadge(note) },
-            onRemoveDuplicates: { requestRemoveDuplicates() }
+            onRemoveDuplicates: { requestRemoveDuplicates() },
+            onPullFolderClones: { note in
+                if let id = note.object as? UUID { pullClones(inFolder: id) }
+            }
         ))
         .confirmationDialog(
             "Remove \(pendingBatchRemoveClones?.count ?? 0) local clones?",
@@ -579,6 +595,46 @@ struct ProjectListView: View {
         }
     }
 
+    /// Folder right-click → Pull Repos: checks the folder's clones against
+    /// upstream (read-only `ls-remote`), then pulls only the ones behind. Same
+    /// safety as ⌘U — clones with local edits are skipped, never clobbered.
+    private func pullClones(inFolder folderID: UUID) {
+        guard !isPullingClones else { return }
+        let name = folders.first { $0.id == folderID }?.name ?? "folder"
+        let cloned = allProjects.filter { $0.folderID == folderID && CatalogCloneService.isCloned($0) }
+        guard !cloned.isEmpty else {
+            statusNotice = "Nothing cloned in \(name)."
+            return
+        }
+        isPullingClones = true
+        statusNotice = "Checking \(cloned.count) repo\(cloned.count == 1 ? "" : "s") in \(name)…"
+        Task {
+            var updated = 0
+            var skipped = 0
+            var failed: [String] = []
+            var pulledIDs: Set<UUID> = []
+            for project in cloned {
+                guard case .updatesAvailable = await CatalogCloneService.updateStatus(for: project) else { continue }
+                do {
+                    try await CatalogCloneService.pull(project)
+                    updated += 1
+                    pulledIDs.insert(project.id)
+                } catch let error as GitClientError {
+                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(project.name) }
+                } catch {
+                    failed.append(project.name)
+                }
+            }
+            await MainActor.run {
+                behindProjectIDs.subtract(pulledIDs)
+                isPullingClones = false
+                statusNotice = updated == 0 && skipped == 0 && failed.isEmpty
+                    ? "\(name): all \(cloned.count) up to date."
+                    : "\(name): " + pullSummary(updated: updated, skipped: skipped, failed: failed)
+            }
+        }
+    }
+
     /// One-line result for a Pull All run, e.g.
     /// "Updated 2 · 1 skipped (local changes) · 1 failed (zotero)".
     private func pullSummary(updated: Int, skipped: Int, failed: [String]) -> String {
@@ -740,12 +796,22 @@ struct ProjectListView: View {
            let folder = folders.first(where: { $0.id == id }) {
             return folder.name
         }
+        if let tag = sidebarSelection?.tagName {
+            // The selection holds the spelling-free key ("menubar"); show a
+            // real spelling from the shelf ("menu-bar").
+            let shown = allProjects.lazy.flatMap(\.tags)
+                .first { SidebarTagRanking.key(for: $0) == tag } ?? tag
+            return "#\(shown.lowercased())"
+        }
         return "All Projects"
     }
 
     private func applySidebarFilter(_ projects: [ToolProject]) -> [ToolProject] {
         if let id = sidebarSelection?.folderID {
             return projects.filter { $0.folderID == id }
+        }
+        if let tag = sidebarSelection?.tagName {
+            return projects.filter { $0.tags.contains { SidebarTagRanking.key(for: $0) == tag } }
         }
         guard let item = sidebarSelection?.builtinItem, item.isCatalogFilter else { return projects }
         return projects.filter { item.matchesCatalogFilter($0) }
@@ -822,6 +888,7 @@ struct ProjectListView: View {
         searchText.trimmingCharacters(in: .whitespaces).isEmpty
             && sidebarSelection?.builtinItem?.isCatalogFilter != true
             && sidebarSelection?.folderID == nil
+            && sidebarSelection?.tagName == nil
             && allProjects.isEmpty
     }
 }
@@ -931,6 +998,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onMoveSelectedToShelf: (Notification) -> Void
     let onCloneStatusKnown: (Notification) -> Void
     let onRemoveDuplicates: () -> Void
+    let onPullFolderClones: (Notification) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -939,6 +1007,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)
             .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown), perform: onCloneStatusKnown)
             .onReceive(NotificationCenter.default.publisher(for: .removeDuplicateRepos)) { _ in onRemoveDuplicates() }
+            .onReceive(NotificationCenter.default.publisher(for: .pullFolderClones), perform: onPullFolderClones)
     }
 }
 

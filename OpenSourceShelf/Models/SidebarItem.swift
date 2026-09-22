@@ -161,88 +161,46 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return project.statusRaw == ProjectStatus.yardSale.rawValue
         case .cloned:
             return CatalogCloneService.isCloned(project)
-        case .databaseTools:
-            return project.category.localizedStandardContains("Database")
-        case .backendTools:
-            return project.category.localizedStandardContains("Backend")
-        case .agentTools:
-            return project.category == "AI / Agent"
-        case .codingAgentTools:
-            return project.category == "Coding Agents"
-        case .computerUseTools:
-            return project.category == "Computer Use"
-        case .aiMemoryTools:
-            return project.category == "AI Memory"
-        case .mcpTools:
-            return project.category == "MCP"
-        case .internalTools:
-            return project.category.localizedStandardContains("Internal Tools")
-        case .workspaceTools:
-            return project.category.localizedStandardContains("Workspace")
-        case .knowledgeTools:
-            return project.category.localizedStandardContains("Knowledge")
-        case .macOSTools:
-            return project.category.localizedStandardContains("macOS")
-        case .swiftUITools:
-            return project.category == "SwiftUI"
-        case .cliTools:
-            return project.category.localizedStandardContains("CLI")
-        case .editorTools:
-            return project.category.localizedStandardContains("Editor")
-        case .devopsTools:
-            return project.category.localizedStandardContains("DevOps")
-        case .automationTools:
-            return project.category.localizedStandardContains("Automation")
-        case .mediaTools:
-            return project.category.localizedStandardContains("Media")
-        case .designTools:
-            return project.category.localizedStandardContains("Design")
-        case .securityTools:
-            return project.category.localizedStandardContains("Security")
-        case .utilityTools:
-            return project.category.localizedStandardContains("Utility")
-        case .frontendTools:
-            return project.category.localizedStandardContains("Frontend")
-        case .gamesTools:
-            return project.category.localizedStandardContains("Games")
         case .localFirst:
             return project.isLocalFirst
+        default:
+            return matchesCategory(project.category)
         }
     }
 
-    func predicate() -> Predicate<ToolProject>? {
+    /// Whether one category string belongs to this category filter.
+    func matchesCategory(_ category: String) -> Bool {
         switch self {
-        case .allProjects: return nil
-        case .topShelf: return #Predicate { $0.statusRaw == "topShelf" }
-        case .collector: return #Predicate { $0.statusRaw == "collector" }
-        case .yardSale: return #Predicate { $0.statusRaw == "yardSale" }
-        // Filesystem-derived (no stored field) — filtered in-memory via matchesCatalogFilter.
-        case .cloned: return nil
-        case .databaseTools: return #Predicate { $0.category.localizedStandardContains("Database") }
-        case .backendTools: return #Predicate { $0.category.localizedStandardContains("Backend") }
-        case .agentTools: return #Predicate { $0.category == "AI / Agent" }
-        case .codingAgentTools: return #Predicate { $0.category == "Coding Agents" }
-        case .computerUseTools: return #Predicate { $0.category == "Computer Use" }
-        case .aiMemoryTools: return #Predicate { $0.category == "AI Memory" }
-        case .mcpTools: return #Predicate { $0.category == "MCP" }
-        case .internalTools: return #Predicate { $0.category.localizedStandardContains("Internal Tools") }
-        case .workspaceTools: return #Predicate { $0.category.localizedStandardContains("Workspace") }
-        case .knowledgeTools: return #Predicate { $0.category.localizedStandardContains("Knowledge") }
-        case .macOSTools: return #Predicate { $0.category.localizedStandardContains("macOS") }
-        case .swiftUITools: return #Predicate { $0.category == "SwiftUI" }
-        case .cliTools: return #Predicate { $0.category.localizedStandardContains("CLI") }
-        case .editorTools: return #Predicate { $0.category.localizedStandardContains("Editor") }
-        case .devopsTools: return #Predicate { $0.category.localizedStandardContains("DevOps") }
-        case .automationTools: return #Predicate { $0.category.localizedStandardContains("Automation") }
-        case .mediaTools: return #Predicate { $0.category.localizedStandardContains("Media") }
-        case .designTools: return #Predicate { $0.category.localizedStandardContains("Design") }
-        case .securityTools: return #Predicate { $0.category.localizedStandardContains("Security") }
-        case .utilityTools: return #Predicate { $0.category.localizedStandardContains("Utility") }
-        case .frontendTools: return #Predicate { $0.category.localizedStandardContains("Frontend") }
-        case .gamesTools: return #Predicate { $0.category.localizedStandardContains("Games") }
-        case .localFirst: return #Predicate { $0.isLocalFirst == true }
-        case .settings: return nil
+        case .databaseTools: category.localizedStandardContains("Database")
+        case .backendTools: category.localizedStandardContains("Backend")
+        case .agentTools: category == "AI / Agent"
+        case .codingAgentTools: category == "Coding Agents"
+        case .computerUseTools: category == "Computer Use"
+        case .aiMemoryTools: category == "AI Memory"
+        case .mcpTools: category == "MCP"
+        case .internalTools: category.localizedStandardContains("Internal Tools")
+        case .workspaceTools: category.localizedStandardContains("Workspace")
+        case .knowledgeTools: category.localizedStandardContains("Knowledge")
+        case .macOSTools: category.localizedStandardContains("macOS")
+        case .swiftUITools: category == "SwiftUI"
+        case .cliTools: category.localizedStandardContains("CLI")
+        case .editorTools: category.localizedStandardContains("Editor")
+        case .devopsTools: category.localizedStandardContains("DevOps")
+        case .automationTools: category.localizedStandardContains("Automation")
+        case .mediaTools: category.localizedStandardContains("Media")
+        case .designTools: category.localizedStandardContains("Design")
+        case .securityTools: category.localizedStandardContains("Security")
+        case .utilityTools: category.localizedStandardContains("Utility")
+        case .frontendTools: category.localizedStandardContains("Frontend")
+        case .gamesTools: category.localizedStandardContains("Games")
+        default: false
         }
+    }
+
+    /// Category names a project can be filed under (the category filters,
+    /// minus the Local-First flag, which isn't a category).
+    static var assignableCategoryTitles: [String] {
+        sidebarCategoryItems.filter { $0 != .localFirst }.map(\.title)
     }
 }
 
@@ -250,5 +208,6 @@ enum SidebarSection: String {
     case library = "Library"
     case folders = "Folders"
     case categories = "Categories"
+    case tags = "Tags"
     case settings = "Settings"
 }

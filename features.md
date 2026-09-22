@@ -44,6 +44,10 @@ Stored fields you can view and edit:
 
 - Full set: Database, Backend, AI / Agent, Coding Agents, Computer Use, AI Memory, MCP, Internal Tools, Workspace, Knowledge, macOS, SwiftUI, CLI, Editor, DevOps, Automation, Media, Design, Security, Utility, Frontend, Games, plus Local-First (flag-based). Classification is **rule-based** (GitHub topics → description → language), **no AI** — see `CategoryClassifier`. Repos with no clear signal stay uncategorized (visible under All Projects) rather than being mislabeled with a raw language name. Since 1.3.2 the classifier assigns **SwiftUI** too: SwiftUI component/animation/library repos land there (library-shaped wording like "SwiftUI library" / "for SwiftUI" tips cross-platform packages), while mac *apps* that merely use SwiftUI still land in macOS.
 
+**Collapsible sections** — click the **Folders**, **Categories** or **Tags** heading to fold it away; the choice is remembered.
+
+**Tags** — the last sidebar section: 15 GitHub topics, the cross-cutting view — a repo has one category but many tags, so **swift** finds every Swift repo whatever its category. **Settings → General → Sidebar Tags** picks *Most used* (whole shelf) or *Recently added* (most common among the ~40 newest repos). Noise like open-source/awesome is left out, and spelling twins are merged (menu-bar / menubar). Counts always cover the whole shelf, so a row's number matches what clicking it shows.
+
 **Folders** — a third section between Library and Categories, present only once you have a folder. See [Folders](#folders) below.
 
 **Settings** — opens as a standard macOS **Settings window** from the app menu (**reshelf → Settings…**, ⌘,), not an in-app panel.
@@ -60,6 +64,8 @@ Stored fields you can view and edit:
 ## Quick Capture
 
 - **⌘⇧N** — sheet to paste a GitHub URL
+- **⌘V** — with a GitHub repo link on the clipboard and no text field focused, opens Quick Capture with it
+- **Already shelved** — no fetch; an "Already on your shelf" card, and **Return** jumps to the repo in the list
 - Fetches repo info from the **GitHub API** (and can pull README for context)
 - **Auto-categorizes** the repo into a meaningful category (Database, AI / Agent, macOS, Workspace, Media, etc.) from its GitHub topics, description, and language — not just the raw language name
 - Edit fields, then save into the SwiftData catalog
@@ -102,6 +108,7 @@ A **folder** is a grouping you make: "everything I cloned for project X". Delibe
 
 - **One folder at most** per project, so "what did I get for X" stays unambiguous.
 - **Any project qualifies**, cloned or not. Uncloning must not eject a repo from the group that exists to make the cleanup possible.
+- **Pull Repos** — right-click a folder → **Pull Repos** checks only that folder's clones against GitHub and updates the ones behind (clones with local edits are skipped).
 - **Assign** — right-click a project → **Add to Folder ▸** lists your folders, marks the one it's in, and offers **New Folder…** and **Remove from Folder**.
 - **Sidebar** — folders get their own section between Library and Categories, shown only once one exists. Each row has a folder icon, a live count, and filters the list exactly like a category row.
 - **Rename / Delete** — right-click a folder row. **Deleting a folder only ungroups**: its projects keep their shelf, their clone, their notes and everything else. The confirmation says how many will be ungrouped and that nothing else changes.
