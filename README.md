@@ -158,22 +158,18 @@ you've curated. In effect, your cloned shelf doubles as a **source-as-context**
 reference: when a coding agent is unsure of a library's API, it can search the *real*
 cloned source instead of guessing from stale docs.
 
-We ship three **Claude Code skills** in [`extras/`](extras) — three lenses on the same
-shelf. The main one installs itself: **Settings → General → Agent Skill → Install
-reshelf Skill** copies it straight to `~/.claude/skills/reshelf`, no cloning needed.
+We ship a **Claude Code skill** in [`extras/reshelf-skill`](extras/reshelf-skill). It
+installs itself: **Settings → General → Agent Skill → Install reshelf Skill** copies it
+to `~/.claude/skills/reshelf`, no cloning needed. **Click it again after updating
+reshelf** to get the newest version of the skill.
 
-- [`reshelf-skill/`](extras/reshelf-skill) — the **source**: maps your *cloned* repos by
-  category, reads their source/READMEs, recommends the best fit for a goal, and suggests
-  next steps — **learn** the approach or **use** the code.
-  ([README](extras/reshelf-skill/README.md))
-- [`reshelf-catalog-skill/`](extras/reshelf-catalog-skill) — the **index**: surveys your
-  *whole* catalog (the live store + JSON backups), including repos you shelved but never
-  cloned, and highlights the not-cloned gap — so a top-shelf pick you forgot to clone
-  never gets lost. ([README](extras/reshelf-catalog-skill/README.md))
-- [`reshelf-collector-skill/`](extras/reshelf-collector-skill) — the **rest**: resurfaces
-  The Collector's forgotten middle (Yard Sale excluded) with clone status and shelf age,
-  leading with the longest-shelved picks you never cloned — and suggests what to
-  promote, clone, or let go. ([README](extras/reshelf-collector-skill/README.md))
+When you ask your agent about something you saved, the skill looks at your **Top Shelf**
+first, then **The Collector** only if nothing fits (never the Yard Sale). It reads the
+source of cloned repos, or the README of ones you haven't cloned, recommends the best
+fit with a **license warning** when a repo has no license or an unclear or copyleft
+one, and helps you **learn** the approach or **use** the code. If the pick isn't cloned
+yet it offers to clone it into `~/reshelf/repos/<Category>/<repo>`, and only does so
+after you say yes. ([README](extras/reshelf-skill/README.md))
 
 **Built something that talks to reshelf?** A skill, script, or integration — feeding a
 category's clones to a coding agent, generating a "what to learn next" digest, syncing

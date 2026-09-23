@@ -80,8 +80,9 @@ Existing projects whose category was empty or just a language name are **re-cate
 
 - Header, links, shelf
 - Metadata, description, use cases, tags, notes
-- **License explainer** — an ⓘ next to the license opens a plain-language popover (what you *can* do, what you *must* do, and the takeaway) for MIT, Apache, BSD, ISC, MPL, LGPL, EPL, GPL, AGPL, BUSL, public-domain, and more. When **Warn about strict licenses** is on (Settings), copyleft/source-available repos (GPL, AGPL, MPL, BUSL…) also show an automatic caution banner. Plain-language, not legal advice
-- Personal fit
+- **License explainer** — an ⓘ next to the license opens a plain-language popover (what you *can* do, what you *must* do, and the takeaway) for MIT, Apache, BSD, ISC, MPL, LGPL, EPL, GPL, AGPL, BUSL, public-domain, and more. When **Warn about strict or missing licenses** is on (Settings), copyleft/source-available repos (GPL, AGPL, MPL, BUSL…) and repos with **no license or an unclear one** (NOASSERTION) also show an automatic caution banner. Plain-language, not legal advice
+- **Personal fit** — 1 to 5 stars. Filled in automatically from your Top Shelf and cloned repos (tags and categories you keep a lot score higher; ranked against the rest of the shelf; one-line reason underneath). Click a star to set your own; **Use auto** goes back. Hand-set scores are never overwritten
+- **Clickable tags** — click a tag to list every repo that has it
 - **Links** — left-click opens GitHub / website in the default browser; right-click copies the URL
 - **Local Copy** — clone status, on-disk path, **Reveal in Finder**, and **Open in…** (installed editors + Terminal); when not cloned, a one-click **Clone Repository**
 - Edit sheet
@@ -128,10 +129,10 @@ Select many rows, then act on all of them — built for the case that motivated 
 ## Settings
 
 - **Appearance** — System / Light / Dark (System follows macOS); applies to every window and persists
-- **Warn about strict licenses** — when on (default), the inspector auto-shows a caution for copyleft/source-available licenses (GPL, AGPL, MPL, LGPL, BUSL…); the ⓘ license explainer is always available regardless
+- **Warn about strict or missing licenses** — when on (default), the inspector auto-shows a caution for copyleft/source-available licenses (GPL, AGPL, MPL, LGPL, BUSL…) and for repos with no license or an unclear one; the ⓘ license explainer is always available regardless
 - **Capture Assist** — the on-device Apple Intelligence fill (use cases / note / tags): master toggle, live model-availability status, **auto-generate on every capture** (default on), and **Fill Missing Entries** to backfill shelved entries that have none (fill-only, hand-edited data untouched)
 - **GitHub token** (optional) — paste a personal access token to raise the API rate limit from ~60 to 5,000 requests/hour (and let Quick Capture see your private repos). Stored in the macOS Keychain only; saving verifies it against GitHub immediately, with **Test** and **Remove** on hand
-- **Agent Skill** — one-click install of the bundled `reshelf` Claude Code skill to `~/.claude/skills/reshelf` (a previous install is trashed, not deleted)
+- **Agent Skill** — one-click install of the bundled `reshelf` Claude Code skill to `~/.claude/skills/reshelf` (a previous install is trashed, not deleted; so are the retired `reshelf-catalog` / `reshelf-collector` skills; a symlinked install is left alone). The skill searches Top Shelf first, then The Collector, warns about licenses, and clones a repo only after the user says yes
 - **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are grouped into **category subfolders** (`<Category>/<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
 - **Software Update** — automatic update checks on/off (Sparkle), plus **Check for Updates…** on demand. Updates are EdDSA-signed and notarized; the feed is a static file on GitHub Pages
 - **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders

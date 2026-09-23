@@ -289,6 +289,13 @@
 			path = "OpenSourceShelf/Services/CatalogBackupService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		F1TSC0RE01234567890ABCD /* FitScorer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "FitScorer.swift";
+			path = "OpenSourceShelf/Services/FitScorer.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -601,6 +608,7 @@
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
 				CE05F1A2B3C4D5E6F7080005 /* CatalogBackupService.swift */,
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
+				F1TSC0RE01234567890ABCD /* FitScorer.swift */,
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
 				F0LDER201234567890ABCD /* CatalogFolderService.swift */,
 				F0LDER101234567890ABCD /* ShelfSelection.swift */,
@@ -888,6 +896,10 @@
 			isa = PBXBuildFile;
 			fileRef = CE05F1A2B3C4D5E6F7080005;
 		};
+		F1TSC0RE11234567890ABCD /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F1TSC0RE01234567890ABCD;
+		};
 		CE10F1A2B3C4D5E6F7080010 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = CE09F1A2B3C4D5E6F7080009;
@@ -993,6 +1005,7 @@
 				CE06F1A2B3C4D5E6F7080006,
 				CE08F1A2B3C4D5E6F7080008,
 				CE10F1A2B3C4D5E6F7080010,
+				F1TSC0RE11234567890ABCD,
 				4EBE97C8805632E9D6166E20,
 				F2033FF1EFDA024407F13292,
 				002F4751F7FC9A5FBE360FB1,

@@ -10,7 +10,7 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
       (Box ticked retroactively 2026-08-19 — the fix had shipped but this entry was
       never closed.)
 - [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
-- [ ] ⏳ *[later]* **Extend the reshelf skill beyond cloned repos** — a skill like the current one, but running across the whole **Collection** and **Top Shelf**, not just cloned repos. The current cloned-repo skill works great; this is an expansion for later.
+- [x] **Extend the reshelf skill beyond cloned repos** — done in 1.12.0: Top Shelf first, then The Collector, README for uncloned repos, clone on approval (`scripts/shelf.py`). Folded in and retired `reshelf-catalog` / `reshelf-collector`.
 - [x] **Remove the empty "Format" menu** from the top macOS menu bar — done in 1.3.0: pruned at the AppKit level (`FormatMenuPruner`), survives menu-bar rebuilds.
 - [ ] 💡 *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits/changelog using plain git (no AI, like today) so you can see what changed. Not a must, but would be nice.
 

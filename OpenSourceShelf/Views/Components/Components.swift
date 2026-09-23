@@ -42,6 +42,7 @@ enum LicenseStrictness {
     case weakCopyleft     // MPL, LGPL, EPL — share changes to the covered files
     case strongCopyleft   // GPL, AGPL — your whole project must be open-sourced
     case restricted       // BUSL and friends — source-available, usage restricted
+    case noLicense        // none found, or GitHub couldn't tell (NOASSERTION)
     case unknown
 
     var label: String {
@@ -51,6 +52,7 @@ enum LicenseStrictness {
         case .weakCopyleft: "Weak copyleft"
         case .strongCopyleft: "Strong copyleft"
         case .restricted: "Source-available"
+        case .noLicense: "No clear license"
         case .unknown: "Unrecognized"
         }
     }
@@ -60,14 +62,14 @@ enum LicenseStrictness {
         case .permissive, .publicDomain: .green
         case .weakCopyleft: .yellow
         case .strongCopyleft: .orange
-        case .restricted: .red
+        case .restricted, .noLicense: .red
         case .unknown: .gray
         }
     }
 
-    /// Copyleft and source-available licenses warrant a heads-up before reusing the code.
+    /// Copyleft, source-available and missing licenses warrant a heads-up before reusing the code.
     var requiresCaution: Bool {
-        self == .weakCopyleft || self == .strongCopyleft || self == .restricted
+        self == .weakCopyleft || self == .strongCopyleft || self == .restricted || self == .noLicense
     }
 }
 
@@ -84,6 +86,8 @@ struct LicenseInfo {
     /// Best-effort match from a stored license string (SPDX id or name).
     static func lookup(_ raw: String) -> LicenseInfo? {
         let k = raw.lowercased()
+        if isMissing(raw) { return missing }
+        if k == "noassertion" || k == "other" { return unclear }
         func has(_ s: String) -> Bool { k.contains(s) }
         if has("agpl") { return agpl }
         if has("lgpl") { return lgpl }
@@ -136,6 +140,27 @@ struct LicenseInfo {
         allowed: ["Commercial use", "Modify", "Distribute", "Private use"],
         mustDo: ["Keep the license when distributing source"],
         takeaway: "Very permissive — common in C++. Safe for commercial use.")
+
+    /// GitHub reports no license at all (stored as "" or "none"). Callers only
+    /// ask about repos that have a GitHub URL, so "" means "checked, none found".
+    static func isMissing(_ raw: String) -> Bool {
+        let k = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        return k.isEmpty || k == "none"
+    }
+
+    static let missing = LicenseInfo(
+        name: "No license", strictness: .noLicense,
+        summary: "GitHub found no license file. Without one, the author keeps all rights by default — the code is visible, but you have no permission to copy or reuse it.",
+        allowed: ["Read and learn from it", "Fork on GitHub (GitHub's terms)"],
+        mustDo: ["Don't copy its code into your project", "Ask the author to add a license if you want to reuse it"],
+        takeaway: "Study only. Reusing code without a license is not allowed.")
+
+    static let unclear = LicenseInfo(
+        name: "Unclear license", strictness: .noLicense,
+        summary: "The repo has a license file GitHub couldn't match to a known license — often a custom or modified one, sometimes with limits on commercial use.",
+        allowed: ["Read and learn from it"],
+        mustDo: ["Read the repo's LICENSE file before reusing any code"],
+        takeaway: "Check the LICENSE file yourself before borrowing code.")
 
     static let zlib = LicenseInfo(
         name: "zlib", strictness: .permissive,
@@ -261,7 +286,7 @@ struct LicenseInfoButton: View {
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("What does the \(info.name) license allow?")
+            .help(info.strictness == .noLicense ? "What does \(info.name.lowercased()) mean?" : "What does the \(info.name) license allow?")
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 LicenseInfoCard(info: info)
             }
@@ -280,7 +305,9 @@ struct LicenseCautionBanner: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 11)).foregroundStyle(info.strictness.color)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(info.name) — \(info.strictness.label.lowercased()). Be careful reusing this code.")
+                    Text(info.strictness == .noLicense
+                         ? "\(info.name). Don't reuse this code yet."
+                         : "\(info.name) — \(info.strictness.label.lowercased()). Be careful reusing this code.")
                         .font(.system(size: 11, weight: .medium))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(info.takeaway)

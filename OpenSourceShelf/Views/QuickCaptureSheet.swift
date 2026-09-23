@@ -47,6 +47,8 @@ struct QuickCaptureSheet: View {
     /// Human-only; Capture Assist never fills this.
     @State private var personalNote: String = ""
     @State private var fitScore: Int = 3
+    /// Untouched stars mean "let FitScorer fill it in from the shelf".
+    @State private var fitTouched = false
     @State private var stars: String = ""
     @State private var license: String = ""
     /// GitHub's `pushed_at` for the fetched repo — carried into the saved
@@ -374,12 +376,12 @@ struct QuickCaptureSheet: View {
                 field("Personal Fit") {
                     HStack(spacing: 4) {
                         ForEach(1...5, id: \.self) { i in
-                            Image(systemName: i <= fitScore ? "star.fill" : "star")
+                            Image(systemName: fitTouched && i <= fitScore ? "star.fill" : "star")
                                 .font(.system(size: 14))
-                                .foregroundStyle(i <= fitScore ? .yellow : .secondary.opacity(0.3))
-                                .onTapGesture { fitScore = i }
+                                .foregroundStyle(fitTouched && i <= fitScore ? .yellow : .secondary.opacity(0.3))
+                                .onTapGesture { fitScore = i; fitTouched = true }
                         }
-                        Text(fitLabel(fitScore)).font(.system(size: 11))
+                        Text(fitTouched ? fitLabel(fitScore) : "Auto, from your shelf").font(.system(size: 11))
                             .foregroundStyle(.secondary).padding(.leading, 6)
                     }
                 }
@@ -741,6 +743,7 @@ struct QuickCaptureSheet: View {
             isLocalFirst: isLocalFirst,
             isSelfHosted: isSelfHosted
         )
+        project.fitScoreSetByUser = fitTouched
         modelContext.insert(project)
         try? modelContext.save()
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)

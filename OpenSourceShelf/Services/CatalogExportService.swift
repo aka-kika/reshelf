@@ -25,6 +25,9 @@ struct CatalogProjectDTO: Codable {
     /// fail, and importing one must not blank out a note already on the project.
     var personalNote: String?
     var fitScore: Int
+    /// Optional: exports from before auto-fit have no key. Back then every
+    /// score was either the untouched default (3) or set by hand.
+    var fitScoreSetByUser: Bool?
     var addedDate: Date
     var lastCheckedDate: Date?
     /// Optional for the same reason as `personalNote`: exports written
@@ -53,12 +56,17 @@ struct CatalogProjectDTO: Codable {
         notes = p.notes
         personalNote = p.personalNote
         fitScore = p.fitScore
+        fitScoreSetByUser = p.fitScoreSetByUser
         addedDate = p.addedDate
         lastCheckedDate = p.lastCheckedDate
         lastUpdatedDate = p.lastUpdatedDate
         isLocalFirst = p.isLocalFirst
         isSelfHosted = p.isSelfHosted
         folderID = p.folderID?.uuidString
+    }
+
+    private var resolvedFitScoreSetByUser: Bool {
+        fitScoreSetByUser ?? (fitScore != 3 && fitScore != 0)
     }
 
     /// Rebuilds a `ToolProject` from a snapshot row (for restore/import).
@@ -85,6 +93,7 @@ struct CatalogProjectDTO: Codable {
         )
         if let uuid = UUID(uuidString: id) { project.id = uuid }
         project.lastCheckedDate = lastCheckedDate
+        project.fitScoreSetByUser = resolvedFitScoreSetByUser
         return project
     }
 
@@ -110,6 +119,7 @@ struct CatalogProjectDTO: Codable {
         // personalNote key must not erase a note written on this machine.
         if let personalNote { project.personalNote = personalNote }
         project.fitScore = fitScore
+        project.fitScoreSetByUser = resolvedFitScoreSetByUser
         project.addedDate = addedDate
         project.lastCheckedDate = lastCheckedDate
         if let lastUpdatedDate { project.lastUpdatedDate = lastUpdatedDate }

@@ -9,6 +9,25 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.12.0] — 2026-09-24
+
+### Update your agent skill (please do this)
+- **The reshelf skill for Claude Code is new, and your agent keeps the old one until you reinstall it.** Open Settings → General → Agent Skill and click Install reshelf Skill again. That's all.
+- **Three skills became one.** The old reshelf-catalog and reshelf-collector skills are now part of the reshelf skill. Reinstalling moves the old ones to the Trash, so your agent can't pick them by mistake. Installed them by hand? Delete reshelf-catalog and reshelf-collector from ~/.claude/skills.
+- **Top Shelf first.** When you ask your agent about something you saved, it looks at your Top Shelf first, and at The Collector only if nothing there fits. Never the Yard Sale.
+- **No clone needed to decide.** For a repo you haven't cloned, the agent reads its README from GitHub.
+- **It asks before it clones.** If the best pick isn't cloned yet, the agent offers to clone it into your repos folder, in the same place the app would, and only does it after you say yes. One yes, one repo.
+- **License warnings.** Every recommendation says what the license allows, and warns you when a repo has no license, an unclear one, or a copyleft one.
+
+### Added
+- **Personal Fit fills itself in.** reshelf reads your Top Shelf and cloned repos: tags and categories you keep a lot earn a repo more stars, 1 to 5, ranked against the rest of your shelf. The inspector says why, for example "Like your Top Shelf and cloned repos: swiftui, macos". No AI, instant, and it updates when your shelf changes.
+- **Click the stars to rate a repo yourself.** A rating you set is never overwritten. Use auto hands it back to reshelf.
+- **Click a tag in the inspector** to list every repo with that tag.
+- **No-license warning.** Repos with no license, or one GitHub can't identify, get a red caution in the inspector: fine to study, don't copy the code. The Settings switch is now called Warn about strict or missing licenses.
+
+### Note
+- After updating, don't open an older reshelf version on the same catalog. It would forget which star ratings you set yourself.
+
 ## [1.11.0] — 2026-09-23
 
 ### Added

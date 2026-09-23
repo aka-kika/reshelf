@@ -17,6 +17,8 @@ struct AddProjectSheet: View {
     @State private var tagsText: String = ""
     @State private var notes: String = ""
     @State private var fitScore: Int = 3
+    /// Untouched stars mean "let FitScorer fill it in from the shelf".
+    @State private var fitTouched = false
     @State private var useCasesText: String = ""
 
     var body: some View {
@@ -119,12 +121,12 @@ struct AddProjectSheet: View {
                     field("Personal Fit") {
                         HStack(spacing: 4) {
                             ForEach(1...5, id: \.self) { i in
-                                Image(systemName: i <= fitScore ? "star.fill" : "star")
+                                Image(systemName: fitTouched && i <= fitScore ? "star.fill" : "star")
                                     .font(.system(size: 14))
-                                    .foregroundStyle(i <= fitScore ? .yellow : .secondary.opacity(0.3))
-                                    .onTapGesture { fitScore = i }
+                                    .foregroundStyle(fitTouched && i <= fitScore ? .yellow : .secondary.opacity(0.3))
+                                    .onTapGesture { fitScore = i; fitTouched = true }
                             }
-                            Text(fitLabel(for: fitScore))
+                            Text(fitTouched ? fitLabel(for: fitScore) : "Auto, from your shelf")
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .padding(.leading, 6)
@@ -181,6 +183,7 @@ struct AddProjectSheet: View {
             notes: notes.trimmingCharacters(in: .whitespaces),
             fitScore: fitScore
         )
+        project.fitScoreSetByUser = fitTouched
         modelContext.insert(project)
         try? modelContext.save()
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)

@@ -149,6 +149,7 @@ enum CatalogBackupService {
             hasher.combine(row.tags)
             hasher.combine(row.useCases)
             hasher.combine(row.fitScore)
+            hasher.combine(row.fitScoreSetByUser)
             hasher.combine(row.githubURL)
             hasher.combine(row.lastUpdatedDate)
             hasher.combine(row.lastCheckedDate)

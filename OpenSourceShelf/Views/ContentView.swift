@@ -273,6 +273,11 @@ struct ContentView: View {
                 CatalogCloneService.invalidateCloneIndex()
                 appRefreshStore.handle(.catalogStateUpdated)
             }
+            // Shelf moves, clones and captures change what "kept" means, so the
+            // auto Personal Fit follows every catalog refresh. Saves only on change.
+            .onChange(of: appRefreshStore.catalogRevision) { _, _ in
+                refreshFitScores()
+            }
             .onReceive(NotificationCenter.default.publisher(for: .importURLs)) { _ in
                 presentSheetAfterEndingTextEditing { showingImportURLs = true }
             }
@@ -354,6 +359,7 @@ struct ContentView: View {
         // Reclassify before snapshotting so the launch backup reflects the
         // corrected categories (not the pre-reclassify state).
         reclassifyProjectsIfNeeded()
+        refreshFitScores()
         // Tidy any legacy flat clones into their category subfolders.
         CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
         CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
@@ -573,6 +579,12 @@ struct ContentView: View {
         }
     }
 
+    private func refreshFitScores() {
+        if FitScorer.refresh(allProjects) {
+            try? modelContext.save()
+        }
+    }
+
     private func reclassifyProjectsIfNeeded() {
         let force = storedClassifierVersion < Self.classifierVersion
         if force {
@@ -642,6 +654,10 @@ private struct ContentViewNotificationHandlers: ViewModifier {
                 guard let raw = notification.userInfo?["item"] as? String,
                       let item = SidebarItem(rawValue: raw) else { return }
                 onSelectSidebarItem(item)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .selectSidebarTag)) { notification in
+                guard let key = notification.object as? String, !key.isEmpty else { return }
+                sidebarSelection = .tag(key)
             }
             .onAppear(perform: onAppear)
     }

@@ -19,6 +19,10 @@ final class ToolProject {
     /// Kika's own "why I saved this" — never written by AI or automation.
     var personalNote: String = ""
     var fitScore: Int = 0
+    /// True once Kika picks the stars herself. Until then `FitScorer` keeps
+    /// `fitScore` filled from her Top Shelf and cloned repos; a hand-set score
+    /// is never overwritten.
+    var fitScoreSetByUser: Bool = false
     var addedDate: Date = Date()
     var lastCheckedDate: Date?
     /// When the *upstream project* last changed — GitHub's `pushed_at`, or the

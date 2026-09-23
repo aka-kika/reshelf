@@ -45,7 +45,13 @@ struct SidebarView: View {
         let categories = SidebarItem.sidebarCategoryItems.filter {
             counts.count(for: $0) > 0 || selection == .builtin($0)
         }
-        let tags = SidebarTagRanking.tags(in: allProjects, mode: tagsMode)
+        var tags = SidebarTagRanking.tags(in: allProjects, mode: tagsMode)
+        // A tag picked from the inspector may sit outside the top list; keep its
+        // row visible so the selection has somewhere to show.
+        if let key = selection?.tagName, !tags.contains(where: { $0.key == key }),
+           let picked = SidebarTagRanking.tag(forKey: key, in: allProjects) {
+            tags.append(picked)
+        }
         return VStack(spacing: 0) {
             // Leading inset clears the traffic lights, which share this row now
             // that the header is the title bar.
@@ -127,6 +133,9 @@ struct SidebarView: View {
             }
             .onChange(of: renameTarget) { _, folder in
                 draftName = folder?.name ?? ""
+            }
+            .onChange(of: selection) { _, new in
+                if new?.tagName != nil { tagsExpanded = true }
             }
             .alert("Delete Folder?", isPresented: presenting($deleteTarget)) {
                 Button("Delete Folder", role: .destructive) {
@@ -289,11 +298,26 @@ enum SidebarTagRanking {
         }
     }
 
+    /// One tag's row data by key, whether or not it made the ranked list.
+    static func tag(forKey key: String, in projects: [ToolProject]) -> (key: String, name: String, count: Int)? {
+        var spellings: [String: Int] = [:]
+        var count = 0
+        for project in projects {
+            let matches = project.tags.filter { self.key(for: $0) == key }
+            guard !matches.isEmpty else { continue }
+            count += 1
+            for tag in matches { spellings[tag.lowercased(), default: 0] += 1 }
+        }
+        guard count > 0 else { return nil }
+        let name = spellings.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key ?? key
+        return (key, name, count)
+    }
+
     private static let redundant: Set<String> = {
         Set(["open-source", "hacktoberfest", "awesome", "awesome-list"].map(key(for:)))
     }()
 
-    private static func isUseful(_ tag: String) -> Bool {
+    static func isUseful(_ tag: String) -> Bool {
         !tag.isEmpty && !redundant.contains(key(for: tag))
     }
 }

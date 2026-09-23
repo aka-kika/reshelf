@@ -187,14 +187,24 @@ struct InspectView: View {
                 sectionTitle("Tags")
                 FlowLayout(spacing: 6) {
                     ForEach(project.tags, id: \.self) { tag in
-                        Text(tag)
-                            .font(.system(size: 11))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.primary.opacity(0.06))
+                        Button {
+                            NotificationCenter.default.post(
+                                name: .selectSidebarTag,
+                                object: SidebarTagRanking.key(for: tag)
                             )
+                        } label: {
+                            Text(tag)
+                                .font(.system(size: 11))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.primary.opacity(0.06))
+                                )
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Show every repo tagged \(tag)")
                     }
                 }
             }
@@ -223,15 +233,35 @@ struct InspectView: View {
                 sectionTitle("Personal Fit")
                 HStack(spacing: 4) {
                     ForEach(1...5, id: \.self) { i in
-                        Image(systemName: i <= project.fitScore ? "star.fill" : "star")
-                            .font(.system(size: 12))
-                            .foregroundStyle(i <= project.fitScore ? .yellow : .secondary.opacity(0.3))
+                        Button { setFitScore(i) } label: {
+                            Image(systemName: i <= project.fitScore ? "star.fill" : "star")
+                                .font(.system(size: 12))
+                                .foregroundStyle(i <= project.fitScore ? .yellow : .secondary.opacity(0.3))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Rate \(i) of 5")
                     }
                     Text(fitLabel(for: project.fitScore))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .padding(.leading, 6)
+                    Spacer()
+                    if project.fitScoreSetByUser {
+                        Button("Use auto") { resetFitScore() }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .help("Let reshelf guess the fit from your Top Shelf and cloned repos again")
+                    }
                 }
+                Text(project.fitScoreSetByUser
+                     ? "Your rating."
+                     : "Auto: \(FitScorer.explanation(for: project) ?? "guessed from your Top Shelf and cloned repos.")")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
             }
 
         case .github:
@@ -297,7 +327,9 @@ struct InspectView: View {
                     }
                 }
             }
-            if warnOnStrictLicense, !project.license.isEmpty {
+            // An empty license on a GitHub repo means GitHub found none — that's
+            // the riskiest case, so it gets the banner too, not silence.
+            if warnOnStrictLicense, !project.license.isEmpty || hasGitHubURL {
                 LicenseCautionBanner(license: project.license)
             }
         }
@@ -502,6 +534,24 @@ struct InspectView: View {
                 }
             }
         }
+    }
+
+    private func setFitScore(_ score: Int) {
+        project.fitScore = score
+        project.fitScoreSetByUser = true
+        try? modelContext.save()
+    }
+
+    private func resetFitScore() {
+        project.fitScoreSetByUser = false
+        // Re-score right away rather than waiting for the next catalog refresh.
+        let all = (try? modelContext.fetch(FetchDescriptor<ToolProject>())) ?? []
+        FitScorer.refresh(all)
+        try? modelContext.save()
+    }
+
+    private var hasGitHubURL: Bool {
+        project.githubURL.lowercased().contains("github.com")
     }
 
     private var shouldShowGitHubMetadataSection: Bool {

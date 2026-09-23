@@ -212,9 +212,9 @@ struct SettingsView: View {
                 sectionHeader("Licenses")
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Warn about strict (copyleft) licenses", isOn: $warnOnStrictLicense)
+                    Toggle("Warn about strict or missing licenses", isOn: $warnOnStrictLicense)
 
-                    Text("Shows a caution in the inspector when a repo uses a copyleft license (GPL, AGPL, MPL, LGPL…) that can require you to open-source your own project if you reuse its code. The ⓘ next to any license always explains what it allows — this just surfaces the caution automatically.")
+                    Text("Shows a caution in the inspector when a repo uses a copyleft license (GPL, AGPL, MPL, LGPL…) that can require you to open-source your own project if you reuse its code, or has no clear license at all (then you may not reuse its code). The ⓘ next to any license always explains what it allows — this just surfaces the caution automatically.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -243,7 +243,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf, so your agent can browse the shelf — cloned repos, categories, catalog — as a curated code reference. Reinstalling replaces the previous copy (the old one goes to the Trash).")
+                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf. Your agent then uses your shelf as a code reference: Top Shelf first, then The Collector, with license warnings, and it clones a repo only after you say yes. Click again after updating reshelf to get the newest skill. The old copy, and the retired reshelf-catalog and reshelf-collector skills, go to the Trash.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineSpacing(3)
@@ -511,12 +511,26 @@ struct SettingsView: View {
         let skillsDir = fm.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/skills", isDirectory: true)
         let destination = skillsDir.appendingPathComponent("reshelf", isDirectory: true)
+        // A symlink means the user keeps their own copy elsewhere (e.g. a skills
+        // collection); replacing it with a folder would silently fork it.
+        if (try? fm.destinationOfSymbolicLink(atPath: destination.path)) != nil {
+            skillInstallStatus = "~/.claude/skills/reshelf is a link to your own copy; left it alone."
+            return
+        }
         do {
             try fm.createDirectory(at: skillsDir, withIntermediateDirectories: true)
             if fm.fileExists(atPath: destination.path) {
                 try fm.trashItem(at: destination, resultingItemURL: nil)
             }
             try fm.copyItem(at: source, to: destination)
+            // reshelf-catalog and reshelf-collector were folded into this skill in
+            // 1.12; leaving them installed makes agents pick the old workflow.
+            for retired in ["reshelf-catalog", "reshelf-collector"] {
+                let old = skillsDir.appendingPathComponent(retired, isDirectory: true)
+                if fm.fileExists(atPath: old.path) || (try? fm.destinationOfSymbolicLink(atPath: old.path)) != nil {
+                    try? fm.trashItem(at: old, resultingItemURL: nil)
+                }
+            }
             skillInstallStatus = "Installed to ~/.claude/skills/reshelf"
             NSWorkspace.shared.activateFileViewerSelecting([destination])
         } catch {

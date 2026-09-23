@@ -217,7 +217,10 @@ struct EditProjectSheet: View {
         project.useCases = useCasesText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         project.notes = notes.trimmingCharacters(in: .whitespaces)
         project.personalNote = personalNote.trimmingCharacters(in: .whitespaces)
-        project.fitScore = fitScore
+        if fitScore != project.fitScore {
+            project.fitScore = fitScore
+            project.fitScoreSetByUser = true
+        }
         project.stars = stars.trimmingCharacters(in: .whitespaces)
         project.license = license.trimmingCharacters(in: .whitespaces)
         project.isLocalFirst = isLocalFirst

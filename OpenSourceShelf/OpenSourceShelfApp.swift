@@ -384,6 +384,8 @@ extension Notification.Name {
     static let openCommandPalette = Notification.Name("openCommandPalette")
     /// Sidebar navigation from the app's View menu (userInfo["item"]: SidebarItem rawValue).
     static let selectSidebarItem = Notification.Name("selectSidebarItem")
+    /// Filter the list to one tag, e.g. from an inspector tag chip (object: `SidebarTagRanking.key`).
+    static let selectSidebarTag = Notification.Name("selectSidebarTag")
     static let toggleSidebarColumn = Notification.Name("toggleSidebarColumn")
     static let toggleInspectorColumn = Notification.Name("toggleInspectorColumn")
     /// Scroll the project list to a row (object: the project's UUID).
