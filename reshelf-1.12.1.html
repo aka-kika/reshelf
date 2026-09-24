@@ -1,0 +1,8 @@
+<html><body>
+<h3>Fixed</h3>
+<ul>
+<li>Command palette search shows the right results again. Since 1.11 the list could keep showing the repos from before you typed (it said "1 result" but showed the wrong repo). Rows now follow the repo, not their position. Arrow keys still work.</li>
+<li>Repo links open again. Links saved without https:// (some came in through Import URLs) opened a Finder error "-50" instead of the browser. They open now, new saves add https:// for you, and existing links were fixed once on launch.</li>
+<li>Pull Repos no longer fails when a project re-releases a version. When a project moved one of its version tags (Loop, Mole, Aiassistant did), the update failed with "would clobber existing tag". Your clones now take the project's tags as they are.</li>
+</ul>
+</body></html>
