@@ -207,8 +207,8 @@ struct EditProjectSheet: View {
 
     private func saveChanges() {
         project.name = name.trimmingCharacters(in: .whitespaces)
-        project.githubURL = githubURL.trimmingCharacters(in: .whitespaces)
-        project.websiteURL = websiteURL.trimmingCharacters(in: .whitespaces)
+        project.githubURL = WebLink.normalized(githubURL)
+        project.websiteURL = WebLink.normalized(websiteURL)
         project.category = category.trimmingCharacters(in: .whitespaces)
         project.shortDescription = shortDescription.trimmingCharacters(in: .whitespaces)
         project.longDescription = longDescription

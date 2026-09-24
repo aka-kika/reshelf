@@ -287,14 +287,14 @@ struct InspectView: View {
             sectionTitle("Metadata")
             if !project.githubURL.isEmpty {
                 metadataRow("GitHub", project.githubURL) {
-                    if let url = URL(string: project.githubURL) {
+                    if let url = WebLink.url(project.githubURL) {
                         NSWorkspace.shared.open(url)
                     }
                 }
             }
             if !project.websiteURL.isEmpty {
                 metadataRow("Website", project.websiteURL) {
-                    if let url = URL(string: project.websiteURL) {
+                    if let url = WebLink.url(project.websiteURL) {
                         NSWorkspace.shared.open(url)
                     }
                 }

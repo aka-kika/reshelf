@@ -116,8 +116,8 @@ struct ImportURLsSheet: View {
                             name: name,
                             shortDescription: info.description ?? "",
                             longDescription: info.description ?? "",
-                            githubURL: url,
-                            websiteURL: info.homepage ?? "",
+                            githubURL: WebLink.normalized(url),
+                            websiteURL: WebLink.normalized(info.homepage ?? ""),
                             category: CategoryClassifier.classify(
                                 language: info.language,
                                 topics: info.topics,

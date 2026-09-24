@@ -9,6 +9,13 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.12.1] — 2026-09-24
+
+### Fixed
+- **Command palette search shows the right results again.** Since 1.11 the list could keep showing the repos from before you typed (it said "1 result" but showed the wrong repo). Rows now follow the repo, not their position. Arrow keys still work.
+- **Repo links open again.** Links saved without https:// (some came in through Import URLs) opened a Finder error "-50" instead of the browser. They open now, new saves add https:// for you, and existing links were fixed once on launch.
+- **Pull Repos no longer fails when a project re-releases a version.** When a project moved one of its version tags (Loop, Mole, Aiassistant did), the update failed with "would clobber existing tag". Your clones now take the project's tags as they are.
+
 ## [1.12.0] — 2026-09-24
 
 ### Update your agent skill (please do this)

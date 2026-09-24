@@ -100,7 +100,7 @@ struct CommandPaletteView: View {
             LazyVStack(spacing: 0) {
                 if isGitHubURL(query) {
                     captureRow
-                        .id(0)
+                        .id(Self.captureRowID)
                 }
 
                 let matches = filteredProjects
@@ -108,8 +108,11 @@ struct CommandPaletteView: View {
                 if !matches.isEmpty {
                     Section {
                         ForEach(Array(matches.enumerated()), id: \.element.id) { index, project in
+                            // Scroll ids must follow the project, not the position:
+                            // a position id ("row 0") made the lazy stack keep
+                            // showing the previous list's row after typing.
                             paletteProjectRow(project, isHighlighted: highlightedIndex == index + offset)
-                                .id(index + offset)
+                                .id(project.id.uuidString)
                         }
                     } header: {
                         sectionHeader(query.isEmpty ? "Recently Added" : "\(matches.count) result\(matches.count == 1 ? "" : "s")")
@@ -129,8 +132,8 @@ struct CommandPaletteView: View {
             }
         }
         .onChange(of: highlightedIndex) {
-            if let index = highlightedIndex {
-                proxy.scrollTo(index, anchor: nil)
+            if let index = highlightedIndex, let id = scrollID(forRow: index) {
+                proxy.scrollTo(id, anchor: nil)
             }
         }
         }
@@ -217,6 +220,17 @@ struct CommandPaletteView: View {
         }
         let term = query.lowercased()
         return allProjects.filter { $0.matchesSearch(term) }
+    }
+
+    private static let captureRowID = "capture-row"
+
+    /// The scroll id of the n-th highlightable row (capture row first, when shown).
+    private func scrollID(forRow index: Int) -> String? {
+        let hasCaptureRow = isGitHubURL(query)
+        if hasCaptureRow && index == 0 { return Self.captureRowID }
+        let projects = filteredProjects
+        let projectIndex = index - (hasCaptureRow ? 1 : 0)
+        return projects.indices.contains(projectIndex) ? projects[projectIndex].id.uuidString : nil
     }
 
     /// One slot per actionable row: the capture row (when the query is a

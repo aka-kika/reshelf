@@ -102,7 +102,10 @@ struct GitClient {
     /// has *tracked* edits, so a hand-modified clone is never clobbered. Untracked
     /// files are left in place. LFS-bypassed like clone.
     func syncToUpstream(repositoryURL: URL, cancellationID: String? = nil) async throws {
-        _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--prune", "--tags"],
+        // `--force`: upstream sometimes re-points a release tag (re-tagged v2.0.1).
+        // Without it git refuses to "clobber" the local tag and the whole sync
+        // fails; a reference clone should simply mirror upstream's tags.
+        _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--prune", "--tags", "--force"],
                           workingDirectory: repositoryURL,
                           cancellationID: cancellationID)
 

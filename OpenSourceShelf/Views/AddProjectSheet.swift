@@ -174,8 +174,8 @@ struct AddProjectSheet: View {
         let project = ToolProject(
             name: name.trimmingCharacters(in: .whitespaces),
             shortDescription: shortDescription.trimmingCharacters(in: .whitespaces),
-            githubURL: githubURL.trimmingCharacters(in: .whitespaces),
-            websiteURL: websiteURL.trimmingCharacters(in: .whitespaces),
+            githubURL: WebLink.normalized(githubURL),
+            websiteURL: WebLink.normalized(websiteURL),
             category: category.trimmingCharacters(in: .whitespaces),
             status: status,
             tags: tagsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },

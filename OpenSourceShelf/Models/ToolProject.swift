@@ -99,3 +99,21 @@ final class ToolProject {
             || useCases.contains(where: { $0.lowercased().contains(q) })
     }
 }
+
+/// Web links as typed or pasted ("github.com/owner/repo") have no scheme, and
+/// `NSWorkspace.open` then treats them as file paths (Finder error -50).
+enum WebLink {
+    static func normalized(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains("://") else { return trimmed }
+        // Only a host-looking start ("github.com/…", "example.org") gets a scheme.
+        let host = trimmed.split(separator: "/", maxSplits: 1).first ?? ""
+        guard host.contains("."), !host.contains(" ") else { return trimmed }
+        return "https://" + trimmed
+    }
+
+    static func url(_ raw: String) -> URL? {
+        let link = normalized(raw)
+        return link.isEmpty ? nil : URL(string: link)
+    }
+}

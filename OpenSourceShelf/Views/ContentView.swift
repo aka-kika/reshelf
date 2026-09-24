@@ -359,6 +359,7 @@ struct ContentView: View {
         // Reclassify before snapshotting so the launch backup reflects the
         // corrected categories (not the pre-reclassify state).
         reclassifyProjectsIfNeeded()
+        repairSchemelessLinks()
         refreshFitScores()
         // Tidy any legacy flat clones into their category subfolders.
         CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
@@ -577,6 +578,19 @@ struct ContentView: View {
             listSelection = .project(project.id)
             sidebarSelection = .builtin(.allProjects)
         }
+    }
+
+    /// Rows imported before WebLink existed can hold "github.com/…" without a
+    /// scheme. Only adds "https://"; never changes a link that has one.
+    private func repairSchemelessLinks() {
+        var changed = false
+        for project in allProjects {
+            let github = WebLink.normalized(project.githubURL)
+            let website = WebLink.normalized(project.websiteURL)
+            if github != project.githubURL { project.githubURL = github; changed = true }
+            if website != project.websiteURL { project.websiteURL = website; changed = true }
+        }
+        if changed { try? modelContext.save() }
     }
 
     private func refreshFitScores() {

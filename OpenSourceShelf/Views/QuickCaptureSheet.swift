@@ -270,7 +270,7 @@ struct QuickCaptureSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if let site = URL(string: websiteURL), !websiteURL.isEmpty {
+            if let site = WebLink.url(websiteURL) {
                 Link(destination: site) {
                     HStack(spacing: 4) {
                         Image(systemName: "link").font(.system(size: 9))
@@ -728,8 +728,8 @@ struct QuickCaptureSheet: View {
             name: name.trimmingCharacters(in: .whitespaces),
             shortDescription: shortDescription.trimmingCharacters(in: .whitespaces),
             longDescription: longDescription,
-            githubURL: urlText.trimmingCharacters(in: .whitespaces),
-            websiteURL: websiteURL.trimmingCharacters(in: .whitespaces),
+            githubURL: WebLink.normalized(urlText),
+            websiteURL: WebLink.normalized(websiteURL),
             category: category.trimmingCharacters(in: .whitespaces),
             status: status,
             license: license.trimmingCharacters(in: .whitespaces),
