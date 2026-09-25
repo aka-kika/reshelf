@@ -229,6 +229,24 @@ struct ContentView: View {
                     onOpenExisting: { project in revealProject(project.id) }
                 )
             }
+            // reshelf://add?url=… from another app (Undrdr Drop's "Send to reshelf"):
+            // saves straight into The Collector, no sheet.
+            .onOpenURL { link in
+                guard let url = LinkCaptureService.githubURL(from: link) else { return }
+                let context = modelContext
+                Task { @MainActor in
+                    switch await LinkCaptureService.capture(url, context: context) {
+                    case .added(let project):
+                        listSelection = .project(project.id)
+                    case .duplicate(let project):
+                        revealProject(project.id)
+                    case .failed:
+                        NSSound.beep()
+                    }
+                }
+            }
+            // Reuse this window for incoming links instead of opening a new one.
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
             .sheet(isPresented: $showingCommandPalette, onDismiss: handleCommandPaletteDismiss) {
                 CommandPaletteView(
                     isPresented: $showingCommandPalette,

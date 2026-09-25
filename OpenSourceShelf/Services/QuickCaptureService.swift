@@ -220,3 +220,76 @@ enum CaptureError: LocalizedError {
         }
     }
 }
+
+/// Saves a repo handed over by another app through `reshelf://add?url=<github url>`
+/// (Undrdr Drop's "Send to reshelf" button). Same steps as Quick Capture's Save,
+/// without the sheet: dedupe, fetch from GitHub, classify, land in The Collector.
+@MainActor
+enum LinkCaptureService {
+    enum Outcome {
+        case added(ToolProject)
+        case duplicate(ToolProject)
+        case failed(String)
+    }
+
+    /// The GitHub URL inside `reshelf://add?url=…`, or nil for any other link.
+    static func githubURL(from link: URL) -> String? {
+        guard link.scheme?.lowercased() == "reshelf",
+              link.host?.lowercased() == "add",
+              let raw = URLComponents(url: link, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "url" })?.value,
+              !IconFetcher.repoDedupKey(for: raw).isEmpty else { return nil }
+        return raw
+    }
+
+    static func capture(_ url: String, context: ModelContext) async -> Outcome {
+        let key = IconFetcher.repoDedupKey(for: url)
+        let existing = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+        if let dup = existing.first(where: { IconFetcher.repoDedupKey(for: $0.githubURL) == key }) {
+            return .duplicate(dup)
+        }
+
+        let info: GitHubRepoInfo
+        do {
+            info = try await QuickCaptureService.fetchRepoInfo(githubURL: url)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+
+        let name = info.fullName?.components(separatedBy: "/").last ?? url
+        let topics = info.topics ?? []
+        let project = ToolProject(
+            name: name,
+            shortDescription: info.description ?? "",
+            longDescription: info.description ?? "",
+            githubURL: WebLink.normalized(url),
+            websiteURL: WebLink.normalized(info.homepage ?? ""),
+            category: CategoryClassifier.classify(
+                language: info.language,
+                topics: info.topics,
+                description: info.description,
+                name: name
+            ),
+            status: .collector,
+            license: info.license?.spdxId ?? info.license?.name ?? "",
+            stars: info.stars.map { $0 >= 1000 ? String(format: "%.1fk", Double($0) / 1000.0) : "\($0)" } ?? "",
+            tags: topics,
+            lastUpdatedDate: info.pushedAt.flatMap(GitHubDate.parse),
+            isLocalFirst: topics.contains("local-first"),
+            isSelfHosted: topics.contains("self-hosted")
+        )
+        context.insert(project)
+        try? context.save()
+        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)
+        IconFetcher.fetch(for: project, in: context)
+
+        // Same hands-free assist Quick Capture runs after Save.
+        let defaults = UserDefaults.standard
+        let assistOn = defaults.object(forKey: CaptureAssist.storageKey) as? Bool ?? true
+        let autoGenerate = defaults.object(forKey: CaptureAssist.autoGenerateKey) as? Bool ?? true
+        if assistOn, autoGenerate {
+            Task { await CaptureAssistService.fillIfNeeded(project, context: context) }
+        }
+        return .added(project)
+    }
+}

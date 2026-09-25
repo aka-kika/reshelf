@@ -150,6 +150,7 @@ struct OpenSourceShelfApp: App {
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
         .modelContainer(container)
+        .handlesExternalEvents(matching: ["*"])
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .commands {

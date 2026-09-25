@@ -9,6 +9,11 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.12.2] — 2026-09-25
+
+### Added
+- **Save from another app with a link.** `reshelf://add?url=<GitHub repo URL>` saves the repo straight into The Collector — same steps as Quick Capture's Save, no sheet. Repos you already have are just selected, nothing is added twice. Undrdr Drop's "Send to reshelf" button uses it. The open window is reused; no second window opens.
+
 ## [1.12.1] — 2026-09-24
 
 ### Fixed
