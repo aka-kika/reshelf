@@ -4,6 +4,7 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## To do (added 2026-06-13)
 
+- [ ] **Bug, next session (Kika, 2026-10-03): Delete in the inspector removes the repo with no confirmation.** It takes the whole entry out of the catalog at once (no "are you sure" sheet) and leaves the local clone on disk, so the folder is orphaned. Seen with omnivore and Loop: Kika meant to remove only the clones; both entries vanished, both clones stayed in `~/reshelf/repos`. Fix: a confirmation before deleting (name the repo; say whether its clone is removed too), and offer "Remove Local Clone" as the usual choice. The app's own `~/reshelf/backups/catalog-2026-10-03-00*.json` holds the two entries.
 - [x] 🐞 ~~**Fix the header toolbar icons (title-bar click bug)**~~ — fixed in 1.1.0:
       invisible click-router accessory (`MainWindowChromeConfigurator` +
       `.titlebarClickable(action:)`) routes real clicks through the title-bar band.
