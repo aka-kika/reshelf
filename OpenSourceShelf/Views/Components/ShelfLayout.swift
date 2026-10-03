@@ -79,3 +79,15 @@ struct AlignedSplitColumnHeader<Content: View>: View {
         }
     }
 }
+
+extension View {
+    /// The flat window color behind a column, only before macOS 26. On 26 the
+    /// sidebar column stays unpainted so the system's Liquid Glass shows.
+    @ViewBuilder func flatColumnBackgroundBeforeTahoe() -> some View {
+        if #available(macOS 26, *) {
+            self
+        } else {
+            self.background(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+}

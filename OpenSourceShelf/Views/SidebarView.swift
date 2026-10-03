@@ -32,6 +32,9 @@ struct SidebarView: View {
     @AppStorage("reshelf.sidebar.tagsExpanded") private var tagsExpanded = true
     /// Set in Settings → General → Sidebar Tags.
     @AppStorage(SidebarTagRanking.modeKey) private var tagsMode: SidebarTagRanking.Mode = .top
+    @AppStorage("reshelf.sidebar.showAllTags") private var showAllTags = false
+    /// Tags listed before "Show more": the long list read as clutter.
+    static let tagsShownFolded = 8
 
     /// Computed (not cached) so counts refresh on any catalog change — including a
     /// project moving between shelves, which changes status but not the count.
@@ -106,8 +109,11 @@ struct SidebarView: View {
 
                 if !tags.isEmpty {
                     Section(isExpanded: $tagsExpanded) {
-                        ForEach(tags, id: \.key) { tag in
+                        ForEach(visibleTags(tags), id: \.key) { tag in
                             TagSidebarRow(key: tag.key, name: tag.name, count: tag.count)
+                        }
+                        if tags.count > Self.tagsShownFolded {
+                            ShowMoreTagsRow(hidden: tags.count - Self.tagsShownFolded, showsAll: $showAllTags)
                         }
                     } header: {
                         collapsibleHeader(.tags, isExpanded: $tagsExpanded)
@@ -116,7 +122,7 @@ struct SidebarView: View {
             }
             .listStyle(.sidebar)
             .listSectionSeparator(.hidden, edges: .top)
-            .scrollContentBackground(.hidden)
+            .sidebarListBackground()
             // Top breathing room tuned so the first sidebar row aligns with the
             // first row of the main list (measured 3pt higher otherwise) while the
             // header divider stays aligned with the list/inspector dividers.
@@ -157,17 +163,9 @@ struct SidebarView: View {
                 }
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        // The sidebar/list split divider: NavigationSplitView's own divider
-        // renders zero-width on macOS 26+, so draw the same 1px separatorColor
-        // hairline the inspector's ResizeDivider uses — full height, flush with
-        // the sidebar's trailing edge.
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor))
-                .frame(width: 1)
-                .ignoresSafeArea()
-        }
+        // macOS 26 draws the sidebar as floating Liquid Glass with its own edge;
+        // older systems keep the flat column and the drawn hairline.
+        .sidebarColumnChrome()
         // The header row IS the title bar: lay the column out from the window's
         // top edge instead of below the system title-bar inset. All three columns
         // do this, so their header dividers align by construction — no measured
@@ -185,6 +183,17 @@ struct SidebarView: View {
                 withAnimation(.easeInOut(duration: 0.2)) { isExpanded.wrappedValue.toggle() }
             }
             .help(isExpanded.wrappedValue ? "Hide \(section.rawValue)" : "Show \(section.rawValue)")
+    }
+
+    /// The folded tag list keeps a selected tag visible even past the cut.
+    private func visibleTags(_ tags: [(key: String, name: String, count: Int)]) -> [(key: String, name: String, count: Int)] {
+        guard !showAllTags, tags.count > Self.tagsShownFolded else { return tags }
+        var shown = Array(tags.prefix(Self.tagsShownFolded))
+        if let key = selection?.tagName, !shown.contains(where: { $0.key == key }),
+           let picked = tags.first(where: { $0.key == key }) {
+            shown.append(picked)
+        }
+        return shown
     }
 
     /// Counted from the already-loaded `@Query` rather than a fetch, so a row
@@ -217,23 +226,15 @@ private struct TagSidebarRow: View {
 
     var body: some View {
         HStack {
-            Image(systemName: "number")
+            Image(systemName: "tag")
                 .frame(width: 20)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
             Text(name)
                 .font(.system(size: 13))
                 .lineLimit(1)
             Spacer()
-            Text("\(count)")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.primary.opacity(0.08))
-                )
+            SidebarCount(count)
         }
         .padding(.vertical, 2)
         .tag(ShelfSelection.tag(key))
@@ -338,15 +339,7 @@ private struct FolderSidebarRow: View {
                 .font(.system(size: 13))
             Spacer()
             if count > 0 {
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.primary.opacity(0.08))
-                    )
+                SidebarCount(count)
             }
         }
         .padding(.vertical, 2)
@@ -363,22 +356,91 @@ struct SidebarRow: View {
             Image(systemName: item.icon)
                 .frame(width: 20)
                 .font(.system(size: 13))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(item.sidebarTint ?? Color.secondary)
             Text(item.title)
                 .font(.system(size: 13))
             Spacer()
             if let count, count > 0 {
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.primary.opacity(0.08))
-                    )
+                SidebarCount(count)
             }
         }
         .padding(.vertical, 2)
         .tag(ShelfSelection.builtin(item))
+    }
+}
+
+/// A row count: plain light digits, no box (the boxed count read as dated).
+private struct SidebarCount: View {
+    let count: Int
+    init(_ count: Int) { self.count = count }
+
+    var body: some View {
+        Text("\(count)")
+            .font(.system(size: 11))
+            .monospacedDigit()
+            .foregroundStyle(.tertiary)
+    }
+}
+
+/// "Show 7 more" / "Show less" under the folded tag list.
+private struct ShowMoreTagsRow: View {
+    let hidden: Int
+    @Binding var showsAll: Bool
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { showsAll.toggle() }
+        } label: {
+            Text(showsAll ? "Show less" : "Show \(hidden) more")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 28)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .selectionDisabled()
+    }
+}
+
+private extension SidebarItem {
+    /// One quiet tint for the shelves people steer by; the rest stay grey.
+    var sidebarTint: Color? {
+        switch self {
+        case .topShelf: Color(red: 0.95, green: 0.72, blue: 0.30)
+        case .cloned: Color(red: 0.45, green: 0.66, blue: 0.86)
+        case .yardSale: Color(red: 0.86, green: 0.58, blue: 0.50)
+        default: nil
+        }
+    }
+}
+
+private extension View {
+    /// The list keeps its own sidebar material on macOS 26 (Liquid Glass);
+    /// older systems hide it so the flat column color shows.
+    @ViewBuilder func sidebarListBackground() -> some View {
+        if #available(macOS 26, *) {
+            self
+        } else {
+            self.scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder func sidebarColumnChrome() -> some View {
+        if #available(macOS 26, *) {
+            self
+        } else {
+            // NavigationSplitView's own divider is zero-width here, so draw the
+            // same 1px hairline the inspector's ResizeDivider uses.
+            self
+                .background(Color(nsColor: .windowBackgroundColor))
+                .overlay(alignment: .trailing) {
+                    Rectangle()
+                        .fill(Color(nsColor: .separatorColor))
+                        .frame(width: 1)
+                        .ignoresSafeArea()
+                }
+        }
     }
 }

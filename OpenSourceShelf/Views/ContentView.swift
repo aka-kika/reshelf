@@ -534,7 +534,8 @@ struct ContentView: View {
         SidebarView(selection: $sidebarSelection)
         .id("catalog-sidebar")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        // macOS 26: no paint here, so the sidebar shows its Liquid Glass.
+        .flatColumnBackgroundBeforeTahoe()
         .toolbar(removing: .sidebarToggle)
         .navigationSplitViewColumnWidth(
             min: ShelfLayout.sidebarWidth.min,
