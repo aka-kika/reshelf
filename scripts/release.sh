@@ -23,7 +23,7 @@ APP="$DERIVED/Build/Products/Release/$APP_NAME.app"
 # Auto-detect the Developer ID Application identity from the Keychain.
 # Pinned by SHA-1 (2026-09-18): two Developer ID certificates share one name in the
 # Keychain, and "first match by name" picked the spare. Override with RESHELF_SIGN_IDENTITY.
-IDENTITY="${RESHELF_SIGN_IDENTITY:-D833417579CBB62121FD344B1513AE5D44A36762}"
+IDENTITY="${RESHELF_SIGN_IDENTITY:-7E3E9BC6656A41A13F77F5C05E1663E77419388E}"
 if [ -z "$IDENTITY" ]; then
   echo "✗ No 'Developer ID Application' identity found in the Keychain." >&2
   echo "  Create/download one from the Apple Developer portal and install it." >&2
