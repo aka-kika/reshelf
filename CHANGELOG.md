@@ -9,6 +9,14 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.13.0] — 2026-10-03
+
+### Changed
+- **A sidebar that feels like macOS 26.** On macOS 26 the sidebar now shows the system's Liquid Glass instead of the flat grey the rest of the window uses, so it reads as its own surface. On macOS 14 and 15 it looks as before.
+- **Lighter rows.** Counts are plain light numbers, no grey boxes. Top Shelf, Cloned and Yard Sale get one soft color each; the rest stay grey.
+- **A shorter tag list.** Tags show the top 8, then "Show 7 more" (and "Show less"). A tag you picked stays visible even past the cut. The tag icon replaces the `#`.
+- **Signed with the new Developer ID certificate** (G2, valid to 2031).
+
 ## [1.12.2] — 2026-09-25
 
 ### Added
