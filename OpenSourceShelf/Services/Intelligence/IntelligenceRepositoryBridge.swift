@@ -19,7 +19,7 @@ enum IntelligenceRepositoryBridge {
                 if let match = try? database.fetchRepository(fullName: parsed.fullName) {
                     return match
                 }
-                let normalized = normalizeGitHubURL(githubURL)
+                let normalized = GitHubRepositoryURL.parse(githubURL)?.canonicalURL ?? githubURL
                 if normalized != parsed.canonicalURL,
                    let match = try? database.fetchRepository(githubURL: normalized) {
                     return match
@@ -113,11 +113,6 @@ enum IntelligenceRepositoryBridge {
 
         try database.upsert(repository: repository, cloneState: cloneState)
         return repository
-    }
-
-    private static func normalizeGitHubURL(_ raw: String) -> String {
-        guard let parsed = GitHubRepositoryURL.parse(raw) else { return raw }
-        return parsed.canonicalURL
     }
 
     private static func emptyStringAsNil(_ value: String) -> String? {

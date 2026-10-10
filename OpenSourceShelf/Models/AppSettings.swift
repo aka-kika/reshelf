@@ -37,41 +37,17 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
 
 @Model
 final class AppSettings {
-    // Stored fields from retired features (Ollama and cloud AI providers,
-    // removed in 1.15.0; semantic search and runbooks, removed in 1.9.x).
-    // Nothing reads them anymore. They stay so the SwiftData store needs no
-    // migration — removing a stored property changes the on-disk schema.
-    var ollamaEnabled: Bool = true
-    var ollamaBaseURL: String = "http://localhost:11434"
-    var ollamaSelectedModel: String = ""
-    var ollamaEmbeddingModel: String = "nomic-embed-text"
-    var semanticSearchEnabled: Bool = true
-    var appleIntelligenceEnabled: Bool = false
-    var autoGenerateRunbookAfterIntelligence: Bool = false
-
-    var preferredAIProviderRaw: String = "ollama"
-
-    var openAIEnabled: Bool = false
-    var openAISelectedModel: String = "gpt-4.1-mini"
-    var anthropicEnabled: Bool = false
-    var anthropicSelectedModel: String = "claude-sonnet-4-20250514"
-    var geminiEnabled: Bool = false
-    var geminiSelectedModel: String = "gemini-2.0-flash"
-    var githubCopilotEnabled: Bool = false
-    var githubCopilotSelectedModel: String = "openai/gpt-4.1"
+    // 21 fields of retired features (Ollama and cloud AI providers, semantic
+    // search, runbooks, Personal Fit and the v2 inspector blocks) were removed
+    // in 1.15.2. SwiftData drops their columns by lightweight migration the
+    // first time a build without them opens the store.
 
     // Inspector section visibility (default: show all)
     var showInspectorUseCases: Bool = true
     var showInspectorTags: Bool = true
     var showInspectorNotes: Bool = true
     var showInspectorPersonalNote: Bool = true
-    /// Unused since Personal Fit was removed (1.13.1); kept so the SwiftData store needs no migration.
-    var showInspectorPersonalFit: Bool = true
     var showInspectorGitHub: Bool = true
-    /// Unused (v2 inspector blocks, removed in 1.9.x); kept for the schema.
-    var showInspectorStack: Bool = true
-    var showInspectorRelationships: Bool = true
-    var showInspectorRecommendations: Bool = true
 
     /// JSON-encoded array of InspectorSection raw values for custom ordering.
     /// Empty string means default order (InspectorSection.allCases).

@@ -16,10 +16,9 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 The Labs mode and the v2 engine (Queue, Compare, Ecosystems, Workflows, My Stack, Runbooks, graph, embeddings, Explore) were removed in 1.9.x (about 78 files).
 
-- **Removed in 1.15.0:** the dead parts of the old GRDB API, and the Ollama and cloud-provider AI code (Capture Assist on-device Apple Intelligence is the only AI left).
-- **Still there on purpose:** `IntelligenceDatabase` and its migrations (up to `v13_runbook_freshness_metadata`), set up at launch; `CatalogCaptureIntelligenceService`, which records GitHub topics and description when a repo is captured or imported; and the inspector reads that metadata. The `fitScore` fields stay only so the store schema does not change.
+- **Removed in 1.15.0:** the dead parts of the old GRDB API, the Ollama and cloud-provider AI code (Capture Assist on-device Apple Intelligence is the only AI left), and the unused refresh-bus events. **In 1.15.2:** the dead `AppSettings` fields, and one shared GitHub link reader instead of four.
+- **Still there on purpose:** `IntelligenceDatabase` and its migrations (up to `v13_runbook_freshness_metadata`), set up at launch; `CatalogCaptureIntelligenceService`, which records GitHub topics and description when a repo is captured or imported; and the inspector reads that metadata. The `fitScore` fields stay because export/backup files carry them and older reshelf versions require them when importing.
 - [ ] Later, if wanted: move the few GitHub fields still read from GRDB into SwiftData and drop the SQLite file. Needs a migration plan so no one loses data; not urgent.
-- [ ] Leftover `AppRefreshEvent` cases for queue, runbook, compare and ecosystem can go once nothing emits them.
 
 ## Done recently
 

@@ -54,7 +54,7 @@ struct GitHubRepoInfo: Codable {
 enum QuickCaptureService {
     // Parse GitHub URL and fetch repo metadata
     static func fetchRepoInfo(githubURL: String) async throws -> GitHubRepoInfo {
-        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: githubURL) else {
+        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: githubURL) else {
             throw CaptureError.invalidURL
         }
 
@@ -247,14 +247,14 @@ enum LinkCaptureService {
               link.host?.lowercased() == "add",
               let raw = URLComponents(url: link, resolvingAgainstBaseURL: false)?
                 .queryItems?.first(where: { $0.name == "url" })?.value,
-              !IconFetcher.repoDedupKey(for: raw).isEmpty else { return nil }
+              !GitHubRepositoryURL.dedupKey(for: raw).isEmpty else { return nil }
         return raw
     }
 
     static func capture(_ url: String, context: ModelContext) async -> Outcome {
-        let key = IconFetcher.repoDedupKey(for: url)
+        let key = GitHubRepositoryURL.dedupKey(for: url)
         let existing = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
-        if let dup = existing.first(where: { IconFetcher.repoDedupKey(for: $0.githubURL) == key }) {
+        if let dup = existing.first(where: { GitHubRepositoryURL.dedupKey(for: $0.githubURL) == key }) {
             return .duplicate(dup)
         }
 

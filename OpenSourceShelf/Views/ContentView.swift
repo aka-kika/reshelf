@@ -161,7 +161,7 @@ struct ClipboardCaptureMonitor: NSViewRepresentable {
                   let text = NSPasteboard.general.string(forType: .string)?
                       .trimmingCharacters(in: .whitespacesAndNewlines),
                   !text.contains(where: \.isNewline),
-                  IconFetcher.extractOwnerRepo(from: text) != nil
+                  GitHubRepositoryURL.ownerAndRepo(from: text) != nil
             else { return false }
             onPasteRepoURL?(text)
             return true

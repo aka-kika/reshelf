@@ -186,7 +186,7 @@ enum CatalogImportService {
         // import from another machine duplicates rows despite the additive-
         // merge "never duplicates" contract.
         guard !url.trimmingCharacters(in: .whitespaces).isEmpty else { return "id:\(id)" }
-        return IconFetcher.repoDedupKey(for: url)
+        return GitHubRepositoryURL.dedupKey(for: url)
     }
 
     @MainActor

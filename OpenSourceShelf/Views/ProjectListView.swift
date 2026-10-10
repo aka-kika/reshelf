@@ -681,8 +681,8 @@ struct ProjectListView: View {
     private func duplicateGroups() -> [[ToolProject]] {
         var groups: [String: [ToolProject]] = [:]
         for project in allProjects {
-            guard IconFetcher.extractOwnerRepo(from: project.githubURL) != nil else { continue }
-            let key = IconFetcher.repoDedupKey(for: project.githubURL)
+            guard GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) != nil else { continue }
+            let key = GitHubRepositoryURL.dedupKey(for: project.githubURL)
             guard !key.isEmpty else { continue }
             groups[key, default: []].append(project)
         }

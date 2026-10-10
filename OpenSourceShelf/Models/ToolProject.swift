@@ -18,9 +18,9 @@ final class ToolProject {
     var notes: String = ""
     /// Kika's own "why I saved this" — never written by AI or automation.
     var personalNote: String = ""
-    /// Personal Fit was removed from the UI in 1.13.1. The two fields stay so the
-    /// store needs no migration and export/backup files keep their shape; nothing
-    /// writes them anymore (the reshelf skill still reads `fitScore`).
+    /// Personal Fit was removed from the UI in 1.13.1. The two fields stay because
+    /// export/backup files carry them and older reshelf versions require them when
+    /// importing; nothing in the app writes them anymore.
     var fitScore: Int = 0
     var fitScoreSetByUser: Bool = false
     var addedDate: Date = Date()

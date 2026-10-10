@@ -16,7 +16,7 @@ enum IconFetcher {
         inFlightLock.unlock()
         guard shouldStart else { return }
 
-        guard let ownerRepo = extractOwnerRepo(from: project.githubURL) else {
+        guard let ownerRepo = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else {
             clearInFlight(project.id)
             return
         }
@@ -65,48 +65,6 @@ enum IconFetcher {
     }
 
     // MARK: - Helpers
-
-    static func extractOwnerRepo(from url: String) -> (owner: String, repo: String)? {
-        let cleaned = url
-            .trimmingCharacters(in: .whitespaces)
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-            .replacingOccurrences(of: "www.", with: "")
-
-        guard cleaned.hasPrefix("github.com/") else { return nil }
-        let parts = cleaned
-            .replacingOccurrences(of: "github.com/", with: "")
-            .split(separator: "/")
-            .filter { !$0.isEmpty && $0 != "tree" && $0 != "blob" }
-
-        guard parts.count >= 2 else { return nil }
-        var repo = String(parts[1])
-        // GitHub's copy-clone URL ends in ".git"; the API 404s on
-        // "repos/owner/repo.git", so strip it here where every consumer
-        // (capture, dedup key, avatar URL) shares one parse.
-        if repo.lowercased().hasSuffix(".git") { repo = String(repo.dropLast(4)) }
-        if let cut = repo.firstIndex(where: { $0 == "?" || $0 == "#" }) {
-            repo = String(repo[..<cut])
-        }
-        guard !repo.isEmpty else { return nil }
-        return (String(parts[0]), repo)
-    }
-
-    /// A normalized key for detecting duplicate captures of the same repo. Uses
-    /// `owner/repo` (lowercased, `.git` stripped) so http/https, `www.`, trailing
-    /// slashes, `/tree/...`, and case all collapse to one key. Non-GitHub URLs fall
-    /// back to a trimmed, lowercased URL.
-    static func repoDedupKey(for url: String) -> String {
-        if let (owner, repo) = extractOwnerRepo(from: url) {
-            var r = repo.lowercased()
-            if r.hasSuffix(".git") { r = String(r.dropLast(4)) }
-            return "\(owner.lowercased())/\(r)"
-        }
-        return url.trimmingCharacters(in: .whitespaces).lowercased()
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-    }
 
     private static func resizeIfNeeded(_ data: Data, maxSize: CGFloat) -> Data? {
         guard let image = NSImage(data: data) else { return data }

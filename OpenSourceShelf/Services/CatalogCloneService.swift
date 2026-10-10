@@ -111,12 +111,9 @@ enum CatalogCloneService {
         var rest = config[hostRange.upperBound...]
         guard let sep = rest.first, sep == ":" || sep == "/" else { return nil }
         rest = rest.dropFirst()
-        let token = rest.prefix { !$0.isWhitespace }
-        let parts = token.split(separator: "/")
-        guard parts.count >= 2 else { return nil }
-        var repo = String(parts[1])
-        if repo.hasSuffix(".git") { repo = String(repo.dropLast(4)) }
-        return "\(parts[0])/\(repo)".lowercased()
+        let path = rest.prefix { !$0.isWhitespace }
+        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: "github.com/\(path)") else { return nil }
+        return "\(owner)/\(repo)".lowercased()
     }
 
     /// Sanitized, human-readable folder name for a project's category, so clones
@@ -161,7 +158,7 @@ enum CatalogCloneService {
     /// sits in (even after the repo is recategorized), and stays fast when called
     /// per row during list rendering.
     static func existingClone(for project: ToolProject) -> URL? {
-        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
+        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else { return nil }
         guard let cached = cloneIndex()["\(owner)/\(repo)".lowercased()] else { return nil }
         // Self-heal: if the user deleted the folder in Finder, the cached entry is
         // stale — drop the index and rescan once so the Cloned badge clears without
@@ -179,7 +176,7 @@ enum CatalogCloneService {
     /// `<category>/<owner>-<repo>`).
     static func destination(for project: ToolProject) -> URL? {
         if let existing = existingClone(for: project) { return existing }
-        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { return nil }
+        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else { return nil }
         let candidates = candidatePaths(owner: owner, repo: repo, category: categoryFolderName(for: project))
         for path in candidates {
             // A candidate that already holds THIS repo's checkout (index missed
@@ -199,7 +196,7 @@ enum CatalogCloneService {
         let root = CloneLocation.rootURL
         var moved = 0
         for project in projects {
-            guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL) else { continue }
+            guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else { continue }
             for name in [repo, "\(owner)-\(repo)"] {
                 let flat = root.appendingPathComponent(name, isDirectory: true)
                 guard fm.fileExists(atPath: flat.appendingPathComponent(".git").path),
@@ -272,7 +269,7 @@ enum CatalogCloneService {
         // on disk shows un-cloned, and cloning it again errors or duplicates.
         invalidateCloneIndex()
         if let existing = existingClone(for: project) { return existing }
-        guard let (owner, repo) = IconFetcher.extractOwnerRepo(from: project.githubURL),
+        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL),
               let dest = destination(for: project) else {
             throw CloneError.invalidURL
         }

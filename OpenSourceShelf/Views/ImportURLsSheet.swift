@@ -154,6 +154,6 @@ struct ImportURLsSheet: View {
     /// www./.git//tree collapse) let bulk import create the exact duplicates
     /// capture prevents.
     private func normalize(_ raw: String) -> String {
-        IconFetcher.repoDedupKey(for: raw)
+        GitHubRepositoryURL.dedupKey(for: raw)
     }
 }

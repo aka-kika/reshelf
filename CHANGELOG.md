@@ -9,6 +9,12 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.15.2] — 2026-10-10
+
+### Changed
+- **One GitHub link reader.** The four places that each read GitHub links their own way now share one. Checked against all 1,474 links in the catalog and its backups and all 143 clones: every answer is the same as before. It also understands `git@github.com:` and `ssh://` links and capital letters in `GitHub.com`.
+- **Leftover settings removed from the saved data:** the old AI-provider, semantic-search, runbook and Personal Fit settings. The catalog file drops them by itself on first launch; repos, folders and your other settings are untouched (tested on a copy, and an older reshelf still opens the file).
+
 ## [1.15.1] — 2026-10-10
 
 ### Changed

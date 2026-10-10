@@ -584,9 +584,9 @@ struct QuickCaptureSheet: View {
     /// An existing catalog entry for the same repo being captured, if any — used to
     /// block duplicate saves and warn the user.
     private var duplicateProject: ToolProject? {
-        let key = IconFetcher.repoDedupKey(for: urlText)
+        let key = GitHubRepositoryURL.dedupKey(for: urlText)
         guard !key.isEmpty else { return nil }
-        return existingProjects.first { IconFetcher.repoDedupKey(for: $0.githubURL) == key }
+        return existingProjects.first { GitHubRepositoryURL.dedupKey(for: $0.githubURL) == key }
     }
 
     private func saveProject() {
