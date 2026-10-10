@@ -54,7 +54,7 @@ Or invoke it explicitly with `/reshelf`.
 
 - `SKILL.md`: the skill (workflow + triggering description)
 - `scripts/shelf.py`: finds repos (Top Shelf first, then The Collector) with clone
-  status, Personal Fit and a license note, and clones one on approval exactly like the
+  status, the date added and a license note, and clones one on approval exactly like the
   app does (dry run unless `--yes`). Reads your catalog read-only.
 - `scripts/shelf-map.sh`: maps what's on disk by category, with origin, last-commit
   date, stack guess and README preview; honors a custom Repository Storage location.

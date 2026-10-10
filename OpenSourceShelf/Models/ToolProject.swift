@@ -18,10 +18,10 @@ final class ToolProject {
     var notes: String = ""
     /// Kika's own "why I saved this" — never written by AI or automation.
     var personalNote: String = ""
+    /// Personal Fit was removed from the UI in 1.13.1. The two fields stay so the
+    /// store needs no migration and export/backup files keep their shape; nothing
+    /// writes them anymore (the reshelf skill still reads `fitScore`).
     var fitScore: Int = 0
-    /// True once Kika picks the stars herself. Until then `FitScorer` keeps
-    /// `fitScore` filled from her Top Shelf and cloned repos; a hand-set score
-    /// is never overwritten.
     var fitScoreSetByUser: Bool = false
     var addedDate: Date = Date()
     var lastCheckedDate: Date?

@@ -52,6 +52,13 @@ struct ProjectListView: View {
     }
 
     var body: some View {
+        // Filter + sort once per body pass. These used to be computed properties
+        // read from the footer and from every batch row's context menu, which
+        // re-sorted the whole catalog per row (multi-second hangs at ~950 repos).
+        let visibleProjects = filteredProjects
+        let batchProjects = batchSelection.isEmpty
+            ? []
+            : visibleProjects.filter { batchSelection.contains($0.id) }
         VStack(spacing: 0) {
             AlignedSplitColumnHeader(
                 leadingInset: needsTrafficLightInset ? ShelfLayout.trafficLightHeaderInset : 0
@@ -113,13 +120,13 @@ struct ProjectListView: View {
             }
 
             Group {
-                if filteredProjects.isEmpty {
+                if visibleProjects.isEmpty {
                     catalogListEmptyState
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                ForEach(filteredProjects) { project in
+                                ForEach(visibleProjects) { project in
                                     ProjectRowView(
                                         project: project,
                                         isSelected: listSelection?.projectID == project.id
@@ -132,7 +139,7 @@ struct ProjectListView: View {
                                     )
                                     .equatable()
                                     .contextMenu {
-                                        catalogContextMenu(for: project)
+                                        catalogContextMenu(for: project, batch: batchProjects)
                                     }
                                 }
                             }
@@ -156,7 +163,7 @@ struct ProjectListView: View {
 
             Divider()
             HStack {
-                Text(listFooterSummary)
+                Text("\(visibleProjects.count) project\(visibleProjects.count == 1 ? "" : "s")")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -308,11 +315,6 @@ struct ProjectListView: View {
         }
     }
 
-    private var listFooterSummary: String {
-        let projectCount = filteredProjects.count
-        return "\(projectCount) project\(projectCount == 1 ? "" : "s")"
-    }
-
     /// A plain click selects one project and drops any batch selection. ⌘-click
     /// toggles a row into the batch; ⇧-click extends from the last plain click.
     /// The inspector keeps following `listSelection` throughout, so building a
@@ -337,12 +339,6 @@ struct ProjectListView: View {
         batchSelection.removeAll()
         batchAnchor = project.id
         listSelection = .project(project.id)
-    }
-
-    /// The batch, in the list's order — so "move 12 to Yard Sale" reports and acts
-    /// in the order the user sees, and rows filtered out of view are excluded.
-    private var batchProjects: [ToolProject] {
-        filteredProjects.filter { batchSelection.contains($0.id) }
     }
 
     private func clearBatchSelection() {
@@ -388,12 +384,13 @@ struct ProjectListView: View {
  
  
     @ViewBuilder
-    private func catalogContextMenu(for project: ToolProject) -> some View {
+    private func catalogContextMenu(for project: ToolProject, batch: [ToolProject]) -> some View {
         // Right-clicking inside a batch acts on the batch; right-clicking outside
         // one acts on that row alone. Anything else would silently apply a
         // destructive action to rows the user wasn't pointing at.
+        // `batch` is the selection in list order, with filtered-out rows excluded.
         if batchSelection.contains(project.id), batchSelection.count > 1 {
-            batchActionMenu(for: batchProjects)
+            batchActionMenu(for: batch)
         } else {
             singleProjectContextMenu(for: project)
         }
@@ -930,44 +927,23 @@ struct ProjectRowView: View, Equatable {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                HStack(spacing: 6) {
-                    if !project.category.isEmpty {
-                        Text(project.category)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                    if !project.category.isEmpty && project.status != .collector {
-                        Text("·")
-                            .foregroundStyle(.secondary)
-                    }
-                    if project.status != .collector {
-                        StatusBadge(status: project.status)
-                    }
+                if !project.category.isEmpty {
+                    Text(project.category)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
                 }
             }
 
             Spacer(minLength: 8)
 
-            if isCloning {
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.7)
-                    .help("Cloning…")
-            } else if isClonedLocally {
-                Image(systemName: "internaldrive")
-                    .font(.system(size: 12))
-                    .foregroundStyle(isBehind ? Color.orange : .secondary)
-                    .overlay(alignment: .topTrailing) {
-                        if isBehind {
-                            Circle()
-                                .fill(Color.orange)
-                                .frame(width: 5, height: 5)
-                                .offset(x: 2, y: -2)
-                        }
-                    }
-                    .help(isBehind ? "Updates available — pull to update" : "Cloned to disk")
+            // Shelf and clone icons sit in fixed slots so they line up down the
+            // list; a row that is both shelved and cloned shows them side by side.
+            HStack(spacing: 4) {
+                shelfIcon
+                    .frame(width: 16)
+                cloneIcon
+                    .frame(width: 16)
             }
-
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 16)
@@ -981,6 +957,51 @@ struct ProjectRowView: View, Equatable {
             if flags.contains(.command) { modifiers.insert(.command) }
             if flags.contains(.shift) { modifiers.insert(.shift) }
             onSelect?(modifiers)
+        }
+    }
+
+    /// Top Shelf = star, Yard Sale = tag; The Collector (the default) shows nothing.
+    /// Same symbols and tints as the sidebar's shelf rows.
+    @ViewBuilder
+    private var shelfIcon: some View {
+        switch project.status {
+        case .topShelf:
+            Image(systemName: ProjectStatus.topShelf.sfSymbol)
+                .font(.system(size: 11))
+                .foregroundStyle(SidebarItem.topShelf.sidebarTint ?? .secondary)
+                .help(ProjectStatus.topShelf.displayName)
+        case .yardSale:
+            Image(systemName: ProjectStatus.yardSale.sfSymbol)
+                .font(.system(size: 11))
+                .foregroundStyle(SidebarItem.yardSale.sidebarTint ?? .secondary)
+                .help(ProjectStatus.yardSale.displayName)
+        case .collector:
+            Color.clear.frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var cloneIcon: some View {
+        if isCloning {
+            ProgressView()
+                .controlSize(.small)
+                .scaleEffect(0.7)
+                .help("Cloning…")
+        } else if isClonedLocally {
+            Image(systemName: "internaldrive")
+                .font(.system(size: 12))
+                .foregroundStyle(isBehind ? Color.orange : .secondary)
+                .overlay(alignment: .topTrailing) {
+                    if isBehind {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 5, height: 5)
+                            .offset(x: 2, y: -2)
+                    }
+                }
+                .help(isBehind ? "Updates available — pull to update" : "Cloned to disk")
+        } else {
+            Color.clear.frame(height: 1)
         }
     }
 }
@@ -1039,21 +1060,32 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
     }
 
     func sorted(_ projects: [ToolProject]) -> [ToolProject] {
+        // Read each sort key once per project, then sort the plain values.
+        // SwiftData attribute getters are slow, and the star string would
+        // otherwise be re-parsed on every comparison (~20k times at 950 repos).
+        let keys: [SortKey] = projects.map { project in
+            SortKey(
+                project: project,
+                name: project.name,
+                added: project.addedDate,
+                updated: self == .lastUpdated ? project.lastUpdatedDate : nil,
+                stars: self == .stars ? Self.starValue(project.stars) : 0
+            )
+        }
+        let ordered: [SortKey]
         switch self {
         case .recentlyAdded:
-            return projects.sorted { $0.addedDate > $1.addedDate }
+            ordered = keys.sorted { $0.added > $1.added }
         case .lastUpdated:
             // Newest upstream activity first. Rows with no date yet (never
             // captured with it, never refreshed) sink to the bottom rather than
             // pretending to be ancient, and tie-break by name so the order is stable.
-            return projects.sorted {
-                switch ($0.lastUpdatedDate, $1.lastUpdatedDate) {
+            ordered = keys.sorted { a, b in
+                switch (a.updated, b.updated) {
                 case let (l?, r?):
-                    return l == r
-                        ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-                        : l > r
+                    return l == r ? a.nameOrderedBefore(b) : l > r
                 case (nil, nil):
-                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                    return a.nameOrderedBefore(b)
                 case (_?, nil):
                     return true
                 case (nil, _?):
@@ -1061,17 +1093,25 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
                 }
             }
         case .name:
-            return projects.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            }
+            ordered = keys.sorted { $0.nameOrderedBefore($1) }
         case .stars:
-            return projects.sorted {
-                let a = Self.starValue($0.stars), b = Self.starValue($1.stars)
-                // Ties (and blanks) fall back to name so order stays stable.
-                return a == b
-                    ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-                    : a > b
+            // Ties (and blanks) fall back to name so order stays stable.
+            ordered = keys.sorted { a, b in
+                a.stars == b.stars ? a.nameOrderedBefore(b) : a.stars > b.stars
             }
+        }
+        return ordered.map(\.project)
+    }
+
+    private struct SortKey {
+        let project: ToolProject
+        let name: String
+        let added: Date
+        let updated: Date?
+        let stars: Double
+
+        func nameOrderedBefore(_ other: SortKey) -> Bool {
+            name.localizedCaseInsensitiveCompare(other.name) == .orderedAscending
         }
     }
 

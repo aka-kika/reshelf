@@ -227,43 +227,6 @@ struct InspectView: View {
                 PersonalNoteSection(project: project)
             }
 
-        case .personalFit:
-            if inspectorSettings.showInspectorPersonalFit {
-                Divider().padding(.vertical, 16)
-                sectionTitle("Personal Fit")
-                HStack(spacing: 4) {
-                    ForEach(1...5, id: \.self) { i in
-                        Button { setFitScore(i) } label: {
-                            Image(systemName: i <= project.fitScore ? "star.fill" : "star")
-                                .font(.system(size: 12))
-                                .foregroundStyle(i <= project.fitScore ? .yellow : .secondary.opacity(0.3))
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Rate \(i) of 5")
-                    }
-                    Text(fitLabel(for: project.fitScore))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .padding(.leading, 6)
-                    Spacer()
-                    if project.fitScoreSetByUser {
-                        Button("Use auto") { resetFitScore() }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .help("Let reshelf guess the fit from your Top Shelf and cloned repos again")
-                    }
-                }
-                Text(project.fitScoreSetByUser
-                     ? "Your rating."
-                     : "Auto: \(FitScorer.explanation(for: project) ?? "guessed from your Top Shelf and cloned repos.")")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 4)
-            }
-
         case .github:
             if shouldShowGitHubMetadataSection, inspectorSettings.showInspectorGitHub {
                 Divider().padding(.vertical, 12)
@@ -536,20 +499,6 @@ struct InspectView: View {
         }
     }
 
-    private func setFitScore(_ score: Int) {
-        project.fitScore = score
-        project.fitScoreSetByUser = true
-        try? modelContext.save()
-    }
-
-    private func resetFitScore() {
-        project.fitScoreSetByUser = false
-        // Re-score right away rather than waiting for the next catalog refresh.
-        let all = (try? modelContext.fetch(FetchDescriptor<ToolProject>())) ?? []
-        FitScorer.refresh(all)
-        try? modelContext.save()
-    }
-
     private var hasGitHubURL: Bool {
         project.githubURL.lowercased().contains("github.com")
     }
@@ -665,17 +614,6 @@ struct InspectView: View {
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .padding(.bottom, 8)
-    }
-
-    private func fitLabel(for score: Int) -> String {
-        switch score {
-        case 1: "Not a fit"
-        case 2: "Maybe useful"
-        case 3: "Worth exploring"
-        case 4: "Very useful"
-        case 5: "Essential"
-        default: ""
-        }
     }
 
  

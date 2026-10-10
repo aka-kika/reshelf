@@ -28,21 +28,21 @@ and clone only after they say yes.
 S=~/.claude/skills/reshelf/scripts
 python3 $S/shelf.py find <terms...>              # step 1: Top Shelf matches
 python3 $S/shelf.py find --collector <terms...>  # step 2: The Collector, only if needed
-python3 $S/shelf.py find --top                   # the whole Top Shelf, best fit first
+python3 $S/shelf.py find --top                   # the whole Top Shelf, recently added first
 python3 $S/shelf.py clone <name-or-github-url>   # dry run: destination + license
 python3 $S/shelf.py clone <name-or-github-url> --yes   # clone, ONLY after the user said yes
 bash    $S/shelf-map.sh ["<Category>" | --all]   # browse what's on disk by category
 ```
 
-`find` prints, per repo: category, **fit** (1 to 5, see below), `CLONED` + path or
+`find` prints, per repo: category, the **date it was added**, `CLONED` + path or
 `not cloned` + GitHub URL, a **license note**, and tags. It reads the app's catalog
 read-only (live store, or the newest JSON backup). Search terms match name, tags,
 category, description, notes and use cases. Use several short terms ("markdown editor
 swiftui"), not a sentence.
 
-**Fit** comes from the app's Personal Fit. It is the user's own rating when they set one, or
-otherwise the app's guess from how much a repo looks like their Top Shelf and cloned repos.
-Use it as a tiebreaker, never over real relevance.
+Results are ordered by how well they match the terms, then by **most recently added**
+(what they saved lately is usually closest to what they are working on now). Use the
+date as a tiebreaker, never over real relevance.
 
 ## How to work through a request
 

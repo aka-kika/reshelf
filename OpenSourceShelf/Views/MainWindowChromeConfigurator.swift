@@ -249,17 +249,46 @@ struct MainWindowChromeConfigurator: NSViewRepresentable {
                 }
             }
             // The backdrop layers are created lazily, well after launch — re-assert
-            // the hide on every window draw (cheap: direct split-view children only).
+            // the hide as the window updates. didUpdate fires on every event
+            // (mouse moves included) and the pass walks the whole view tree, so
+            // it is throttled; a trailing pass catches anything that appeared
+            // inside the quiet window. Found views stay pinned by their KVO guard.
             windowNotificationTokens.forEach(NotificationCenter.default.removeObserver)
             windowNotificationTokens = [
                 NotificationCenter.default.addObserver(
                     forName: NSWindow.didUpdateNotification, object: window, queue: .main
-                ) { [weak window] _ in
-                    guard let window else { return }
-                    ShelfWindowChrome.hideTitlebarBackdrops(in: window)
-                    ShelfWindowChrome.installTitlebarClickRouter(in: window)
+                ) { [weak self, weak window] _ in
+                    guard let self, let window else { return }
+                    self.scheduleChromePass(in: window)
                 }
             ]
+        }
+
+        private static let chromePassInterval: TimeInterval = 0.3
+        private var lastChromePass: TimeInterval = 0
+        private var trailingChromePassPending = false
+
+        private func scheduleChromePass(in window: NSWindow) {
+            let now = ProcessInfo.processInfo.systemUptime
+            let elapsed = now - lastChromePass
+            if elapsed >= Self.chromePassInterval {
+                runChromePass(in: window)
+                return
+            }
+            guard !trailingChromePassPending else { return }
+            trailingChromePassPending = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + (Self.chromePassInterval - elapsed)) {
+                [weak self, weak window] in
+                guard let self, let window else { return }
+                self.trailingChromePassPending = false
+                self.runChromePass(in: window)
+            }
+        }
+
+        private func runChromePass(in window: NSWindow) {
+            lastChromePass = ProcessInfo.processInfo.systemUptime
+            ShelfWindowChrome.hideTitlebarBackdrops(in: window)
+            ShelfWindowChrome.installTitlebarClickRouter(in: window)
         }
     }
 

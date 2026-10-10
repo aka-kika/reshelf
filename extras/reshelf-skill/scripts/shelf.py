@@ -3,7 +3,7 @@
 
     shelf.py find <terms...>                 Top Shelf matches (step 1)
     shelf.py find --collector <terms...>     The Collector matches (step 2, only if needed)
-    shelf.py find --top                      every Top Shelf repo, best fit first
+    shelf.py find --top                      every Top Shelf repo, recently added first
     shelf.py clone <name-or-github-url>      dry run: shows where it would go + license
     shelf.py clone <name-or-github-url> --yes    actually clone (only after the user said yes)
 
@@ -21,10 +21,13 @@ import re
 import sqlite3
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 HOME = os.path.expanduser("~")
 RESHELF_HOME = os.path.expanduser(os.environ.get("RESHELF_HOME", "~/reshelf"))
 STORE = os.path.join(RESHELF_HOME, "catalog.store")
+# Core Data / SwiftData timestamps count seconds from 2001-01-01 UTC.
+APPLE_EPOCH = 978307200
 
 
 def clone_root():
@@ -59,10 +62,10 @@ def load_catalog():
             db = sqlite3.connect(f"file:{STORE}?mode=ro", uri=True)
             db.row_factory = sqlite3.Row
             cols = {r[1] for r in db.execute("PRAGMA table_info(ZTOOLPROJECT)")}
-            fit = "ZFITSCORE" if "ZFITSCORE" in cols else "3"
+            added = "ZADDEDDATE" if "ZADDEDDATE" in cols else "0"
             rows = db.execute(f"""SELECT ZNAME, ZSHORTDESCRIPTION, ZLONGDESCRIPTION, ZGITHUBURL,
                 ZCATEGORY, ZSTATUSRAW, ZLICENSE, ZSTARS, ZNOTES, ZPERSONALNOTE, ZTAGS, ZUSECASES,
-                {fit} AS FIT FROM ZTOOLPROJECT""").fetchall()
+                {added} AS ADDED FROM ZTOOLPROJECT""").fetchall()
             return "live catalog", [dict(
                 name=r["ZNAME"] or "", short=r["ZSHORTDESCRIPTION"] or "",
                 long=r["ZLONGDESCRIPTION"] or "", url=r["ZGITHUBURL"] or "",
@@ -70,7 +73,7 @@ def load_catalog():
                 license=r["ZLICENSE"] or "", stars=r["ZSTARS"] or "",
                 notes=r["ZNOTES"] or "", personal=r["ZPERSONALNOTE"] or "",
                 tags=_archived_strings(r["ZTAGS"]), usecases=_archived_strings(r["ZUSECASES"]),
-                fit=int(r["FIT"] or 3)) for r in rows]
+                added=float(r["ADDED"] or 0) + APPLE_EPOCH) for r in rows]
         except sqlite3.Error:
             pass
     backups = sorted(glob.glob(os.path.join(RESHELF_HOME, "backups", "catalog-*.json")),
@@ -85,7 +88,15 @@ def load_catalog():
         category=p.get("category", ""), status=p.get("status", "collector"),
         license=p.get("license", ""), stars=p.get("stars", ""), notes=p.get("notes", ""),
         personal=p.get("personalNote", "") or "", tags=p.get("tags", []),
-        usecases=p.get("useCases", []), fit=int(p.get("fitScore") or 3)) for p in rows]
+        usecases=p.get("useCases", []), added=_iso_seconds(p.get("addedDate"))) for p in rows]
+
+
+def _iso_seconds(text):
+    """Backup dates are ISO 8601 ("2026-06-23T04:03:49Z"); unknown sorts last."""
+    try:
+        return datetime.fromisoformat((text or "").replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
 
 
 def owner_repo(url):
@@ -171,14 +182,15 @@ def cmd_find(args):
         s = match_score(p, terms)
         if s > 0:
             path = clone_path(p, index)
-            hits.append((s, p["fit"], path is not None, p, path))
+            hits.append((s, p["added"], path is not None, p, path))
+    # Best match first; among equal matches, the most recently added.
     hits.sort(key=lambda h: (h[0], h[1], h[2]), reverse=True)
 
     label = "The Collector" if collector else "Top Shelf"
     print(f"{label}: {len(hits)} match(es)   (source: {source}, clones: {root})\n")
-    for s, fit, is_cloned, p, path in hits[:25]:
-        stars = "*" * fit + "." * (5 - fit)
-        print(f"- {p['name']}  [{p['category'] or 'no category'}]  fit {stars}  "
+    for s, added, is_cloned, p, path in hits[:25]:
+        day = datetime.fromtimestamp(added, timezone.utc).strftime("%Y-%m-%d") if added > APPLE_EPOCH else "?"
+        print(f"- {p['name']}  [{p['category'] or 'no category'}]  added {day}  "
               f"{'CLONED' if is_cloned else 'not cloned'}")
         if p["short"]:
             print(f"    {p['short'][:140]}")

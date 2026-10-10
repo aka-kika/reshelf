@@ -16,9 +16,6 @@ struct AddProjectSheet: View {
     @State private var status: ProjectStatus = .collector
     @State private var tagsText: String = ""
     @State private var notes: String = ""
-    @State private var fitScore: Int = 3
-    /// Untouched stars mean "let FitScorer fill it in from the shelf".
-    @State private var fitTouched = false
     @State private var useCasesText: String = ""
 
     var body: some View {
@@ -118,20 +115,6 @@ struct AddProjectSheet: View {
                                 }
                             }
                     }
-                    field("Personal Fit") {
-                        HStack(spacing: 4) {
-                            ForEach(1...5, id: \.self) { i in
-                                Image(systemName: fitTouched && i <= fitScore ? "star.fill" : "star")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(fitTouched && i <= fitScore ? .yellow : .secondary.opacity(0.3))
-                                    .onTapGesture { fitScore = i; fitTouched = true }
-                            }
-                            Text(fitTouched ? fitLabel(for: fitScore) : "Auto, from your shelf")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 6)
-                        }
-                    }
                 }
                 .padding(20)
             }
@@ -149,17 +132,6 @@ struct AddProjectSheet: View {
         }
         .textFieldStyle(.roundedBorder)
         .font(.system(size: 13))
-    }
-
-    private func fitLabel(for score: Int) -> String {
-        switch score {
-        case 1: "Not a fit"
-        case 2: "Maybe useful"
-        case 3: "Worth exploring"
-        case 4: "Very useful"
-        case 5: "Essential"
-        default: ""
-        }
     }
 
     /// Existing entry for the same repo (only when a GitHub URL is given), to block dupes.
@@ -180,10 +152,8 @@ struct AddProjectSheet: View {
             status: status,
             tags: tagsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
             useCases: useCasesText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
-            notes: notes.trimmingCharacters(in: .whitespaces),
-            fitScore: fitScore
+            notes: notes.trimmingCharacters(in: .whitespaces)
         )
-        project.fitScoreSetByUser = fitTouched
         modelContext.insert(project)
         try? modelContext.save()
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)

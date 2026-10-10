@@ -7,7 +7,6 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
     case tags = "tags"
     case notes = "notes"
     case personalNote = "personalNote"
-    case personalFit = "personalFit"
     case github = "github"
 
     var id: String { rawValue }
@@ -18,7 +17,6 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         case .tags: "Tags"
         case .notes: "Notes"
         case .personalNote: "Why I Saved This"
-        case .personalFit: "Personal Fit"
         // Stars/license live in the fixed Metadata section; this toggles the
         // extras GitHub adds on top (topics, richer description).
         case .github: "GitHub Topics"
@@ -31,7 +29,6 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
         case .tags: "tag"
         case .notes: "note.text"
         case .personalNote: "quote.bubble"
-        case .personalFit: "star"
         case .github: "chevron.left.forwardslash.chevron.right"
         }
     }
@@ -65,6 +62,7 @@ final class AppSettings {
     var showInspectorTags: Bool = true
     var showInspectorNotes: Bool = true
     var showInspectorPersonalNote: Bool = true
+    /// Unused since Personal Fit was removed (1.13.1); kept so the SwiftData store needs no migration.
     var showInspectorPersonalFit: Bool = true
     var showInspectorGitHub: Bool = true
     var showInspectorStack: Bool = true
@@ -108,7 +106,6 @@ final class AppSettings {
         case .tags: return showInspectorTags
         case .notes: return showInspectorNotes
         case .personalNote: return showInspectorPersonalNote
-        case .personalFit: return showInspectorPersonalFit
         case .github: return showInspectorGitHub
         }
     }
@@ -120,7 +117,6 @@ final class AppSettings {
         case .tags: showInspectorTags = value
         case .notes: showInspectorNotes = value
         case .personalNote: showInspectorPersonalNote = value
-        case .personalFit: showInspectorPersonalFit = value
         case .github: showInspectorGitHub = value
         }
     }

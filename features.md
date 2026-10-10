@@ -28,8 +28,8 @@ Stored fields you can view and edit:
 - GitHub and website links
 - Category, license, star count (text)
 - Tags and use cases (lists)
-- Personal notes and **fit score** (1–5 stars)
-- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). Color-coded badges — Top Shelf **blue** (keeper), The Collector **gray** (neutral), Yard Sale **amber** (needs review). With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / right-click **Move to** — so you can sort straight after capturing without the mouse
+- Personal notes
+- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). In the list, a row shows its shelf as a small icon on the right, next to the clone icon: Top Shelf a **star**, Yard Sale a **tag** (same symbols and soft colors as the sidebar); The Collector, the default, shows none. The inspector header keeps the colored shelf badge. With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / right-click **Move to** — so you can sort straight after capturing without the mouse
 - **Local-first** and **self-hosted** flags
 - Repo **icon** (fetched and cached)
 - **Added** and **last checked** dates
@@ -82,7 +82,6 @@ Existing projects whose category was empty or just a language name are **re-cate
 - Header, links, shelf
 - Metadata, description, use cases, tags, notes
 - **License explainer** — an ⓘ next to the license opens a plain-language popover (what you *can* do, what you *must* do, and the takeaway) for MIT, Apache, BSD, ISC, MPL, LGPL, EPL, GPL, AGPL, BUSL, public-domain, and more. When **Warn about strict or missing licenses** is on (Settings), copyleft/source-available repos (GPL, AGPL, MPL, BUSL…) and repos with **no license or an unclear one** (NOASSERTION) also show an automatic caution banner. Plain-language, not legal advice
-- **Personal fit** — 1 to 5 stars. Filled in automatically from your Top Shelf and cloned repos (tags and categories you keep a lot score higher; ranked against the rest of the shelf; one-line reason underneath). Click a star to set your own; **Use auto** goes back. Hand-set scores are never overwritten
 - **Clickable tags** — click a tag to list every repo that has it
 - **Links** — left-click opens GitHub / website in the default browser; right-click copies the URL
 - **Local Copy** — clone status, on-disk path, **Reveal in Finder**, and **Open in…** (installed editors + Terminal); when not cloned, a one-click **Clone Repository**

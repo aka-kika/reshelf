@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/reshelf-catalog.png" alt="reshelf — sidebar of shelves and categories, project list, and an inspector showing metadata, license, and personal fit" width="900">
+  <img src="assets/reshelf-catalog.png" alt="reshelf — sidebar of shelves and categories, project list, and an inspector showing metadata and license" width="900">
 </p>
 
 > **Download:** grab the latest **signed & notarized**

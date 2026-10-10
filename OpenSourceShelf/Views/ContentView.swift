@@ -291,11 +291,6 @@ struct ContentView: View {
                 CatalogCloneService.invalidateCloneIndex()
                 appRefreshStore.handle(.catalogStateUpdated)
             }
-            // Shelf moves, clones and captures change what "kept" means, so the
-            // auto Personal Fit follows every catalog refresh. Saves only on change.
-            .onChange(of: appRefreshStore.catalogRevision) { _, _ in
-                refreshFitScores()
-            }
             .onReceive(NotificationCenter.default.publisher(for: .importURLs)) { _ in
                 presentSheetAfterEndingTextEditing { showingImportURLs = true }
             }
@@ -378,7 +373,6 @@ struct ContentView: View {
         // corrected categories (not the pre-reclassify state).
         reclassifyProjectsIfNeeded()
         repairSchemelessLinks()
-        refreshFitScores()
         // Tidy any legacy flat clones into their category subfolders.
         CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
         CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
@@ -531,7 +525,8 @@ struct ContentView: View {
     }
 
     private var sidebarColumn: some View {
-        SidebarView(selection: $sidebarSelection)
+        SidebarColumnHost(current: sidebarSelection, selection: $sidebarSelection)
+        .equatable()
         .id("catalog-sidebar")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // macOS 26: no paint here, so the sidebar shows its Liquid Glass.
@@ -610,12 +605,6 @@ struct ContentView: View {
             if website != project.websiteURL { project.websiteURL = website; changed = true }
         }
         if changed { try? modelContext.save() }
-    }
-
-    private func refreshFitScores() {
-        if FitScorer.refresh(allProjects) {
-            try? modelContext.save()
-        }
     }
 
     private func reclassifyProjectsIfNeeded() {

@@ -17,7 +17,6 @@ struct EditProjectSheet: View {
     @State private var useCasesText: String
     @State private var notes: String
     @State private var personalNote: String
-    @State private var fitScore: Int
     @State private var stars: String
     @State private var license: String
     @State private var isLocalFirst: Bool
@@ -37,7 +36,6 @@ struct EditProjectSheet: View {
         self._useCasesText = State(initialValue: project.useCases.joined(separator: "\n"))
         self._notes = State(initialValue: project.notes)
         self._personalNote = State(initialValue: project.personalNote)
-        self._fitScore = State(initialValue: project.fitScore)
         self._stars = State(initialValue: project.stars)
         self._license = State(initialValue: project.license)
         self._isLocalFirst = State(initialValue: project.isLocalFirst)
@@ -156,20 +154,6 @@ struct EditProjectSheet: View {
                                 }
                             }
                     }
-                    field("Personal Fit") {
-                        HStack(spacing: 4) {
-                            ForEach(1...5, id: \.self) { i in
-                                Image(systemName: i <= fitScore ? "star.fill" : "star")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(i <= fitScore ? .yellow : .secondary.opacity(0.3))
-                                    .onTapGesture { fitScore = i }
-                            }
-                            Text(fitLabel(for: fitScore))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 6)
-                        }
-                    }
                     field("Flags") {
                         Toggle("Local-First", isOn: $isLocalFirst)
                         Toggle("Self-Hosted", isOn: $isSelfHosted)
@@ -194,17 +178,6 @@ struct EditProjectSheet: View {
         .toggleStyle(.checkbox)
     }
 
-    private func fitLabel(for score: Int) -> String {
-        switch score {
-        case 1: "Not a fit"
-        case 2: "Maybe useful"
-        case 3: "Worth exploring"
-        case 4: "Very useful"
-        case 5: "Essential"
-        default: ""
-        }
-    }
-
     private func saveChanges() {
         project.name = name.trimmingCharacters(in: .whitespaces)
         project.githubURL = WebLink.normalized(githubURL)
@@ -217,10 +190,6 @@ struct EditProjectSheet: View {
         project.useCases = useCasesText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         project.notes = notes.trimmingCharacters(in: .whitespaces)
         project.personalNote = personalNote.trimmingCharacters(in: .whitespaces)
-        if fitScore != project.fitScore {
-            project.fitScore = fitScore
-            project.fitScoreSetByUser = true
-        }
         project.stars = stars.trimmingCharacters(in: .whitespaces)
         project.license = license.trimmingCharacters(in: .whitespaces)
         project.isLocalFirst = isLocalFirst

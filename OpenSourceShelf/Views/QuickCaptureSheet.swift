@@ -46,9 +46,6 @@ struct QuickCaptureSheet: View {
     @State private var notes: String = ""
     /// Human-only; Capture Assist never fills this.
     @State private var personalNote: String = ""
-    @State private var fitScore: Int = 3
-    /// Untouched stars mean "let FitScorer fill it in from the shelf".
-    @State private var fitTouched = false
     @State private var stars: String = ""
     @State private var license: String = ""
     /// GitHub's `pushed_at` for the fetched repo — carried into the saved
@@ -373,18 +370,6 @@ struct QuickCaptureSheet: View {
                     Toggle("Self-Hosted", isOn: $isSelfHosted)
                     Toggle("Local-First", isOn: $isLocalFirst)
                 }
-                field("Personal Fit") {
-                    HStack(spacing: 4) {
-                        ForEach(1...5, id: \.self) { i in
-                            Image(systemName: fitTouched && i <= fitScore ? "star.fill" : "star")
-                                .font(.system(size: 14))
-                                .foregroundStyle(fitTouched && i <= fitScore ? .yellow : .secondary.opacity(0.3))
-                                .onTapGesture { fitScore = i; fitTouched = true }
-                        }
-                        Text(fitTouched ? fitLabel(fitScore) : "Auto, from your shelf").font(.system(size: 11))
-                            .foregroundStyle(.secondary).padding(.leading, 6)
-                    }
-                }
             }
             .padding(.top, 10)
     }
@@ -455,14 +440,6 @@ struct QuickCaptureSheet: View {
                             .fill(Color.purple.opacity(0.04))
                     )
             }
-        }
-    }
-
-    private func fitLabel(_ score: Int) -> String {
-        switch score {
-        case 1: "Not a fit"; case 2: "Maybe useful"
-        case 3: "Worth exploring"; case 4: "Very useful"
-        case 5: "Essential"; default: ""
         }
     }
 
@@ -695,9 +672,8 @@ struct QuickCaptureSheet: View {
 
         Please provide:
         1. 3-5 practical use cases for a developer/maker (one per line, starting with "- ")
-        2. A personal fit assessment (1-5) with brief reasoning
-        3. 2-3 additional tags that would be useful
-        4. A 1-2 sentence personal note about why this tool is worth tracking
+        2. 2-3 additional tags that would be useful
+        3. A 1-2 sentence personal note about why this tool is worth tracking
 
         Keep it concise. Format as plain text.
         """
@@ -738,12 +714,10 @@ struct QuickCaptureSheet: View {
             useCases: useCasesText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
             notes: notes.trimmingCharacters(in: .whitespaces),
             personalNote: personalNote.trimmingCharacters(in: .whitespaces),
-            fitScore: fitScore,
             lastUpdatedDate: lastUpdatedDate,
             isLocalFirst: isLocalFirst,
             isSelfHosted: isSelfHosted
         )
-        project.fitScoreSetByUser = fitTouched
         modelContext.insert(project)
         try? modelContext.save()
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)

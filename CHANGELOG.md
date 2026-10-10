@@ -7,7 +7,20 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations and personal-fit. See [v2.0-roadmap.md](v2.0-roadmap.md).
+  improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.13.1] — 2026-10-10
+
+### Fixed
+- **No more freezes when you select several repos.** With a few rows selected, each one's right-click menu re-sorted the whole catalog, which froze the window for up to 3 seconds. The list is now sorted once per update, and sorting reads each repo once instead of on every comparison.
+- **Clicking between repos is faster.** The sidebar no longer recounts every category and tag on each click — only when your catalog actually changes. A window-chrome check that ran on every mouse move now runs a few times a second at most.
+
+### Changed
+- **Shelf icons on the right of each row.** Top Shelf shows a star and Yard Sale a tag, next to the clone icon (side by side when a repo is both), in the sidebar's colors. The text badge under the name is gone.
+
+### Removed
+- **Personal Fit.** The 1–5 stars are gone from the inspector, Quick Capture, Add and Edit, and so is the automatic scoring (which also re-ran over the whole catalog every time you came back to the app). Scores you had stay in your catalog file, untouched.
+- **reshelf skill:** results are now ordered by match, then **most recently added**, instead of by fit. Click **Settings → General → Agent Skill → Install reshelf Skill** again to get the update.
 
 ## [1.13.0] — 2026-10-03
 

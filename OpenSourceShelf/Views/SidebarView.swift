@@ -17,6 +17,25 @@ private struct SidebarFilterCounts {
     }
 }
 
+/// Shields the sidebar from ContentView re-renders it doesn't care about (every
+/// list click re-renders ContentView). Without it SwiftUI re-ran SidebarView's
+/// body on each click — a full recount of every category and tag over the whole
+/// catalog. `current` is the selection *value*: comparing through the binding
+/// would read the same live storage on both sides and always match. Catalog
+/// changes still reach SidebarView through its own @Query.
+struct SidebarColumnHost: View, Equatable {
+    let current: ShelfSelection?
+    @Binding var selection: ShelfSelection?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.current == rhs.current
+    }
+
+    var body: some View {
+        SidebarView(selection: $selection)
+    }
+}
+
 struct SidebarView: View {
     @Binding var selection: ShelfSelection?
     @Environment(\.modelContext) private var modelContext
@@ -404,8 +423,9 @@ private struct ShowMoreTagsRow: View {
     }
 }
 
-private extension SidebarItem {
+extension SidebarItem {
     /// One quiet tint for the shelves people steer by; the rest stay grey.
+    /// The list rows reuse it for their shelf icons.
     var sidebarTint: Color? {
         switch self {
         case .topShelf: Color(red: 0.95, green: 0.72, blue: 0.30)
