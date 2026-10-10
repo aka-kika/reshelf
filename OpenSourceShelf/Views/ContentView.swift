@@ -206,6 +206,9 @@ struct ContentView: View {
     /// produced or hand-sorted, are never overwritten (they're indistinguishable).
     private static let classifierVersion = 4
     @AppStorage("reshelf.classifierVersion") private var storedClassifierVersion = 1
+    /// Bumped when categories are merged (`CategoryClassifier.mergedCategories`).
+    private static let categoryMergeVersion = 1
+    @AppStorage("reshelf.categoryMergeVersion") private var storedCategoryMergeVersion = 0
 
     var body: some View {
         catalogRootStack
@@ -363,6 +366,7 @@ struct ContentView: View {
         }
         // Reclassify before snapshotting so the launch backup reflects the
         // corrected categories (not the pre-reclassify state).
+        mergeCategoriesIfNeeded()
         reclassifyProjectsIfNeeded()
         repairSchemelessLinks()
         // Tidy any legacy flat clones into their category subfolders.
@@ -570,21 +574,6 @@ struct ContentView: View {
         )
     }
 
-    private var selectedProject: ToolProject? {
-        guard let id = listSelection?.projectID else { return nil }
-        return allProjects.first(where: { $0.id == id })
-    }
-
-    private func openCatalogRepository(_ repositoryID: String) {
-        guard let repository = try? IntelligenceDatabase.shared.fetchRepository(id: repositoryID) else { return }
-        if let project = allProjects.first(where: {
-            !$0.githubURL.isEmpty && $0.githubURL == repository.githubURL
-        }) ?? allProjects.first(where: { $0.name == repository.name }) {
-            listSelection = .project(project.id)
-            sidebarSelection = .builtin(.allProjects)
-        }
-    }
-
     /// Rows imported before WebLink existed can hold "github.com/…" without a
     /// scheme. Only adds "https://"; never changes a link that has one.
     private func repairSchemelessLinks() {
@@ -596,6 +585,28 @@ struct ContentView: View {
             if website != project.websiteURL { project.websiteURL = website; changed = true }
         }
         if changed { try? modelContext.save() }
+    }
+
+    /// Once per merge version: back up, rename rows in a merged category
+    /// (Kika asked for these merges, so overwriting the old names is the point),
+    /// then move their clone folders to match.
+    private func mergeCategoriesIfNeeded() {
+        guard storedCategoryMergeVersion < Self.categoryMergeVersion else { return }
+        let merges = CategoryClassifier.mergedCategories
+        let affected = allProjects.filter {
+            merges[$0.category.trimmingCharacters(in: .whitespaces)] != nil
+        }
+        if !affected.isEmpty {
+            CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+            for project in affected {
+                if let merged = merges[project.category.trimmingCharacters(in: .whitespaces)] {
+                    project.category = merged
+                }
+            }
+            try? modelContext.save()
+        }
+        CatalogCloneService.mergeCategoryFolders(merges)
+        storedCategoryMergeVersion = Self.categoryMergeVersion
     }
 
     private func reclassifyProjectsIfNeeded() {

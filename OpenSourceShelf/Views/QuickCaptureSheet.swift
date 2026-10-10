@@ -29,10 +29,6 @@ struct QuickCaptureSheet: View {
     /// overwrite its own fills without touching user edits.
     @State private var lastAIUseCases: String = ""
     @State private var lastAINote: String = ""
-    /// Ollama reachability, only meaningful when the resolved provider is Ollama.
-    /// nil = not checked / not applicable, true/false = last ping result.
-    @State private var ollamaReachable: Bool? = nil
-    @State private var isCheckingAI: Bool = false
 
     // Editable fields after fetch
     @State private var name: String = ""
@@ -400,7 +396,7 @@ struct QuickCaptureSheet: View {
                         .foregroundStyle(.green)
                 }
                 Spacer()
-                if isGeneratingAI || isCheckingAI {
+                if isGeneratingAI {
                     ProgressView()
                         .scaleEffect(0.5)
                         .frame(width: 16, height: 16)
@@ -419,12 +415,8 @@ struct QuickCaptureSheet: View {
                 Label(unavailable, systemImage: "exclamationmark.triangle")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-            } else if effectiveAIProvider == .appleIntelligence {
-                Text("Fills use cases, a note, and tags on-device with Apple Intelligence. Nothing leaves this Mac.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
             } else {
-                Text("Use AI for notes, use cases, and quick flag hints.")
+                Text("Fills use cases, a note, and tags on-device with Apple Intelligence. Nothing leaves this Mac.")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
@@ -470,9 +462,6 @@ struct QuickCaptureSheet: View {
                     fetchedURL = trimmed
                     populateFields(from: info, url: trimmed)
                     isFetching = false
-                    // The AI section appears now — pre-flight the active provider so
-                    // "Generate with AI" reflects offline/unconfigured state.
-                    checkAIReachability()
                     // Auto-fetch icon
                     if !name.isEmpty {
                         let temp = ToolProject(name: name, githubURL: trimmed)
@@ -497,8 +486,8 @@ struct QuickCaptureSheet: View {
         shortDescription = info.description ?? ""
         longDescription = info.description ?? ""
         websiteURL = info.homepage ?? ""
-        stars = info.stars.map { formatStars($0) } ?? ""
-        license = info.license?.spdxId ?? info.license?.name ?? ""
+        stars = info.stars.map(GitHubRepoInfo.formattedStars) ?? ""
+        license = info.licenseText
         lastUpdatedDate = info.pushedAt.flatMap(GitHubDate.parse)
         tagsText = info.topics?.joined(separator: ", ") ?? ""
 
@@ -518,88 +507,21 @@ struct QuickCaptureSheet: View {
         // promoted to Top Shelf or sent to the Yard Sale.
     }
 
-    private func formatStars(_ count: Int) -> String {
-        if count >= 1000 { return String(format: "%.1fk", Double(count) / 1000.0) }
-        return "\(count)"
-    }
-
     // MARK: - AI Generation
 
-    /// Whether "Generate with AI" can run with the user's current provider config.
+    /// Whether "Generate with AI" can run: reshelf generates on-device only.
     private var aiAvailable: Bool { aiUnavailableReason == nil }
 
-    /// reshelf generates on-device and nowhere else. There is no provider to pick.
-    private var effectiveAIProvider: AIProviderKind { .appleIntelligence }
-
     /// User-facing reason the AI step is disabled, or `nil` when it's ready.
-    /// Provider-aware: covers Apple Intelligence availability and (for Ollama)
-    /// an unreachable local server.
     private var aiUnavailableReason: String? {
-        switch effectiveAIProvider {
-        case .appleIntelligence:
-            let status = AppleIntelligenceService.availability
-            return status.isAvailable ? nil : status.label
-        case .ollama:
-            let settings = AppSettings.current(in: modelContext)
-            if ollamaReachable == false {
-                return "Ollama isn't running at \(settings.ollamaBaseURL). Start it, or pick another provider in Settings."
-            }
-            return nil
-        case .openAI, .anthropic, .gemini, .githubCopilot:
-            return nil
-        }
-    }
-
-    /// Pre-flights the active provider so the AI button reflects offline state
-    /// before the user clicks. Only Ollama needs a reachability ping; Apple
-    /// Intelligence and cloud providers surface errors on use.
-    private func checkAIReachability() {
-        let settings = AppSettings.current(in: modelContext)
-        guard effectiveAIProvider == .ollama,
-              settings.isConfigured(.ollama) else {
-            ollamaReachable = nil
-            return
-        }
-        isCheckingAI = true
-        let baseURL = settings.ollamaBaseURL
-        Task {
-            let reachable = await OllamaService.testConnection(baseURL: baseURL)
-            await MainActor.run {
-                ollamaReachable = reachable
-                isCheckingAI = false
-            }
-        }
+        let status = AppleIntelligenceService.availability
+        return status.isAvailable ? nil : status.label
     }
 
     private func generateAI() {
         guard !name.isEmpty, aiAvailable else { return }
         isGeneratingAI = true
-
-        if effectiveAIProvider == .appleIntelligence {
-            generateWithAppleIntelligence()
-            return
-        }
-
-        let settings = AppSettings.current(in: modelContext)
-        let prompt = buildAIPrompt()
-        Task {
-            let result = await AICompletionService.generate(prompt: prompt, settings: settings)
-            await MainActor.run {
-                // AICompletionService returns a "Could not reach Ollama" string on a
-                // failed local connection — reflect that in button availability.
-                if result.contains("Could not reach Ollama") {
-                    ollamaReachable = false
-                } else {
-                    if AICompletionService.resolvedProvider(settings: settings) == .ollama {
-                        ollamaReachable = true
-                    }
-                    hasGeneratedAISuggestion = true
-                    applyAISuggestionHints(result)
-                }
-                aiSuggestion = result
-                isGeneratingAI = false
-            }
-        }
+        generateWithAppleIntelligence()
     }
 
     /// On-device path: guided generation fills the capture fields directly —
@@ -657,36 +579,6 @@ struct QuickCaptureSheet: View {
         if suggestion.isSelfHosted { isSelfHosted = true }
         hasGeneratedAISuggestion = true
         aiSuggestion = "Filled use cases, note, and tags on-device. Edit anything before saving."
-    }
-
-    private func buildAIPrompt() -> String {
-        """
-        You are analyzing an open-source project for a developer's personal toolkit database.
-
-        Project: \(name)
-        Description: \(shortDescription)
-        Category: \(category)
-        GitHub Stars: \(stars)
-        License: \(license)
-        Tags: \(tagsText)
-
-        Please provide:
-        1. 3-5 practical use cases for a developer/maker (one per line, starting with "- ")
-        2. 2-3 additional tags that would be useful
-        3. A 1-2 sentence personal note about why this tool is worth tracking
-
-        Keep it concise. Format as plain text.
-        """
-    }
-
-    private func applyAISuggestionHints(_ text: String) {
-        let lowercased = text.lowercased()
-        if lowercased.contains("local-first") || lowercased.contains("local first") || lowercased.contains("runs locally") {
-            isLocalFirst = true
-        }
-        if lowercased.contains("self-hosted") || lowercased.contains("self hosted") || lowercased.contains("self host") {
-            isSelfHosted = true
-        }
     }
 
     /// An existing catalog entry for the same repo being captured, if any — used to

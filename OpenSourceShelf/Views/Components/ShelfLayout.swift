@@ -11,11 +11,7 @@ enum ShelfLayout {
     static let trafficLightHeaderInset: CGFloat = 64
 
     static let sidebarWidth = (min: 200.0, ideal: 220.0, max: 320.0)
-    static let collapsedSidebarRailWidth: CGFloat = 52
-    static let catalogListWidth = (min: 280.0, ideal: 360.0, max: 560.0)
-    static let discoveryListWidth = (min: 360.0, ideal: 480.0, max: 680.0)
     static let inspectorWidth = (min: 280.0, ideal: 320.0, max: 420.0)
-    static let panelWidth: CGFloat = 260
 }
 
 extension View {

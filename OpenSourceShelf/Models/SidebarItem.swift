@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 enum SidebarItem: String, Identifiable, CaseIterable {
     // Library (shelf state)
@@ -12,9 +12,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case databaseTools = "databaseTools"
     case backendTools = "backendTools"
     case agentTools = "agentTools"
-    case codingAgentTools = "codingAgentTools"
     case computerUseTools = "computerUseTools"
-    case aiMemoryTools = "aiMemoryTools"
     case mcpTools = "mcpTools"
     case internalTools = "internalTools"
     case workspaceTools = "workspaceTools"
@@ -26,14 +24,11 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case devopsTools = "devopsTools"
     case automationTools = "automationTools"
     case mediaTools = "mediaTools"
-    case designTools = "designTools"
     case securityTools = "securityTools"
     case utilityTools = "utilityTools"
     case frontendTools = "frontendTools"
     case gamesTools = "gamesTools"
     case localFirst = "localFirst"
-
-    // Intelligence (v2 — Labs) destinations
 
     // Settings
     case settings = "settings"
@@ -50,9 +45,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .databaseTools: "Database"
         case .backendTools: "Backend"
         case .agentTools: "AI / Agent"
-        case .codingAgentTools: "Coding Agents"
         case .computerUseTools: "Computer Use"
-        case .aiMemoryTools: "AI Memory"
         case .mcpTools: "MCP"
         case .internalTools: "Internal Tools"
         case .workspaceTools: "Workspace"
@@ -64,7 +57,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .devopsTools: "DevOps"
         case .automationTools: "Automation"
         case .mediaTools: "Media"
-        case .designTools: "Design"
         case .securityTools: "Security"
         case .utilityTools: "Utility"
         case .frontendTools: "Frontend"
@@ -84,9 +76,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .databaseTools: "cylinder"
         case .backendTools: "server.rack"
         case .agentTools: "brain"
-        case .codingAgentTools: "chevron.left.forwardslash.chevron.right"
         case .computerUseTools: "cursorarrow.click.2"
-        case .aiMemoryTools: "memorychip"
         case .mcpTools: "puzzlepiece.extension"
         case .internalTools: "rectangle.grid.2x2"
         case .workspaceTools: "rectangle.3.group"
@@ -98,7 +88,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .devopsTools: "gearshape.2"
         case .automationTools: "arrow.triangle.2.circlepath"
         case .mediaTools: "photo.on.rectangle"
-        case .designTools: "paintbrush"
         case .securityTools: "lock.shield"
         case .utilityTools: "wrench.and.screwdriver"
         case .frontendTools: "globe"
@@ -112,11 +101,11 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         switch self {
         case .allProjects, .topShelf, .collector, .yardSale, .cloned:
             return .library
-        case .databaseTools, .backendTools, .agentTools, .codingAgentTools,
-             .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
+        case .databaseTools, .backendTools, .agentTools,
+             .computerUseTools, .mcpTools, .internalTools,
              .workspaceTools, .knowledgeTools, .macOSTools, .swiftUITools, .cliTools,
              .editorTools, .devopsTools, .automationTools, .mediaTools,
-             .designTools, .securityTools, .utilityTools, .frontendTools,
+             .securityTools, .utilityTools, .frontendTools,
              .gamesTools, .localFirst:
             return .categories
         case .settings:
@@ -126,10 +115,10 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     /// Top category filters shown in the sidebar (full taxonomy stays in CategoryClassifier).
     static let sidebarCategoryItems: [SidebarItem] = [
-        .databaseTools, .backendTools, .agentTools, .codingAgentTools,
-        .computerUseTools, .aiMemoryTools, .mcpTools, .internalTools,
+        .databaseTools, .backendTools, .agentTools,
+        .computerUseTools, .mcpTools, .internalTools,
         .workspaceTools, .knowledgeTools, .macOSTools, .swiftUITools, .cliTools, .editorTools,
-        .devopsTools, .automationTools, .mediaTools, .designTools,
+        .devopsTools, .automationTools, .mediaTools,
         .securityTools, .utilityTools, .frontendTools, .gamesTools, .localFirst,
     ]
 
@@ -174,9 +163,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .databaseTools: category.localizedStandardContains("Database")
         case .backendTools: category.localizedStandardContains("Backend")
         case .agentTools: category == "AI / Agent"
-        case .codingAgentTools: category == "Coding Agents"
         case .computerUseTools: category == "Computer Use"
-        case .aiMemoryTools: category == "AI Memory"
         case .mcpTools: category == "MCP"
         case .internalTools: category.localizedStandardContains("Internal Tools")
         case .workspaceTools: category.localizedStandardContains("Workspace")
@@ -188,7 +175,6 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .devopsTools: category.localizedStandardContains("DevOps")
         case .automationTools: category.localizedStandardContains("Automation")
         case .mediaTools: category.localizedStandardContains("Media")
-        case .designTools: category.localizedStandardContains("Design")
         case .securityTools: category.localizedStandardContains("Security")
         case .utilityTools: category.localizedStandardContains("Utility")
         case .frontendTools: category.localizedStandardContains("Frontend")

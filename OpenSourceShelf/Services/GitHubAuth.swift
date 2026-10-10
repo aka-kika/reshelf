@@ -11,7 +11,25 @@ enum GitHubAuth {
     private static let service = "reshelf.github-token"
     private static let account = "github"
 
+    /// The token is read from the Keychain once and kept in memory: a refresh
+    /// sends hundreds of requests from several threads at once, and a Keychain
+    /// read per request serialized them (and, for a differently signed build,
+    /// raised one access prompt per request). `setToken` / `removeToken` keep
+    /// the cache in step. A declined Keychain prompt caches "no token" for the
+    /// rest of the session instead of asking again.
+    private static let cacheLock = NSLock()
+    private static var cachedToken: String?? = nil
+
     static var token: String? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        if let cached = cachedToken { return cached }
+        let value = readKeychain()
+        cachedToken = .some(value)
+        return value
+    }
+
+    private static func readKeychain() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -50,6 +68,9 @@ enum GitHubAuth {
             add[kSecValueData as String] = data
             SecItemAdd(add as CFDictionary, nil)
         }
+        cacheLock.lock()
+        cachedToken = .some(trimmed)
+        cacheLock.unlock()
     }
 
     static func removeToken() {
@@ -59,6 +80,9 @@ enum GitHubAuth {
             kSecAttrAccount as String: account,
         ]
         SecItemDelete(query as CFDictionary)
+        cacheLock.lock()
+        cachedToken = .some(nil)
+        cacheLock.unlock()
     }
 
     /// Adds the Authorization header when a token is stored; no-op otherwise.

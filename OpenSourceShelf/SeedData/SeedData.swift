@@ -145,7 +145,7 @@ enum SeedData {
                 longDescription: "Virtual whiteboard for sketching hand-drawn like diagrams. Collaborative, end-to-end encrypted, and works offline.",
                 githubURL: "https://github.com/excalidraw/excalidraw",
                 websiteURL: "https://excalidraw.com",
-                category: "Design",
+                category: "Frontend",
                 status: .topShelf,
                 license: "MIT",
                 stars: "128.5k",

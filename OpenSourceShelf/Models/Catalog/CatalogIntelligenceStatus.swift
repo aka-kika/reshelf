@@ -43,14 +43,6 @@ enum CatalogIntelligenceStatus: String, Equatable, CaseIterable {
         }
     }
 
-    var canFetch: Bool {
-        switch self {
-        case .notFetched, .failed:
-            return true
-        case .queued, .fetching, .cloning, .analyzing, .ready:
-            return false
-        }
-    }
 }
 
 struct CatalogIntelligenceStatusSnapshot: Equatable {

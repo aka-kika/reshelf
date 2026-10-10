@@ -1,8 +1,39 @@
 import Foundation
 import AppKit
 
-/// Standalone, AI-free repo cloning for the catalog. Clones a repo to the user's
-/// Clones folder (organized by owner/name) and helps open it — no intelligence
+/// Resolves the root folder where repositories are cloned. The user can override
+/// it in Settings; otherwise it defaults to `~/reshelf/repos`. Stored as a
+/// plain path in UserDefaults (the app is not sandboxed, so no security-scoped
+/// bookmark is needed). Existing clones are unaffected — only new clones use the
+/// current value.
+enum CloneLocation {
+    static let storageKey = "reshelf.cloneRootPath"
+
+    static var defaultRootURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("reshelf", isDirectory: true)
+            .appendingPathComponent("repos", isDirectory: true)
+    }
+
+    /// `true` when the user has chosen a custom folder (a non-empty stored path).
+    static var isCustom: Bool {
+        guard let stored = UserDefaults.standard.string(forKey: storageKey) else { return false }
+        return !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    static var rootURL: URL {
+        if let stored = UserDefaults.standard.string(forKey: storageKey) {
+            let trimmed = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return URL(fileURLWithPath: trimmed, isDirectory: true)
+            }
+        }
+        return defaultRootURL
+    }
+}
+
+/// Standalone, AI-free repo cloning for the catalog. Clones a repo into the
+/// clone folder, one subfolder per category, and helps open it — no intelligence
 /// pipeline, no analysis, no git-lfs requirement (LFS filters are bypassed in
 /// GitClient so LFS repos still clone).
 enum CatalogCloneService {
@@ -93,7 +124,11 @@ enum CatalogCloneService {
     /// agent at just the "Note Taking" folder. "AI / Agent" → "AI Agent"; blank
     /// → "Uncategorized".
     static func categoryFolderName(for project: ToolProject) -> String {
-        let cleaned = project.category
+        folderName(forCategory: project.category)
+    }
+
+    static func folderName(forCategory category: String) -> String {
+        let cleaned = category
             .replacingOccurrences(of: "/", with: " ")
             .replacingOccurrences(of: ":", with: " ")
             .replacingOccurrences(of: "\\", with: " ")
@@ -178,6 +213,39 @@ enum CatalogCloneService {
                     moved += 1
                 } catch { /* leave in place on failure */ }
                 break
+            }
+        }
+        if moved > 0 { invalidateCloneIndex() }
+        return moved
+    }
+
+    /// One-time move for merged categories: every clone in an old category
+    /// folder goes into the merged one (`<root>/Coding Agents/x` →
+    /// `<root>/AI Agent/x`). A name already taken in the target stays where it
+    /// is — clone lookup scans every category folder, so it is still found. An
+    /// old folder left with nothing but .DS_Store is tidied away.
+    @discardableResult
+    static func mergeCategoryFolders(_ merges: [String: String]) -> Int {
+        let fm = FileManager.default
+        let root = CloneLocation.rootURL
+        var moved = 0
+        for (oldCategory, newCategory) in merges {
+            let oldDir = root.appendingPathComponent(folderName(forCategory: oldCategory), isDirectory: true)
+            let newDir = root.appendingPathComponent(folderName(forCategory: newCategory), isDirectory: true)
+            guard oldDir.path != newDir.path,
+                  let entries = try? fm.contentsOfDirectory(atPath: oldDir.path) else { continue }
+            for entry in entries where entry != ".DS_Store" {
+                let dest = newDir.appendingPathComponent(entry, isDirectory: true)
+                guard !fm.fileExists(atPath: dest.path) else { continue }
+                do {
+                    try fm.createDirectory(at: newDir, withIntermediateDirectories: true)
+                    try fm.moveItem(at: oldDir.appendingPathComponent(entry, isDirectory: true), to: dest)
+                    moved += 1
+                } catch { /* leave in place on failure */ }
+            }
+            if let leftovers = try? fm.contentsOfDirectory(atPath: oldDir.path),
+               leftovers.allSatisfy({ $0 == ".DS_Store" }) {
+                try? fm.removeItem(at: oldDir)
             }
         }
         if moved > 0 { invalidateCloneIndex() }
@@ -277,11 +345,16 @@ enum CatalogCloneService {
     /// Fast-forwards when possible; resets to upstream when the clone has diverged
     /// (e.g. the project force-pushed/rebased its default branch) so updates don't
     /// get stuck. Throws `GitClientError.localChangesPresent` — leaving the clone
-    /// untouched — if the working tree has local edits.
+    /// untouched — if the working tree has local edits. After a successful pull
+    /// the repo's GitHub info (stars, license, last activity) is refreshed too:
+    /// cloned repos are skipped by Refresh Repo Info, so this is their refresh.
     @MainActor
     static func pull(_ project: ToolProject) async throws {
         guard let dir = existingClone(for: project) else { throw CloneError.invalidURL }
         try await GitClient().syncToUpstream(repositoryURL: dir)
+        if let context = project.modelContext {
+            _ = await RepoInfoRefreshService.refresh([project], context: context)
+        }
     }
 
     // MARK: - Opening

@@ -125,8 +125,8 @@ struct ImportURLsSheet: View {
                                 name: name
                             ),
                             status: .collector,
-                            license: info.license?.spdxId ?? info.license?.name ?? "",
-                            stars: info.stars.map(formatStars) ?? "",
+                            license: info.licenseText,
+                            stars: info.stars.map(GitHubRepoInfo.formattedStars) ?? "",
                             tags: info.topics ?? []
                         )
                         modelContext.insert(project)
@@ -148,10 +148,6 @@ struct ImportURLsSheet: View {
             }
             await MainActor.run { isImporting = false; done = true }
         }
-    }
-
-    private func formatStars(_ count: Int) -> String {
-        count >= 1000 ? String(format: "%.1fk", Double(count) / 1000.0) : "\(count)"
     }
 
     /// The same dedup key Quick Capture uses — a weaker normalizer here (no

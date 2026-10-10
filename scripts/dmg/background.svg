@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
+  <!-- reshelf DMG background. Three colors only: ink, paper, one pastel accent
+       (the Top Shelf peach). Icon centers sit at (180,192) and (480,192); if
+       you move them, move the drop spots and scripts/dmg/build_dmg.py too. -->
+  <rect width="660" height="400" fill="#FAF8F4"/>
+  <text x="330" y="64" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="19" font-weight="600" fill="#1E2230">Drag reshelf into Applications</text>
+  <text x="330" y="90" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="13" fill="#1E2230" fill-opacity="0.55">Your open-source shelf, kept on this Mac.</text>
+  <!-- drop spots -->
+  <rect x="110" y="122" width="140" height="160" rx="30" fill="none" stroke="#1E2230" stroke-opacity="0.12" stroke-width="1.5"/>
+  <rect x="410" y="122" width="140" height="160" rx="30" fill="none" stroke="#1E2230" stroke-opacity="0.12" stroke-width="1.5"/>
+  <!-- arrow -->
+  <line x1="278" y1="192" x2="376" y2="192" stroke="#E9B45C" stroke-width="2.5" stroke-linecap="round"/>
+  <polyline points="364,182 378,192 364,202" fill="none" stroke="#E9B45C" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="330" y="352" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="11" fill="#1E2230" fill-opacity="0.4">Settings → Guide shows the basics in one screen.</text>
+</svg>

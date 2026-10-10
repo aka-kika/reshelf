@@ -42,6 +42,7 @@ struct ProjectListView: View {
     @State private var behindProjectIDs: Set<UUID> = []
     @State private var isCheckingCloneUpdates = false
     @State private var isPullingClones = false
+    @State private var isRefreshingInfo = false
     /// Number of duplicate entries pending removal (drives the confirm dialog); nil = no dialog.
     @State private var pendingDuplicateRemoval: Int?
     /// Repos without a clear license about to go to Yard Sale; nil = no dialog.
@@ -217,6 +218,7 @@ struct ProjectListView: View {
             onCloneStatusKnown: { note in syncBehindBadge(note) },
             onRemoveDuplicates: { requestRemoveDuplicates() },
             onYardSaleUnlicensed: { requestYardSaleUnlicensed() },
+            onRefreshRepoInfo: { note in refreshRepoInfo(note.object as? String) },
             onPullFolderClones: { note in
                 if let id = note.object as? UUID { pullClones(inFolder: id) }
             }
@@ -400,8 +402,6 @@ struct ProjectListView: View {
         }
     }
 
- 
- 
     @ViewBuilder
     private func catalogContextMenu(for project: ToolProject, batch: [ToolProject]) -> some View {
         // Right-clicking inside a batch acts on the batch; right-clicking outside
@@ -504,8 +504,6 @@ struct ProjectListView: View {
         try? modelContext.save()
     }
 
- 
- 
     /// ⌘T / ⌘Y / ⌘⇧G — move the currently selected repo to a shelf.
     private func moveSelectedToShelf(_ rawStatus: String?) {
         guard let rawStatus, let shelf = ProjectStatus(rawValue: rawStatus),
@@ -740,6 +738,42 @@ struct ProjectListView: View {
         statusNotice = "Removed \(removed) duplicate\(removed == 1 ? "" : "s"). A backup was saved."
     }
 
+    // MARK: - Refresh Repo Info
+
+    /// Shelf → Refresh Info: re-reads GitHub facts for one shelf's repos that
+    /// aren't cloned, with progress in the status line.
+    private func refreshRepoInfo(_ shelfRaw: String?) {
+        guard !isRefreshingInfo,
+              let shelf = shelfRaw.flatMap(ProjectStatus.init(rawValue:)) else { return }
+        let targets = RepoInfoRefreshService.candidates(on: shelf, in: allProjects)
+        guard !targets.isEmpty else {
+            statusNotice = "Every \(shelf.displayName) repo is cloned. Clones refresh when you pull them."
+            return
+        }
+        isRefreshingInfo = true
+        statusNotice = "Refreshing \(shelf.displayName)… 0 of \(targets.count)"
+        Task { @MainActor in
+            let result = await RepoInfoRefreshService.refresh(targets, context: modelContext) { done, total in
+                statusNotice = "Refreshing \(shelf.displayName)… \(done) of \(total)"
+            }
+            isRefreshingInfo = false
+            AppRefreshBus.emit(.catalogStateUpdated)
+            statusNotice = refreshSummary(result, shelf: shelf)
+        }
+    }
+
+    private func refreshSummary(_ result: RepoInfoRefreshService.Result, shelf: ProjectStatus) -> String {
+        var parts = ["Refreshed \(result.checked) \(shelf.displayName) repo\(result.checked == 1 ? "" : "s")"]
+        parts.append("\(result.starsChanged) star count\(result.starsChanged == 1 ? "" : "s") and \(result.licensesChanged) license\(result.licensesChanged == 1 ? "" : "s") changed")
+        if !result.notFound.isEmpty {
+            let names = result.notFound.prefix(3).joined(separator: ", ")
+            parts.append("\(result.notFound.count) no longer on GitHub (\(names)\(result.notFound.count > 3 ? ", …" : ""))")
+        }
+        if result.failed > 0 { parts.append("\(result.failed) couldn't be read") }
+        if let limit = result.rateLimitMessage { parts.append(limit) }
+        return parts.joined(separator: ". ") + "."
+    }
+
     // MARK: - Yard Sale for repos without a clear license
 
     private func requestYardSaleUnlicensed() {
@@ -761,17 +795,6 @@ struct ProjectListView: View {
 
     // MARK: - Context-menu action helpers
 
-    /// The on-disk clone worktree for a project, if intelligence has cloned it.
-    /// Reads the tracked `localPath` from the intelligence record so it stays
-    /// correct even if the user later changes the clone-root setting.
-    private func cloneWorktreeURL(for project: ToolProject) -> URL? {
-        guard let record = IntelligenceRepositoryBridge.findIntelligenceRepository(for: project),
-              let path = record.localPath,
-              !path.isEmpty else { return nil }
-        let url = URL(fileURLWithPath: path, isDirectory: true)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
-    }
-
     private func deleteProject(_ project: ToolProject) {
         if listSelection?.projectID == project.id {
             listSelection = nil
@@ -782,15 +805,6 @@ struct ProjectListView: View {
         AppRefreshBus.emit(.catalogStateUpdated)
         statusNotice = "Removed “\(name)” from the catalog."
     }
-
- 
- 
- 
- 
- 
- 
- 
- 
 
     private var filteredProjects: [ToolProject] {
         let bySidebar = applySidebarFilter(allProjects)
@@ -1051,11 +1065,6 @@ struct ProjectRowView: View, Equatable {
     }
 }
 
-private func isGitHubURL(_ text: String) -> Bool {
-    let trimmed = text.trimmingCharacters(in: .whitespaces)
-    return trimmed.hasPrefix("https://github.com/") || trimmed.hasPrefix("github.com/")
-}
-
 /// Bundles the catalog's notification `.onReceive` handlers into one modifier so
 /// the main `body` modifier chain stays short enough for the type-checker.
 private struct CatalogEventHandlers: ViewModifier {
@@ -1065,6 +1074,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onCloneStatusKnown: (Notification) -> Void
     let onRemoveDuplicates: () -> Void
     let onYardSaleUnlicensed: () -> Void
+    let onRefreshRepoInfo: (Notification) -> Void
     let onPullFolderClones: (Notification) -> Void
 
     func body(content: Content) -> some View {
@@ -1075,6 +1085,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown), perform: onCloneStatusKnown)
             .onReceive(NotificationCenter.default.publisher(for: .removeDuplicateRepos)) { _ in onRemoveDuplicates() }
             .onReceive(NotificationCenter.default.publisher(for: .yardSaleUnlicensed)) { _ in onYardSaleUnlicensed() }
+            .onReceive(NotificationCenter.default.publisher(for: .refreshRepoInfo), perform: onRefreshRepoInfo)
             .onReceive(NotificationCenter.default.publisher(for: .pullFolderClones), perform: onPullFolderClones)
     }
 }

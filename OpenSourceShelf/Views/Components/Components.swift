@@ -15,21 +15,24 @@ struct StatusBadge: View {
             .foregroundColor(textColor)
     }
 
-    // Blue = keeper (calm), gray = neutral default, amber/yellow = needs review.
-    private var backgroundColor: Color {
+    // Same soft tints as the sidebar and the row icons (one shelf color
+    // language); The Collector, the neutral default, stays gray.
+    private var tint: Color? {
         switch status {
-        case .topShelf: .blue.opacity(0.12)
-        case .collector: .gray.opacity(0.14)
-        case .yardSale: .yellow.opacity(0.20)
+        case .topShelf: SidebarItem.topShelf.sidebarTint
+        case .collector: nil
+        case .yardSale: SidebarItem.yardSale.sidebarTint
         }
     }
 
+    // The tint carries the shelf color; the text stays near-primary so the
+    // pale peach stays readable on a light background too.
+    private var backgroundColor: Color {
+        tint?.opacity(0.22) ?? .gray.opacity(0.14)
+    }
+
     private var textColor: Color {
-        switch status {
-        case .topShelf: .blue
-        case .collector: .secondary
-        case .yardSale: .orange
-        }
+        tint == nil ? .secondary : .primary.opacity(0.8)
     }
 }
 
@@ -76,6 +79,9 @@ enum LicenseStrictness {
 /// Plain-language explainer for a software license. Not legal advice — a friendly
 /// summary so you know what a repo's license lets you do before you reuse its code.
 struct LicenseInfo {
+    /// Settings → General → License warnings (inspector caution banner).
+    static let warnStorageKey = "reshelf.warnOnStrictLicense"
+
     let name: String
     let strictness: LicenseStrictness
     let summary: String

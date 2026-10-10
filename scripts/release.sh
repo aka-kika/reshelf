@@ -80,14 +80,18 @@ xcrun stapler validate "$APP"
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"   # re-zip so the ticket ships inside it
 
-echo "▶︎ Creating DMG…"
-create-dmg \
-  --volname "$APP_NAME $VERSION" \
-  --window-size 540 380 --icon-size 110 \
-  --icon "$APP_NAME.app" 150 185 \
-  --app-drop-link 390 185 \
-  --no-internet-enable \
-  "$DMG" "$APP" >/dev/null 2>&1 || true
+echo "▶︎ Creating DMG (dmgbuild, styled window)…"
+# The install window's art and layout live in scripts/dmg/ (background.svg +
+# build_dmg.py). dmgbuild runs from its own venv under .build/ so nothing is
+# installed system-wide; rsvg-convert (Homebrew librsvg) renders the art.
+DMG_VENV="$PROJECT_DIR/.build/dmgbuild-venv"
+if ! "$DMG_VENV/bin/python" -c "import dmgbuild" 2>/dev/null; then
+  python3 -m venv "$DMG_VENV"
+  "$DMG_VENV/bin/python" -m pip install --quiet "dmgbuild>=1.6.7"
+fi
+command -v rsvg-convert >/dev/null || { echo "✗ rsvg-convert missing: brew install librsvg" >&2; exit 1; }
+"$DMG_VENV/bin/python" "$PROJECT_DIR/scripts/dmg/build_dmg.py" \
+  --app "$APP" --out "$DMG" --volname "$APP_NAME $VERSION" >/dev/null
 [ -f "$DMG" ] || { echo "✗ DMG creation failed" >&2; exit 1; }
 
 echo "▶︎ Signing DMG…"

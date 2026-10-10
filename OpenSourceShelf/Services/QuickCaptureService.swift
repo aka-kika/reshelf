@@ -1,5 +1,4 @@
 import Foundation
-import AppKit
 import SwiftData
 
 struct GitHubRepoInfo: Codable {
@@ -26,6 +25,16 @@ struct GitHubRepoInfo: Codable {
             case spdxId = "spdx_id"
             case name
         }
+    }
+
+    /// "18.2k" / "342": how every capture path stores the star count.
+    static func formattedStars(_ count: Int) -> String {
+        count >= 1000 ? String(format: "%.1fk", Double(count) / 1000.0) : "\(count)"
+    }
+
+    /// SPDX id when GitHub has one, else the license name, else "" (none).
+    var licenseText: String {
+        license?.spdxId ?? license?.name ?? ""
     }
 
     enum CodingKeys: String, CodingKey {
@@ -271,8 +280,8 @@ enum LinkCaptureService {
                 name: name
             ),
             status: .collector,
-            license: info.license?.spdxId ?? info.license?.name ?? "",
-            stars: info.stars.map { $0 >= 1000 ? String(format: "%.1fk", Double($0) / 1000.0) : "\($0)" } ?? "",
+            license: info.licenseText,
+            stars: info.stars.map(GitHubRepoInfo.formattedStars) ?? "",
             tags: topics,
             lastUpdatedDate: info.pushedAt.flatMap(GitHubDate.parse),
             isLocalFirst: topics.contains("local-first"),

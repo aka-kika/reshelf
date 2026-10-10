@@ -37,6 +37,10 @@ enum InspectorSection: String, CaseIterable, Identifiable, Codable {
 
 @Model
 final class AppSettings {
+    // Stored fields from retired features (Ollama and cloud AI providers,
+    // removed in 1.15.0; semantic search and runbooks, removed in 1.9.x).
+    // Nothing reads them anymore. They stay so the SwiftData store needs no
+    // migration — removing a stored property changes the on-disk schema.
     var ollamaEnabled: Bool = true
     var ollamaBaseURL: String = "http://localhost:11434"
     var ollamaSelectedModel: String = ""
@@ -45,17 +49,16 @@ final class AppSettings {
     var appleIntelligenceEnabled: Bool = false
     var autoGenerateRunbookAfterIntelligence: Bool = false
 
-    /// Quick Capture, runbook polish, and other text suggestions.
-    var preferredAIProviderRaw: String = AIProviderKind.ollama.rawValue
+    var preferredAIProviderRaw: String = "ollama"
 
     var openAIEnabled: Bool = false
-    var openAISelectedModel: String = AIProviderKind.openAI.defaultModel
+    var openAISelectedModel: String = "gpt-4.1-mini"
     var anthropicEnabled: Bool = false
-    var anthropicSelectedModel: String = AIProviderKind.anthropic.defaultModel
+    var anthropicSelectedModel: String = "claude-sonnet-4-20250514"
     var geminiEnabled: Bool = false
-    var geminiSelectedModel: String = AIProviderKind.gemini.defaultModel
+    var geminiSelectedModel: String = "gemini-2.0-flash"
     var githubCopilotEnabled: Bool = false
-    var githubCopilotSelectedModel: String = AIProviderKind.githubCopilot.defaultModel
+    var githubCopilotSelectedModel: String = "openai/gpt-4.1"
 
     // Inspector section visibility (default: show all)
     var showInspectorUseCases: Bool = true
@@ -65,6 +68,7 @@ final class AppSettings {
     /// Unused since Personal Fit was removed (1.13.1); kept so the SwiftData store needs no migration.
     var showInspectorPersonalFit: Bool = true
     var showInspectorGitHub: Bool = true
+    /// Unused (v2 inspector blocks, removed in 1.9.x); kept for the schema.
     var showInspectorStack: Bool = true
     var showInspectorRelationships: Bool = true
     var showInspectorRecommendations: Bool = true
@@ -72,8 +76,6 @@ final class AppSettings {
     /// JSON-encoded array of InspectorSection raw values for custom ordering.
     /// Empty string means default order (InspectorSection.allCases).
     var inspectorSectionOrderData: String = ""
-
-    static let autoGenerateRunbookKey = "reshelf.autoGenerateRunbookAfterIntelligence"
 
     // MARK: - Inspector section order helpers
 

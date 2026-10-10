@@ -60,20 +60,6 @@
 			path = "OpenSourceShelf/Models/CatalogListSelection.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		A52E8C5B37CE17A44D88EA70 /* EmbeddingChunkRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "EmbeddingChunkRecord.swift";
-			path = "OpenSourceShelf/Models/Embeddings/EmbeddingChunkRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		3D424D9388C5E6281CE10735 /* SemanticSearchCacheRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "SemanticSearchCacheRecord.swift";
-			path = "OpenSourceShelf/Models/Embeddings/SemanticSearchCacheRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		D6764E798CF4E16BDB8B88A6 /* AIInsightRecord.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -88,32 +74,11 @@
 			path = "OpenSourceShelf/Models/Intelligence/CloneStateRecord.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		E6D585838F452FA171500408 /* DetectedStackItemRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "DetectedStackItemRecord.swift";
-			path = "OpenSourceShelf/Models/Intelligence/DetectedStackItemRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		5F59F9A622EF5A00C6DC42B2 /* IngestionJobRecord.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
 			name = "IngestionJobRecord.swift";
 			path = "OpenSourceShelf/Models/Intelligence/IngestionJobRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		EDA878E57DCDCE82A2E171CD /* RepositoryFileRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "RepositoryFileRecord.swift";
-			path = "OpenSourceShelf/Models/Intelligence/RepositoryFileRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		AAC7A6E12C7DD13CC3DDB160 /* RepositoryManifestRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "RepositoryManifestRecord.swift";
-			path = "OpenSourceShelf/Models/Intelligence/RepositoryManifestRecord.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		4CB083F8AA79491C629CA857 /* RepositoryMetadataRecord.swift */ = {
@@ -142,20 +107,6 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "CatalogIntelligenceStatus.swift";
 			path = "OpenSourceShelf/Models/Catalog/CatalogIntelligenceStatus.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		058D2B85D572C813055694FB /* ExplorationIndexEntryRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "ExplorationIndexEntryRecord.swift";
-			path = "OpenSourceShelf/Models/Exploration/ExplorationIndexEntryRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		BB6B6F1B82553D9F614693EB /* ExplorationQueryRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "ExplorationQueryRecord.swift";
-			path = "OpenSourceShelf/Models/Exploration/ExplorationQueryRecord.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		8E8C0D2D278A4F10E4F2006F /* IntelligenceDatabase.swift */ = {
@@ -324,6 +275,13 @@
 			path = "OpenSourceShelf/Models/CatalogFolder.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		33A5A06F152121123562CDEA /* RepoInfoRefreshService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "RepoInfoRefreshService.swift";
+			path = "OpenSourceShelf/Services/RepoInfoRefreshService.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -408,34 +366,6 @@
 			path = "OpenSourceShelf/Services/IconFetcher.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		D4FACC71205A0F08A3FCA160 /* OllamaService.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "OllamaService.swift";
-			path = "OpenSourceShelf/Services/OllamaService.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		AIP1REF01234567890ABCDEF01 /* AIProviderKind.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AIProviderKind.swift";
-			path = "OpenSourceShelf/Models/AIProviderKind.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		AIP4REF01234567890ABCDEF04 /* AICompletionService.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AICompletionService.swift";
-			path = "OpenSourceShelf/Services/AI/AICompletionService.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		AIP5REF01234567890ABCDEF05 /* AISettingsSnapshot.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AISettingsSnapshot.swift";
-			path = "OpenSourceShelf/Services/AI/AISettingsSnapshot.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -469,13 +399,6 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "GitHubRepositoryURL.swift";
 			path = "OpenSourceShelf/Services/Ingestion/GitHubRepositoryURL.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		CAB6FC28BA83F90F9A18E66C /* RepositoryCloneService.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "RepositoryCloneService.swift";
-			path = "OpenSourceShelf/Services/Ingestion/RepositoryCloneService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		7B1335C2DE6DAD98FE5609C2 /* RepositoryIngestionService.swift */ = {
@@ -547,26 +470,18 @@
 				F581B72127F52136210BED03 /* OpenSourceShelfApp.swift */,
 				5835EAF30D87A0DEBAE75DCD /* SeedData.swift */,
 				FBE2E820F2F24C417942A420 /* AppSettings.swift */,
-				AIP1REF01234567890ABCDEF01 /* AIProviderKind.swift */,
 				E14FFF135E1C32F7E41B3958 /* ProjectStatus.swift */,
 				868BD8CBD1E0AA395EAD3A6F /* SidebarItem.swift */,
 				37F255F7393A8F75EB2F40DD /* ToolProject.swift */,
 				LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */,
 				CLS1REF01234567890ABCDEF01 /* CatalogListSelection.swift */,
-				A52E8C5B37CE17A44D88EA70 /* EmbeddingChunkRecord.swift */,
-				3D424D9388C5E6281CE10735 /* SemanticSearchCacheRecord.swift */,
 				D6764E798CF4E16BDB8B88A6 /* AIInsightRecord.swift */,
 				01DD0CEBD5343C0C44787E9D /* CloneStateRecord.swift */,
-				E6D585838F452FA171500408 /* DetectedStackItemRecord.swift */,
 				5F59F9A622EF5A00C6DC42B2 /* IngestionJobRecord.swift */,
-				EDA878E57DCDCE82A2E171CD /* RepositoryFileRecord.swift */,
-				AAC7A6E12C7DD13CC3DDB160 /* RepositoryManifestRecord.swift */,
 				4CB083F8AA79491C629CA857 /* RepositoryMetadataRecord.swift */,
 				64D2374F43F4F300343BE1E7 /* RepositoryRecord.swift */,
 				FE0D5A128D3A9931CFBB22BA /* RepositoryScoreRecord.swift */,
 				DD0C372CC45921B00B25CB56 /* CatalogIntelligenceStatus.swift */,
-				058D2B85D572C813055694FB /* ExplorationIndexEntryRecord.swift */,
-				BB6B6F1B82553D9F614693EB /* ExplorationQueryRecord.swift */,
 				8E8C0D2D278A4F10E4F2006F /* IntelligenceDatabase.swift */,
 				A4C3FBD350354C15CD25D4C1 /* IntelligenceMigrations.swift */,
 				E0ABEAC1B1EDF262B954C1D2 /* ContentView.swift */,
@@ -593,9 +508,6 @@
 				SK1LF001234567890ABCDE01 /* reshelf-skill */,
 				SOC1F001234567890ABCDE01 /* SocialIcons */,
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
-				D4FACC71205A0F08A3FCA160 /* OllamaService.swift */,
-				AIP4REF01234567890ABCDEF04 /* AICompletionService.swift */,
-				AIP5REF01234567890ABCDEF05 /* AISettingsSnapshot.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
@@ -606,12 +518,12 @@
 				F0LDER101234567890ABCD /* ShelfSelection.swift */,
 				F0LDER001234567890ABCD /* CatalogFolder.swift */,
 				LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */,
+				33A5A06F152121123562CDEA /* RepoInfoRefreshService.swift */,
 				LUPD00001234567890ABCD /* GitHubDate.swift */,
 				GHAUTH00134567890ABCDE01 /* GitHubAuth.swift */,
 				5PARKLE0004234567890ABCD /* UpdaterService.swift */,
 				CC01A2B3D4E5F60789ABCDE0 /* CategoryClassifier.swift */,
 				011EDAC97AD3411BF259663B /* GitHubRepositoryURL.swift */,
-				CAB6FC28BA83F90F9A18E66C /* RepositoryCloneService.swift */,
 				7B1335C2DE6DAD98FE5609C2 /* RepositoryIngestionService.swift */,
 				A1B2C3D4E5F6012345678AB01 /* CatalogCaptureIntelligenceService.swift */,
 				9CACB97C7EAF0552E46AD707 /* CatalogIntelligenceStatusResolver.swift */,
@@ -643,6 +555,10 @@
 		F0LDER002234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = F0LDER001234567890ABCD;
+		};
+		152121123562CDEA6B41187E /* RepoInfoRefreshService.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 33A5A06F152121123562CDEA;
 		};
 		LUPD00012234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -696,14 +612,6 @@
 			isa = PBXBuildFile;
 			fileRef = 37F255F7393A8F75EB2F40DD;
 		};
-		9F94068C7A87D4CD41EF2E3A /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = A52E8C5B37CE17A44D88EA70;
-		};
-		816B54FE9B12E433F7BCECDC /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 3D424D9388C5E6281CE10735;
-		};
 		0B7F928390FCE2F0D1D5696C /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = D6764E798CF4E16BDB8B88A6;
@@ -712,21 +620,9 @@
 			isa = PBXBuildFile;
 			fileRef = 01DD0CEBD5343C0C44787E9D;
 		};
-		EF7991614E2AC7FBD3D40F07 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = E6D585838F452FA171500408;
-		};
 		DE53E47A3460823564E6B178 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 5F59F9A622EF5A00C6DC42B2;
-		};
-		4FEC36337C98EF2C7F9E7198 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = EDA878E57DCDCE82A2E171CD;
-		};
-		9A41503DEA86CA826EDF1C60 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AAC7A6E12C7DD13CC3DDB160;
 		};
 		22A771DBB640E62424217243 /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -743,14 +639,6 @@
 		E3DEF8B73D9A8B80BFCD4893 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = DD0C372CC45921B00B25CB56;
-		};
-		1A129E2107C36AE24537C6B8 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 058D2B85D572C813055694FB;
-		};
-		D2215AFE01E36666F2D1C9EC /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = BB6B6F1B82553D9F614693EB;
 		};
 		D8C9EE93B8029986AD6BFE12 /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -852,22 +740,6 @@
 			isa = PBXBuildFile;
 			fileRef = 07D2AD6B75DA37AAD823A7F8;
 		};
-		BD82E79C0CF8C385C4169047 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = D4FACC71205A0F08A3FCA160;
-		};
-		AIP1BUILD1234567890ABCDEF01 /* AIProviderKind.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AIP1REF01234567890ABCDEF01;
-		};
-		AIP4BUILD1234567890ABCDEF04 /* AICompletionService.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AIP4REF01234567890ABCDEF04;
-		};
-		AIP5BUILD1234567890ABCDEF05 /* AISettingsSnapshot.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = AIP5REF01234567890ABCDEF05;
-		};
 		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP7REF01234567890ABCDEF07;
@@ -899,10 +771,6 @@
 		857F7E93C32C47A1DC69444E /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 011EDAC97AD3411BF259663B;
-		};
-		04AC25DD035CDA826DF27EEB /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = CAB6FC28BA83F90F9A18E66C;
 		};
 		DA4BBAA58796583497B507BF /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -984,6 +852,7 @@
 				F0LDER102234567890ABCD,
 				F0LDER002234567890ABCD,
 				LUPD00012234567890ABCD,
+				152121123562CDEA6B41187E /* RepoInfoRefreshService.swift in Sources */,
 				LUPD00002234567890ABCD,
 				GHAUTH00134567890ABCDE02,
 				5PARKLE0005234567890ABCD,
@@ -1000,20 +869,13 @@
 				DEF4DA349BA405B0E952B67B,
 				D30704CE6F993A6E147922F1,
 				9A351B1C2BFE2065F9BF1608,
-				9F94068C7A87D4CD41EF2E3A,
-				816B54FE9B12E433F7BCECDC,
 				0B7F928390FCE2F0D1D5696C,
 				030C225C1E14B46FCEFB22DE,
-				EF7991614E2AC7FBD3D40F07,
 				DE53E47A3460823564E6B178,
-				4FEC36337C98EF2C7F9E7198,
-				9A41503DEA86CA826EDF1C60,
 				22A771DBB640E62424217243,
 				5CD0EF1F7E8F08533D1381DA,
 				9A3343A23E8DEBE739A088D4,
 				E3DEF8B73D9A8B80BFCD4893,
-				1A129E2107C36AE24537C6B8,
-				D2215AFE01E36666F2D1C9EC,
 				D8C9EE93B8029986AD6BFE12,
 				471D22C667DA0F6EAF230ABE,
 				A650AF434AD64939BBDF1DFC,
@@ -1035,14 +897,9 @@
 				E81CE967849EA46EE4133CDC,
 				967CB7F565F1E5FFDFDAD3EA,
 				C5392DFC038F8A68E7A21263,
-				BD82E79C0CF8C385C4169047,
-				AIP1BUILD1234567890ABCDEF01,
-				AIP4BUILD1234567890ABCDEF04,
-				AIP5BUILD1234567890ABCDEF05,
 				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,
 				857F7E93C32C47A1DC69444E,
-				04AC25DD035CDA826DF27EEB,
 				DA4BBAA58796583497B507BF,
 				B2C3D4E5F6012345678ABCD01,
 				5B39C7B3A378B1A690B9D271,

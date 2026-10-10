@@ -67,6 +67,15 @@ enum CategoryClassifier {
     /// re-score once flattened dozens of hand-sorted Coding Agents / Computer Use /
     /// AI Memory rows into AI / Agent.) Rule improvements apply to new captures and
     /// to still-uncategorized rows; existing assignments are corrected by hand.
+    /// Categories folded into a broader one (Kika, 2026-10-10). The launch pass
+    /// in `ContentView.mergeCategoriesIfNeeded()` renames stored rows and moves
+    /// their clone folders once; the rules above already produce the new names.
+    static let mergedCategories: [String: String] = [
+        "Coding Agents": "AI / Agent",
+        "AI Memory": "Knowledge",
+        "Design": "Frontend",
+    ]
+
     static func shouldReclassify(_ category: String, force: Bool) -> Bool {
         let trimmed = category.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty || isLanguageName(trimmed)
@@ -116,7 +125,8 @@ enum CategoryClassifier {
              strongPhrases: ["model context protocol", "mcp server", "mcp client", "mcp"],
              weakPhrases: []),
 
-        Rule(category: "Coding Agents",
+        // Was its own "Coding Agents" category until 1.15.0.
+        Rule(category: "AI / Agent",
              strongTopics: ["coding-agent", "code-agent", "ai-coding", "code-generation",
                             "codegen", "pair-programming", "code-assistant", "ai-pair-programmer",
                             "swe-agent", "agentic-coding"],
@@ -136,7 +146,8 @@ enum CategoryClassifier {
                              "screen mouse and keyboard", "desktop automation"],
              weakPhrases: []),
 
-        Rule(category: "AI Memory",
+        // Was its own "AI Memory" category until 1.15.0.
+        Rule(category: "Knowledge",
              strongTopics: ["memory", "rag", "long-term-memory", "context-management",
                             "context-engineering", "retrieval-augmented-generation",
                             "vector-memory", "semantic-memory"],
@@ -249,7 +260,8 @@ enum CategoryClassifier {
                              "screen recording", "screenshot", "media player"],
              weakPhrases: ["video", "image", "audio", "music", "media", "photo"]),
 
-        Rule(category: "Design",
+        // Was its own "Design" category until 1.15.0.
+        Rule(category: "Frontend",
              strongTopics: ["figma", "design-system", "ui-design", "design-tools", "illustration",
                             "design", "icons", "typography", "css", "tailwind", "tailwindcss"],
              weakTopics: ["graphics", "fonts", "ui"],

@@ -6,12 +6,6 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var settings: AppSettings
 
-    // Ollama
-    @State private var ollamaModels: [OllamaModel] = []
-    @State private var isFetchingModels: Bool = false
-    @State private var connectionStatus: ConnectionStatus = .unknown
-    @State private var urlText: String
-
     // Inspector section ordering
     @State private var sectionOrder: [InspectorSection] = InspectorSection.allCases
 
@@ -19,7 +13,7 @@ struct SettingsView: View {
     @AppStorage(AppearanceMode.storageKey) private var appearanceMode: AppearanceMode = .system
     @AppStorage(CaptureAssist.storageKey) private var captureAssistEnabled = true
     @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
-    @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
+    @AppStorage(LicenseInfo.warnStorageKey) private var warnOnStrictLicense = true
     @AppStorage(SidebarTagRanking.modeKey) private var sidebarTagsMode: SidebarTagRanking.Mode = .top
 
     // Capture Assist backfill of entries without use cases
@@ -44,31 +38,8 @@ struct SettingsView: View {
     // Repository clone location (empty = default ~/reshelf/repos)
     @AppStorage(CloneLocation.storageKey) private var cloneRootPath: String = ""
 
-    enum ConnectionStatus: Equatable {
-        case unknown, testing, connected, failed(String)
-
-        var label: String {
-            switch self {
-            case .unknown: "Not tested"
-            case .testing: "Testing…"
-            case .connected: "Connected"
-            case .failed(let msg): "Failed: \(msg)"
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .unknown: .secondary
-            case .testing: .orange
-            case .connected: .green
-            case .failed: .red
-            }
-        }
-    }
-
     init() {
         self._settings = State(initialValue: AppSettings())
-        self._urlText = State(initialValue: "")
     }
 
     var body: some View {
@@ -85,16 +56,11 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .onAppear {
-            urlText = settings.ollamaBaseURL
-            loadSettings()
+            settings = AppSettings.current(in: modelContext)
             sectionOrder = settings.inspectorSectionOrder
             githubTokenStored = GitHubAuth.hasToken
-            if settings.ollamaEnabled {
-                fetchModels()
-            }
         }
     }
-
 
     /// Reads each cloned repo's last commit date off disk. Fill-only: entries
     /// that already have a date (from GitHub, which is more authoritative than a
@@ -469,18 +435,6 @@ struct SettingsView: View {
         return build.isEmpty || build == version ? version : "\(version) (\(build))"
     }
 
-    // MARK: - Bindings
-
-    private var preferredProviderBinding: Binding<AIProviderKind> {
-        Binding(
-            get: { settings.preferredAIProvider },
-            set: { newValue in
-                settings.preferredAIProvider = newValue
-                persistSettings()
-            }
-        )
-    }
-
     // MARK: - Actions
 
     /// Present a native folder picker and store the chosen path. The user selects
@@ -537,56 +491,6 @@ struct SettingsView: View {
         }
     }
 
-    private func loadSettings() {
-        self.settings = AppSettings.current(in: modelContext)
-        self.urlText = settings.ollamaBaseURL
-        AISettingsSnapshot.sync(from: settings)
-    }
-
-    private func persistSettings() {
-        AISettingsSnapshot.sync(from: settings)
-        try? modelContext.save()
-    }
-
-    private func saveURL() {
-        let trimmed = urlText.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        settings.ollamaBaseURL = trimmed
-        persistSettings()
-        connectionStatus = .unknown
-        ollamaModels = []
-    }
-
-    private func testConnection() {
-        saveURL()
-        let url = settings.ollamaBaseURL
-        connectionStatus = .testing
-        Task {
-            let ok = await OllamaService.testConnection(baseURL: url)
-            await MainActor.run {
-                connectionStatus = ok ? .connected : .failed("Could not reach Ollama at \(url)")
-                if ok { fetchModels() }
-            }
-        }
-    }
-
-    private func fetchModels() {
-        let url = settings.ollamaBaseURL
-        isFetchingModels = true
-        Task {
-            do {
-                let models = try await OllamaService.fetchModels(baseURL: url)
-                await MainActor.run {
-                    ollamaModels = models
-                    isFetchingModels = false
-                }
-            } catch {
-                await MainActor.run {
-                    isFetchingModels = false
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Settings building blocks

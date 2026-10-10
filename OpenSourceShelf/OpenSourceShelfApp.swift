@@ -34,9 +34,6 @@ private enum LegacyNameMigration {
     private static func migrateUserDefaults() {
         let defaults = UserDefaults.standard
         let pairs = [
-            ("OpenSourceShelf.ollamaBaseURL", "reshelf.ollamaBaseURL"),
-            ("OpenSourceShelf.ollamaSelectedModel", "reshelf.ollamaSelectedModel"),
-            ("OpenSourceShelf.autoGenerateRunbookAfterIntelligence", "reshelf.autoGenerateRunbookAfterIntelligence"),
             ("OpenSourceShelf.cloneRootPath", "reshelf.cloneRootPath")
         ]
         for (old, new) in pairs {
@@ -79,7 +76,7 @@ private enum CatalogStoreLocation {
 /// SwiftUI's `CommandGroup(replacing: .textFormatting) {}` empties the Format
 /// menu but leaves the empty menu itself in the menu bar. Prune it at the AppKit
 /// level — and keep pruning, because SwiftUI rebuilds the main menu whenever the
-/// `commands` re-evaluate (e.g. toggling Labs).
+/// `commands` re-evaluate.
 final class FormatMenuPruner: NSObject, NSApplicationDelegate {
     private var observer: NSObjectProtocol?
 
@@ -270,11 +267,19 @@ struct OpenSourceShelfApp: App {
                 Button("Move Repos Without a License to Yard Sale…") {
                     NotificationCenter.default.post(name: .yardSaleUnlicensed, object: nil)
                 }
+
+                Divider()
+
+                // Not-cloned repos only; clones refresh when they are pulled.
+                Button("Refresh Info for Top Shelf") {
+                    NotificationCenter.default.post(name: .refreshRepoInfo, object: ProjectStatus.topShelf.rawValue)
+                }
+                Button("Refresh Info for The Collector") {
+                    NotificationCenter.default.post(name: .refreshRepoInfo, object: ProjectStatus.collector.rawValue)
+                }
             }
 
-
         }
-
 
         // Standard macOS Settings — app-menu "Settings…" (⌘,).
         //
@@ -402,4 +407,5 @@ extension Notification.Name {
     static let cloneUpdateStatusKnown = Notification.Name("cloneUpdateStatusKnown")
     static let removeDuplicateRepos = Notification.Name("removeDuplicateRepos")
     static let yardSaleUnlicensed = Notification.Name("yardSaleUnlicensed")
+    static let refreshRepoInfo = Notification.Name("refreshRepoInfo")
 }

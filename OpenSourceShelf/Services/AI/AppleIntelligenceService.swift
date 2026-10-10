@@ -80,25 +80,6 @@ enum AppleIntelligenceService {
         #endif
     }
 
-    /// Plain text completion for Quick Capture suggestions and runbook polish.
-    static func generateText(prompt: String, instructions: String? = nil) async throws -> String {
-        #if canImport(FoundationModels)
-        guard #available(macOS 26.0, *) else { throw GenerationFailure.unavailable(.osTooOld) }
-        let status = availability
-        guard status.isAvailable else { throw GenerationFailure.unavailable(status) }
-
-        let session = instructions.map { LanguageModelSession(instructions: $0) }
-            ?? LanguageModelSession()
-        do {
-            return try await session.respond(to: prompt).content
-        } catch let error as LanguageModelSession.GenerationError {
-            throw mapGenerationError(error)
-        }
-        #else
-        throw GenerationFailure.unavailable(.frameworkMissing)
-        #endif
-    }
-
     /// Structured Quick Capture suggestions — the model fills the fields directly
     /// via guided generation, so results land in the capture form without parsing.
     struct CaptureSuggestion {
@@ -135,7 +116,6 @@ enum AppleIntelligenceService {
         throw GenerationFailure.unavailable(.frameworkMissing)
         #endif
     }
-
 
     #if canImport(FoundationModels)
     @available(macOS 26.0, *)

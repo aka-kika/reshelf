@@ -9,6 +9,24 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.15.0] — 2026-10-10
+
+### Added
+- **Refresh Info for Top Shelf / The Collector** (Shelf menu). Re-reads GitHub for repos that aren't cloned: star counts, licenses and last activity get updated, and the status line says what changed and which repos are gone from GitHub. Your descriptions, tags, notes, categories and shelves are never touched. Cloned repos refresh by themselves after each pull.
+- **A disk icon in the inspector's Local Copy heading** when a repo is cloned (orange when updates are waiting), the same icon the list row shows.
+- **A nicer install window.** The download DMG now opens a calm window: drag reshelf into Applications, nothing else.
+
+### Changed
+- **Fewer, broader categories.** Coding Agents joined AI / Agent, AI Memory joined Knowledge, Design joined Frontend. Your repos were moved over once (a backup is saved first), and their clone folders followed.
+- **Shelf badges match the sidebar colors** in the inspector too, and stay readable in light mode.
+- **New screenshots** in the README.
+
+### Removed
+- **Leftover code from features that were already gone:** the Ollama and cloud AI providers (only on-device Apple Intelligence remains), the unused parts of the old intelligence database, and a Settings check that quietly contacted a local Ollama server every time Settings opened.
+
+### Fixed
+- **The GitHub token is read from the Keychain once**, not for every request.
+
 ## [1.14.0] — 2026-10-10
 
 ### Added

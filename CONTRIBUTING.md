@@ -4,21 +4,22 @@ Thanks for your interest in **reshelf** — a local-first macOS app for keeping 
 personal shelf of open-source repos. Contributions of all sizes are welcome:
 bug reports, fixes, features, docs, and design feedback.
 
-> **Status:** v1 (the Catalog) is in early testing. The Intelligence engine is a
-> v2 preview behind a Labs flag. Expect rough edges and breaking changes.
+> **Status:** reshelf is a shipping app (signed and notarized, updates through
+> Sparkle). It is a catalog: capture, shelves, categories, clones. The old
+> "Intelligence" engine (Labs mode) was removed in 1.9.x. Expect small rough edges.
 
 ## Ground rules
 
 - **Be kind.** Assume good intent; keep discussion constructive.
 - **One concern per PR.** Small, focused changes are reviewed and merged faster.
-- **No secrets in the repo.** API keys / tokens live in the macOS **Keychain** at
-  runtime — never commit them, and never add them to `UserDefaults`, SwiftData,
-  or GRDB.
+- **No secrets in the repo.** Keys and tokens (for example the future GitHub
+  login) belong in the macOS **Keychain** at runtime — never commit them, and
+  never add them to `UserDefaults`, SwiftData, or the SQLite file.
 
 ## Getting set up
 
 **Requirements:** macOS with **Xcode 16+** (Swift 6, SwiftUI, SwiftData).
-Dependencies (GRDB) resolve via Swift Package Manager on first build.
+Dependencies (GRDB = a SQLite toolkit, Sparkle = auto-update) resolve via Swift Package Manager on first build.
 
 ```bash
 # From the repo root (where OpenSourceShelf.xcodeproj lives):
@@ -34,8 +35,8 @@ bash build.sh          # Debug build → .build/reshelf.app
 |------|-------|
 | Catalog (projects, settings) | `~/reshelf/catalog.store` (SwiftData, isolated) |
 | Automatic JSON backups | `~/reshelf/backups/` (last 30) |
-| Local clones | `~/reshelf/repos/<repo>` |
-| Intelligence DB (v2 preview) | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
+| Local clones | `~/reshelf/repos/<Category>/<repo>` (default; changeable in Settings) |
+| GitHub metadata (small SQLite file, GRDB) | `~/reshelf/database/opensource-shelf.sqlite` |
 
 ## ⚠️ Adding or removing Swift files
 
@@ -68,8 +69,11 @@ build before committing to confirm it links.
 - Prefer small, well-named views/services over large ones.
 - Comments explain **why**, not what — especially for non-obvious macOS / layout
   quirks (the codebase has several measured-constant comments; keep them).
-- Catalog (v1) code must not depend on the Intelligence engine. Anything that
-  needs clone + AI analysis belongs behind the `LabsFeatures` flag.
+- Keep it local-first and AI-light: the only AI is on-device Apple Intelligence
+  (Capture Assist). Please do not add cloud AI providers or other cloud-only
+  dependencies without opening an issue first.
+- The app never runs shell commands from the UI except plain `git` for clone,
+  pull and update checks.
 
 ## Reporting bugs / requesting features
 

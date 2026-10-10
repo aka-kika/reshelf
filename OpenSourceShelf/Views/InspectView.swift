@@ -9,12 +9,11 @@ struct InspectView: View {
     var onDelete: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
-    @AppStorage("reshelf.warnOnStrictLicense") private var warnOnStrictLicense = true
+    @AppStorage(LicenseInfo.warnStorageKey) private var warnOnStrictLicense = true
     @Query private var appSettingsQuery: [AppSettings]
     @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
     @State private var isEditing: Bool = false
     @State private var githubMetadata: RepositoryMetadataRecord?
-    @State private var isCloningLocally = false
     @State private var isCloningLocalCopy = false
     @State private var localCopyNotice: String?
     @State private var cloneUpdateStatus: CatalogCloneService.UpdateStatus?
@@ -162,8 +161,6 @@ struct InspectView: View {
         }
     }
 
- 
- 
     /// Renders a single inspector section by its enum case, respecting visibility and data availability.
     @ViewBuilder
     private func inspectorSectionContent(_ section: InspectorSection) -> some View {
@@ -233,16 +230,9 @@ struct InspectView: View {
                 githubMetadataSection
             }
 
-
-
         }
     }
 
- 
- 
- 
- 
- 
     // MARK: - Sections
 
     private var metadataSection: some View {
@@ -301,7 +291,16 @@ struct InspectView: View {
     @ViewBuilder
     private var localCopySection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Local Copy")
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                sectionTitle("Local Copy")
+                // Same disk icon the list row shows, orange when the clone is behind.
+                if CatalogCloneService.isCloned(project) {
+                    Image(systemName: "internaldrive")
+                        .font(.system(size: 11))
+                        .foregroundStyle(cloneIsBehind ? Color.orange : .secondary)
+                        .help(cloneIsBehind ? "Updates available — pull to update" : "Cloned to disk")
+                }
+            }
 
             if project.githubURL.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text("Add a GitHub URL to clone this repo.")
@@ -530,25 +529,6 @@ struct InspectView: View {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
- 
- 
-    private static let stackPreviewChipCount = 6
-
- 
- 
- 
- 
- 
- 
- 
-    private static let relationshipPreviewCount = 3
-
- 
- 
- 
-    private static let recommendationPreviewCount = 3
-
- 
     // MARK: - Helpers
 
     private func useCaseRow(_ text: String) -> some View {
@@ -593,21 +573,11 @@ struct InspectView: View {
         }
     }
 
- 
-    private func inspectorTextBlock(title: String, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-            Text(text)
-                .font(.system(size: 12))
-                .foregroundStyle(.primary.opacity(0.82))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+    private var cloneIsBehind: Bool {
+        if case .updatesAvailable = cloneUpdateStatus { return true }
+        return false
     }
 
- 
     private func sectionTitle(_ title: String) -> some View {
         Text(title)
             .font(.system(size: 10, weight: .semibold))
@@ -616,14 +586,12 @@ struct InspectView: View {
             .padding(.bottom, 8)
     }
 
- 
     private func deleteProject() {
         modelContext.delete(project)
         try? modelContext.save()
         onDelete?()
     }
 
- 
     private func decodeStringArray(_ json: String) -> [String] {
         guard let data = json.data(using: .utf8),
               let values = try? JSONDecoder().decode([String].self, from: data) else {
@@ -649,10 +617,6 @@ private struct InspectDetailLoader {
         }
     }
 }
-
-
-
-
 
 struct EmptyInspectorView: View {
     var body: some View {

@@ -84,16 +84,6 @@ struct GitClient {
                           cancellationID: cancellationID)
     }
 
-    /// Fast-forward-only pull (LFS-bypassed). Used by the intelligence ingestion
-    /// pipeline, which manages its own divergence handling. The catalog's
-    /// user-facing update path uses `syncToUpstream` instead, which also recovers
-    /// from diverged clones.
-    func pullFastForward(repositoryURL: URL, cancellationID: String? = nil) async throws {
-        _ = try await run(arguments: Self.lfsBypass + ["pull", "--ff-only"],
-                          workingDirectory: repositoryURL,
-                          cancellationID: cancellationID)
-    }
-
     /// Sync a read-only reference clone to its upstream default branch. Fetches,
     /// then resets the clone to the remote default tip — a no-op fast-forward when
     /// already current, and the fix when upstream rewrote history (force-push /
