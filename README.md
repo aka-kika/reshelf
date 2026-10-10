@@ -40,7 +40,7 @@
 ## What it does
 
 - **Capture fast** — copy a GitHub link and press **⌘V** anywhere in the window (or
-  paste into ⌘K / ⌘⇧N); reshelf fetches the metadata and **auto-categorizes** it
+  paste into ⌘K / ⌘N); reshelf fetches the metadata and **auto-categorizes** it
   (Database, AI / Agent, macOS, …) — no AI required. Already have it? You get an
   "Already on your shelf" card, and Return jumps to it.
 - **Capture Assist (optional, fully on-device)** — on Macs with Apple Intelligence,
@@ -182,8 +182,7 @@ explicitly welcome.
 | Shortcut | Action |
 |----------|--------|
 | ⌘K | Command palette — search or paste a GitHub URL |
-| ⌘⇧N | Quick Capture (GitHub URL) |
-| ⌘N | New project (manual) |
+| ⌘N | Quick Capture (GitHub URL) |
 | ⌘T / ⌘Y / ⌘⇧G | Move selected repo to Top Shelf / Yard Sale / The Collector |
 | ⌘⇧U | Check clones for updates |
 | ⌘⇧E | Export catalog as JSON |

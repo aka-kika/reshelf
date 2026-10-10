@@ -9,6 +9,18 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.14.0] — 2026-10-10
+
+### Added
+- **A warning icon for repos without a clear license.** Rows whose license GitHub reports as none or unclear show a small triangle on the right, next to the shelf and clone icons. Study those repos, but don't copy their code.
+- **Move every repo without a license to Yard Sale at once.** Shelf → Move Repos Without a License to Yard Sale… shows how many (and how many are from Top Shelf) before anything moves, saves a backup first, and only changes their shelf.
+- **A Guide tab in Settings.** One short screen: the three shelves, the row icons, the main keys, and how to use your shelf with the agent skill.
+
+### Changed
+- **⌘N opens Quick Capture.** The manual "New Project" form is gone: Quick Capture fills everything in from the GitHub link.
+- **Calmer Settings.** A fixed 560-wide window, no grey boxes, the label left and the control right, one short line of help each.
+- **About looks like Kika's other apps.** Icon, version, one line, update controls, and three icon-only links (akakika.com, X, GitHub).
+
 ## [1.13.1] — 2026-10-10
 
 ### Fixed

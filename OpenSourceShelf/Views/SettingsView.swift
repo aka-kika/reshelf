@@ -37,11 +37,9 @@ struct SettingsView: View {
     @State private var isFillingLastUpdated = false
     @State private var lastUpdatedFillStatus = ""
 
-    // About tab icon hover
-    @State private var aboutIconHovering = false
-
     // Mirrors Sparkle's own preference; the updater stays the source of truth.
     @State private var autoCheckForUpdates = UpdaterService.shared.automaticallyChecksForUpdates
+    @ObservedObject private var updater = UpdaterService.shared
 
     // Repository clone location (empty = default ~/reshelf/repos)
     @AppStorage(CloneLocation.storageKey) private var cloneRootPath: String = ""
@@ -81,6 +79,8 @@ struct SettingsView: View {
                 .tabItem { Label("Capture", systemImage: "sparkles") }
             libraryTab
                 .tabItem { Label("Library", systemImage: "books.vertical") }
+            guideTab
+                .tabItem { Label("Guide", systemImage: "book") }
             aboutTab
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
@@ -139,322 +139,144 @@ struct SettingsView: View {
         }
     }
 
-    /// Shared scroll + padding wrapper so every tab gets consistent chrome.
-    private func tabScroll<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                content()
-                Spacer(minLength: 40)
-            }
-            .padding(24)
-        }
-    }
-
     // MARK: - Tabs
     //
-    // Four tabs, each short enough to read without scrolling far. Grouped by what
-    // the user is thinking about — how it looks, how things get captured, where
-    // they live — rather than by which subsystem implements them.
+    // Layout follows Kika's settings spec: no boxes (the window is the surface),
+    // a label on the left with its control on the right, one short line of help,
+    // and one hairline between sections.
 
     /// How reshelf looks and what it warns about.
     private var generalTab: some View {
-        tabScroll {
-                // MARK: - Appearance
-                sectionHeader("Appearance")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Picker("Appearance", selection: $appearanceMode) {
+        SettingsPage {
+            SettingsSection("Appearance") {
+                SettingsRow("Theme") {
+                    Picker("Theme", selection: $appearanceMode) {
                         ForEach(AppearanceMode.allCases) { mode in
-                            Label(mode.label, systemImage: mode.symbol).tag(mode)
+                            Text(mode.label).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-
-                    Text("Choose how reshelf looks. “System” follows your macOS appearance.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .fixedSize()
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - Sidebar tags
-                sectionHeader("Sidebar Tags")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Picker("Sidebar Tags", selection: $sidebarTagsMode) {
+                SettingsRow("Sidebar tags", detail: "Which tags the sidebar lists.") {
+                    Picker("Sidebar tags", selection: $sidebarTagsMode) {
                         Text("Most used").tag(SidebarTagRanking.Mode.top)
                         Text("Recently added").tag(SidebarTagRanking.Mode.recent)
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-
-                    Text("Which tags the sidebar's Tags section lists. “Most used” = the most common tags on your whole shelf. “Recently added” = tags from the repos you saved lately.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .fixedSize()
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - Licenses
-                sectionHeader("Licenses")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Warn about strict or missing licenses", isOn: $warnOnStrictLicense)
-
-                    Text("Shows a caution in the inspector when a repo uses a copyleft license (GPL, AGPL, MPL, LGPL…) that can require you to open-source your own project if you reuse its code, or has no clear license at all (then you may not reuse its code). The ⓘ next to any license always explains what it allows — this just surfaces the caution automatically.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
+            }
+            SettingsDivider()
+            SettingsSection("Licenses") {
+                SettingsRow("License warnings",
+                            detail: "A caution in the inspector for copyleft, missing or unclear licenses.") {
+                    Toggle("License warnings", isOn: $warnOnStrictLicense)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - Agent Skill
-                sectionHeader("Agent Skill")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 10) {
-                        Button("Install reshelf Skill…") {
-                            installReshelfSkill()
-                        }
-
-                        if !skillInstallStatus.isEmpty {
-                            Text(skillInstallStatus)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text("Installs the reshelf skill for Claude Code at ~/.claude/skills/reshelf. Your agent then uses your shelf as a code reference: Top Shelf first, then The Collector, with license warnings, and it clones a repo only after you say yes. Click again after updating reshelf to get the newest skill. The old copy, and the retired reshelf-catalog and reshelf-collector skills, go to the Trash.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
+            }
         }
     }
 
-    /// Everything about getting a repo onto the shelf, and the on-device or local
-    /// model that fills in the details.
+    /// Getting a repo onto the shelf, and the on-device model that fills it in.
     private var captureTab: some View {
-        tabScroll {
-                // MARK: - Capture Assist (the one AI feature in the main app)
-                sectionHeader("Capture Assist")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Fill use cases, note, and tags with Apple Intelligence", isOn: $captureAssistEnabled)
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "apple.intelligence")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text(AppleIntelligenceService.availability.label)
-                            .font(.system(size: 11))
-                            .foregroundStyle(AppleIntelligenceService.availability.isAvailable ? .green : .secondary)
-                    }
-
-                    Text("Runs entirely on-device — nothing leaves this Mac and no setup is needed.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Divider()
-
-                    Toggle("Generate automatically on every capture", isOn: $captureAutoGenerate)
+        SettingsPage {
+            SettingsSection("Capture Assist") {
+                SettingsRow("Fill details with Apple Intelligence",
+                            detail: AppleIntelligenceService.availability.isAvailable
+                                ? "On-device. Nothing leaves this Mac."
+                                : AppleIntelligenceService.availability.label) {
+                    Toggle("Fill details", isOn: $captureAssistEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                SettingsRow("Fill right after each capture") {
+                    Toggle("Fill right after each capture", isOn: $captureAutoGenerate)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
                         .disabled(!captureAssistEnabled)
-
-                    Text("Fills in the background right after you save a capture — no need to open More Details and press Generate.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Divider()
-
-                    HStack(spacing: 10) {
-                        Button(isBackfilling ? "Filling…" : "Fill Missing Entries") {
-                            backfillMissingUseCases()
-                        }
+                }
+                SettingsRow("Repos without use cases",
+                            detail: backfillStatus.isEmpty ? "Fill them in now. Your own text is never changed." : backfillStatus) {
+                    Button(isBackfilling ? "Filling…" : "Fill") { backfillMissingUseCases() }
                         .disabled(isBackfilling
                                   || !captureAssistEnabled
                                   || !AppleIntelligenceService.availability.isAvailable)
-
-                        if !backfillStatus.isEmpty {
-                            Text(backfillStatus)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text("Generates use cases for shelved entries that don't have any yet. Entries you already filled in are never touched.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Divider()
-
-                    HStack(spacing: 10) {
-                        Button(isFillingLastUpdated ? "Reading clones…" : "Fill “Last Updated” from Clones") {
-                            fillLastUpdatedFromClones()
-                        }
-                        .disabled(isFillingLastUpdated)
-
-                        if !lastUpdatedFillStatus.isEmpty {
-                            Text(lastUpdatedFillStatus)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text("Reads each cloned repo's last commit date off disk so you can sort by Recently Updated. Offline and instant — no GitHub calls, no rate limit. Repos you haven't cloned fill in the next time their details are fetched.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                // MARK: - GitHub token (raises the API rate limit)
-                sectionHeader("GitHub")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        SecureField(githubTokenStored ? "Enter a new token to replace the saved one"
-                                                      : "Personal access token (optional)",
-                                    text: $githubTokenText)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12, design: .monospaced))
-                            .onSubmit { saveGitHubToken() }
-
-                        Button("Save") { saveGitHubToken() }
-                            .disabled(githubTokenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                        if githubTokenStored {
+            }
+            SettingsDivider()
+            SettingsSection("GitHub") {
+                SettingsRow("Access token", detail: githubTokenDetail) {
+                    if githubTokenStored {
+                        HStack(spacing: 8) {
+                            Button(isCheckingGitHubToken ? "Testing…" : "Test") { checkGitHubToken() }
+                                .disabled(isCheckingGitHubToken)
                             Button("Remove") { removeGitHubToken() }
                         }
                     }
-
-                    HStack(spacing: 6) {
-                        Image(systemName: githubTokenStored ? "key.fill" : "key")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text(githubTokenStored ? "A token is saved in your Keychain." : "No token saved.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(githubTokenStored ? .green : .secondary)
-
-                        if githubTokenStored {
-                            Button(isCheckingGitHubToken ? "Checking…" : "Test") { checkGitHubToken() }
-                                .buttonStyle(.borderless)
-                                .controlSize(.small)
-                                .font(.system(size: 11))
-                                .disabled(isCheckingGitHubToken)
-                        }
-
-                        if !githubTokenStatus.isEmpty {
-                            Text(githubTokenStatus)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text("Optional. Without a token GitHub allows about 60 requests per hour, so bulk imports and busy capture sessions can hit the rate limit. A personal access token raises that to 5,000 per hour and lets Quick Capture see your private repos. A fine-grained token with read-only access to public repositories is enough — create one at github.com/settings/tokens. Stored securely in the macOS Keychain, used only for GitHub API requests.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
+                HStack(spacing: 8) {
+                    SecureField(githubTokenStored ? "Paste a new token to replace it"
+                                                  : "Paste a personal access token",
+                                text: $githubTokenText)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { saveGitHubToken() }
+                    Button("Save") { saveGitHubToken() }
+                        .disabled(githubTokenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Link("Create a read-only token on GitHub",
+                     destination: URL(string: "https://github.com/settings/tokens")!)
+                    .font(.system(size: 11))
+            }
         }
     }
 
-    /// Where the shelf lives on disk, how it's displayed, and the agent skill.
-    private var libraryTab: some View {
-        tabScroll {
-                // MARK: - Repository Storage (where repos are cloned)
-                sectionHeader("Repository Storage")
+    private var githubTokenDetail: String {
+        if !githubTokenStatus.isEmpty { return githubTokenStatus }
+        return githubTokenStored
+            ? "Saved in your Keychain."
+            : "Optional. Raises GitHub's limit from 60 to 5,000 requests an hour."
+    }
 
-                VStack(alignment: .leading, spacing: 10) {
+    /// Where clones live, the agent skill, and what the inspector shows.
+    private var libraryTab: some View {
+        SettingsPage {
+            SettingsSection("Clones") {
+                SettingsRow("Clone folder", detail: "New clones go in a folder per category.") {
                     HStack(spacing: 8) {
-                        Image(systemName: "folder")
-                            .foregroundStyle(.secondary)
-                        Text(CloneLocation.rootURL.path)
-                            .font(.system(size: 12, design: .monospaced))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .help(CloneLocation.rootURL.path)
-                        Button("Choose…") { chooseCloneFolder() }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .font(.system(size: 11))
                         if CloneLocation.isCustom {
                             Button("Reset") { cloneRootPath = "" }
-                                .buttonStyle(.borderless)
-                                .controlSize(.small)
-                                .font(.system(size: 11))
                                 .help("Use the default location (~/reshelf/repos)")
                         }
+                        Button("Choose…") { chooseCloneFolder() }
                     }
-
-                    Text("Where repositories are cloned (right-click a repo → Clone Repository, or use the inspector). Repos are organized by owner/name inside this folder. Changing it only affects new clones — existing clones stay where they are.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
-
-                sectionHeader("Inspector")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Choose which sections appear in the inspector, and drag to reorder.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-
+                Text(CloneLocation.rootURL.path)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .help(CloneLocation.rootURL.path)
+                SettingsRow("Last updated dates",
+                            detail: lastUpdatedFillStatus.isEmpty ? "Read from each clone's last commit. Offline." : lastUpdatedFillStatus) {
+                    Button(isFillingLastUpdated ? "Reading…" : "Read from Clones") { fillLastUpdatedFromClones() }
+                        .disabled(isFillingLastUpdated)
+                }
+            }
+            SettingsDivider()
+            SettingsSection("Agent Skill") {
+                SettingsRow("reshelf skill for Claude Code",
+                            detail: skillInstallStatus.isEmpty ? "Lets your agent use your shelf. Install again after updates." : skillInstallStatus) {
+                    Button("Install…") { installReshelfSkill() }
+                }
+            }
+            SettingsDivider()
+            SettingsSection("Inspector", detail: "Show or hide sections. Drag to reorder.") {
+                VStack(spacing: 2) {
                     ForEach(sectionOrder) { section in
                         InspectorSectionRow(
                             section: section,
@@ -491,12 +313,42 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.bottom, 12)
+            }
+        }
+    }
+
+    /// What is what, in one screen: shelves, row icons, keys, and the agent skill.
+    private var guideTab: some View {
+        SettingsPage {
+            SettingsSection("Shelves") {
+                GuideRow(symbol: ProjectStatus.topShelf.sfSymbol, tint: SidebarItem.topShelf.sidebarTint,
+                         title: "Top Shelf", text: "Your keepers. Your agent looks here first.")
+                GuideRow(symbol: ProjectStatus.collector.sfSymbol, tint: nil,
+                         title: "The Collector", text: "Where every new repo lands.")
+                GuideRow(symbol: ProjectStatus.yardSale.sfSymbol, tint: SidebarItem.yardSale.sidebarTint,
+                         title: "Yard Sale", text: "On the way out. Agents skip it.")
+            }
+            SettingsDivider()
+            SettingsSection("Icons in the list") {
+                GuideRow(symbol: "internaldrive", tint: nil,
+                         title: "Cloned", text: "On disk. An orange dot means updates to pull.")
+                GuideRow(symbol: "exclamationmark.triangle", tint: nil,
+                         title: "No clear license", text: "Study it, but don't copy its code.")
+            }
+            SettingsDivider()
+            SettingsSection("Keys") {
+                GuideRow(keys: "⌘N", title: "Quick Capture", text: "Save a repo from its GitHub link.")
+                GuideRow(keys: "⌘V", title: "Paste a link", text: "A copied GitHub link opens Quick Capture.")
+                GuideRow(keys: "⌘K", title: "Search", text: "Find anything on your shelf.")
+                GuideRow(keys: "⌘T ⌘Y", title: "Move", text: "To Top Shelf or Yard Sale. ⌘⇧G: The Collector.")
+            }
+            SettingsDivider()
+            SettingsSection("With your agent") {
+                GuideRow(step: 1, title: "Install the skill", text: "Library → Agent Skill → Install.")
+                GuideRow(step: 2, title: "Ask about your shelf", text: "“Look at my shelf for a markdown editor.”")
+                GuideRow(step: 3, title: "It finds and clones",
+                         text: "Top Shelf first, then The Collector. It warns about licenses and clones only after you say yes.")
+            }
         }
     }
 
@@ -539,105 +391,76 @@ struct SettingsView: View {
     }
 
     // MARK: - About tab
+    //
+    // Same shape as Kika's other apps (mcpock, Vera): icon, name, version, one
+    // line of what it does, update controls, "Made by Kika" and three icon-only
+    // links, then the copyright.
+
+    private static let aboutLinks: [AboutLink] = [
+        AboutLink(name: "akakika.com", icon: "social-globe", url: "https://akakika.com"),
+        AboutLink(name: "X (@akakikaaa)", icon: "social-x", url: "https://x.com/akakikaaa"),
+        AboutLink(name: "GitHub (aka-kika/reshelf)", icon: "social-github", url: "https://github.com/aka-kika/reshelf"),
+    ]
 
     private var aboutTab: some View {
-        tabScroll {
-            VStack(spacing: 0) {
-                // Icon on a soft glow, with a gentle spring on hover.
-                ZStack {
-                    Circle()
-                        .fill(RadialGradient(colors: [Color.accentColor.opacity(0.20), .clear],
-                                             center: .center, startRadius: 10, endRadius: 85))
-                        .frame(width: 168, height: 168)
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .interpolation(.high)
-                        .frame(width: 108, height: 108)
-                        .shadow(color: .black.opacity(0.25), radius: 14, y: 8)
-                        .scaleEffect(aboutIconHovering ? 1.05 : 1)
-                        .animation(.spring(response: 0.35, dampingFraction: 0.65), value: aboutIconHovering)
-                        .onHover { aboutIconHovering = $0 }
-                }
-
+        VStack(spacing: 0) {
+            Spacer(minLength: 20)
+            VStack(spacing: 10) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 88, height: 88)
+                    .accessibilityHidden(true)
                 Text("reshelf")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .padding(.top, 2)
-
+                    .font(.system(size: 20, weight: .semibold))
                 Text("Version \(appVersionString)")
                     .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
+                Text("A local-first shelf for the open-source repos you want to remember.")
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                    .padding(.top, 2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 360)
+                    .padding(.top, 4)
+            }
 
+            VStack(spacing: 8) {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
                 Toggle("Automatically check for updates", isOn: $autoCheckForUpdates)
                     .toggleStyle(.checkbox)
                     .font(.system(size: 11))
-                    .padding(.top, 10)
+                    .foregroundStyle(.secondary)
                     .onChange(of: autoCheckForUpdates) { _, newValue in
                         UpdaterService.shared.automaticallyChecksForUpdates = newValue
                     }
+            }
+            .padding(.top, 16)
 
-                if let checked = UpdaterService.shared.lastUpdateCheckDate {
-                    Text("Last checked \(checked.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                }
-
-                Text("A local-first shelf for the open-source tools you want to remember.")
-                    .font(.system(size: 12))
+            VStack(spacing: 10) {
+                Text("Made by Kika")
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(0.6)
+                    .textCase(.uppercase)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 10)
-                    .padding(.horizontal, 40)
-
-                HStack(spacing: 10) {
-                    aboutLink("akakika.com", systemImage: "globe",
-                              url: "https://akakika.com")
-                    aboutLink("GitHub", systemImage: "chevron.left.forwardslash.chevron.right",
-                              url: "https://github.com/aka-kika/reshelf")
-                    aboutLink("Follow on X", glyph: "𝕏",
-                              url: "https://x.com/akakikaaa")
+                HStack(spacing: 12) {
+                    ForEach(Self.aboutLinks) { link in
+                        AboutLinkButton(link: link)
+                    }
                 }
-                .padding(.top, 16)
-
-                Text("by KIKA — for people who think in systems")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 16)
-
-                Text("MIT License · © reshelf contributors")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.quaternary)
-                    .padding(.top, 4)
             }
-            .frame(maxWidth: .infinity)
+            .padding(.top, 30)
+
+            Spacer(minLength: 20)
+            Text("© 2026 AKAKIKA.COM · MIT License")
+                .font(.system(size: 10))
+                .tracking(0.4)
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, 18)
         }
-    }
-
-    /// Capsule link button for the About tab; `glyph` renders a text symbol
-    /// (e.g. 𝕏) where no SF Symbol exists.
-    private func aboutLink(_ title: String,
-                           systemImage: String? = nil,
-                           glyph: String? = nil,
-                           url: String) -> some View {
-        Button {
-            if let target = URL(string: url) {
-                NSWorkspace.shared.open(target)
-            }
-        } label: {
-            HStack(spacing: 5) {
-                if let systemImage {
-                    Image(systemName: systemImage).font(.system(size: 10, weight: .semibold))
-                }
-                if let glyph {
-                    Text(glyph).font(.system(size: 12, weight: .semibold))
-                }
-                Text(title).font(.system(size: 12, weight: .medium))
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 1)
-        }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var appVersionString: String {
@@ -656,16 +479,6 @@ struct SettingsView: View {
                 persistSettings()
             }
         )
-    }
-
-    // MARK: - Section chrome
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-            .padding(.bottom, 8)
     }
 
     // MARK: - Actions
@@ -776,6 +589,206 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - Settings building blocks
+//
+// Semantic colors only (.primary / .secondary / .tertiary), so both appearances work.
+
+/// A scrolling tab page with the shared margins.
+private struct SettingsPage<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                content
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// A quiet section title, optional one-line help, then its rows.
+private struct SettingsSection<Content: View>: View {
+    let title: String
+    var detail: String?
+    @ViewBuilder var content: Content
+
+    init(_ title: String, detail: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.detail = detail
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Label (and one short line of help) on the left, the control on the right.
+private struct SettingsRow<Control: View>: View {
+    let label: String
+    var detail: String?
+    @ViewBuilder var control: Control
+
+    init(_ label: String, detail: String? = nil, @ViewBuilder control: () -> Control) {
+        self.label = label
+        self.detail = detail
+        self.control = control()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label)
+                    .font(.system(size: 13))
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 12)
+            control
+                .controlSize(.regular)
+        }
+    }
+}
+
+/// The one hairline between sections.
+private struct SettingsDivider: View {
+    var body: some View {
+        Divider().padding(.vertical, 18)
+    }
+}
+
+/// One line of the Guide tab: a symbol, key combo or step number, then a
+/// bold term and a short explanation.
+private struct GuideRow: View {
+    enum Lead { case symbol(String, Color?), keys(String), step(Int) }
+
+    let lead: Lead
+    let title: String
+    let text: String
+
+    init(symbol: String, tint: Color?, title: String, text: String) {
+        lead = .symbol(symbol, tint); self.title = title; self.text = text
+    }
+
+    init(keys: String, title: String, text: String) {
+        lead = .keys(keys); self.title = title; self.text = text
+    }
+
+    init(step: Int, title: String, text: String) {
+        lead = .step(step); self.title = title; self.text = text
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            leadView
+                .frame(width: 44, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                Text(text)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var leadView: some View {
+        switch lead {
+        case let .symbol(name, tint):
+            Image(systemName: name)
+                .font(.system(size: 12))
+                .foregroundStyle(tint ?? .secondary)
+        case let .keys(keys):
+            Text(keys)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+        case let .step(number):
+            Text("\(number)")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(Color.primary.opacity(0.07)))
+        }
+    }
+}
+
+// MARK: - About links
+
+private struct AboutLink: Identifiable {
+    let name: String
+    /// File name (no extension) in the bundled SocialIcons folder.
+    let icon: String
+    let url: String
+    var id: String { icon }
+
+    /// The mono mark, as a template image so it takes the label color.
+    var image: NSImage? {
+        guard let url = Bundle.main.url(forResource: icon, withExtension: "pdf", subdirectory: "SocialIcons"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.isTemplate = true
+        return image
+    }
+}
+
+/// One icon-only link: the mark on a quiet rounded square, a touch brighter on
+/// hover. The name is the tooltip and the accessibility label.
+private struct AboutLinkButton: View {
+    let link: AboutLink
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            if let url = URL(string: link.url) { NSWorkspace.shared.open(url) }
+        } label: {
+            Group {
+                if let image = link.image {
+                    Image(nsImage: image)
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else {
+                    Image(systemName: "link")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                }
+            }
+            .frame(width: 17, height: 17)
+            .foregroundStyle(isHovered ? .primary : .secondary)
+            .frame(width: 38, height: 38)
+            .background {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(isHovered ? 0.10 : 0.06))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(link.name)
+        .accessibilityLabel(link.name)
+    }
+}
+
 // MARK: - Inspector Section Row (drag-reorderable)
 
 private struct InspectorSectionRow: View {
@@ -783,32 +796,27 @@ private struct InspectorSectionRow: View {
     @Binding var isVisible: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
 
             Image(systemName: section.icon)
-                .font(.system(size: 11))
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
 
             Text(section.displayName)
-                .font(.system(size: 12))
+                .font(.system(size: 13))
 
             Spacer()
 
-            Toggle("", isOn: $isVisible)
+            Toggle(section.displayName, isOn: $isVisible)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .labelsHidden()
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(Color.primary.opacity(0.02))
-        )
+        .padding(.vertical, 5)
         .contentShape(Rectangle())
     }
 }

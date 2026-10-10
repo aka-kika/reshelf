@@ -6,7 +6,6 @@ struct ProjectListView: View {
     @Binding var listSelection: CatalogListSelection?
     @Binding var searchText: String
     @Binding var sidebarSelection: ShelfSelection?
-    @Binding var showingAddSheet: Bool
     /// With the sidebar collapsed, this column is at the window's top-left where
     /// the traffic lights sit — inset the header so they don't cover the buttons.
     var needsTrafficLightInset: Bool = false
@@ -45,6 +44,8 @@ struct ProjectListView: View {
     @State private var isPullingClones = false
     /// Number of duplicate entries pending removal (drives the confirm dialog); nil = no dialog.
     @State private var pendingDuplicateRemoval: Int?
+    /// Repos without a clear license about to go to Yard Sale; nil = no dialog.
+    @State private var pendingUnlicensedMove: [ToolProject]?
     @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
 
     private var sortOrder: CatalogSortOrder {
@@ -135,6 +136,7 @@ struct ProjectListView: View {
                                         isCloning: cloningProjectIDs.contains(project.id),
                                         isClonedLocally: CatalogCloneService.isCloned(project),
                                         isBehind: behindProjectIDs.contains(project.id),
+                                        hasNoClearLicense: project.hasNoClearLicense,
                                         onSelect: { selectProject(project, modifiers: $0) }
                                     )
                                     .equatable()
@@ -214,6 +216,7 @@ struct ProjectListView: View {
             onMoveSelectedToShelf: { note in moveSelectedToShelf(note.object as? String) },
             onCloneStatusKnown: { note in syncBehindBadge(note) },
             onRemoveDuplicates: { requestRemoveDuplicates() },
+            onYardSaleUnlicensed: { requestYardSaleUnlicensed() },
             onPullFolderClones: { note in
                 if let id = note.object as? UUID { pullClones(inFolder: id) }
             }
@@ -312,6 +315,22 @@ struct ProjectListView: View {
             Button("Cancel", role: .cancel) {}
         } message: { count in
             Text("\(count) duplicate entr\(count == 1 ? "y" : "ies") will be removed, keeping the best-filled copy of each repo. A backup is saved first, and cloned files are left untouched.")
+        }
+        .confirmationDialog(
+            "Move \(pendingUnlicensedMove?.count ?? 0) repos without a clear license to Yard Sale?",
+            isPresented: Binding(
+                get: { pendingUnlicensedMove != nil },
+                set: { if !$0 { pendingUnlicensedMove = nil } }
+            ),
+            presenting: pendingUnlicensedMove
+        ) { targets in
+            Button("Move \(targets.count) to Yard Sale") {
+                performYardSaleUnlicensed(targets)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { targets in
+            let topShelf = targets.filter { $0.status == .topShelf }.count
+            Text("Includes \(topShelf) from Top Shelf. Nothing is deleted: they only change shelf, clones stay on disk, and a backup is saved first.")
         }
     }
 
@@ -721,6 +740,25 @@ struct ProjectListView: View {
         statusNotice = "Removed \(removed) duplicate\(removed == 1 ? "" : "s"). A backup was saved."
     }
 
+    // MARK: - Yard Sale for repos without a clear license
+
+    private func requestYardSaleUnlicensed() {
+        let targets = allProjects.filter { $0.status != .yardSale && $0.hasNoClearLicense }
+        if targets.isEmpty {
+            statusNotice = "Every repo outside Yard Sale has a clear license."
+        } else {
+            pendingUnlicensedMove = targets
+        }
+    }
+
+    private func performYardSaleUnlicensed(_ targets: [ToolProject]) {
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
+        for project in targets { project.status = .yardSale }
+        try? modelContext.save()
+        AppRefreshBus.emit(.catalogStateUpdated)
+        statusNotice = "Moved \(targets.count) repos without a clear license to Yard Sale. A backup was saved."
+    }
+
     // MARK: - Context-menu action helpers
 
     /// The on-disk clone worktree for a project, if intelligence has cloned it.
@@ -829,18 +867,9 @@ struct ProjectListView: View {
                 .frame(maxWidth: 260)
 
             if catalogEmptyStateShowsCaptureActions {
-                HStack(spacing: 8) {
-                    Button("Quick Capture") { onQuickCapture() }
-                        .controlSize(.small)
-                    // Through the wedge guard like every other sheet path —
-                    // this empty state can render mid-search, where a focused
-                    // field's autofill popup is exactly the 1.3.x hazard.
-                    Button("Add Project") {
-                        presentSheetAfterEndingTextEditing { showingAddSheet = true }
-                    }
+                Button("Quick Capture") { onQuickCapture() }
                     .controlSize(.small)
-                }
-                .padding(.top, 4)
+                    .padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -900,6 +929,7 @@ struct ProjectRowView: View, Equatable {
     var isClonedLocally: Bool = false
     /// Local clone is behind its upstream (updates available to pull).
     var isBehind: Bool = false
+    var hasNoClearLicense: Bool = false
     /// Carries the modifier keys held at click time so the list can tell a
     /// plain click from ⌘-click (toggle into batch) and ⇧-click (extend).
     var onSelect: ((EventModifiers) -> Void)?
@@ -912,6 +942,7 @@ struct ProjectRowView: View, Equatable {
             && lhs.isCloning == rhs.isCloning
             && lhs.isClonedLocally == rhs.isClonedLocally
             && lhs.isBehind == rhs.isBehind
+            && lhs.hasNoClearLicense == rhs.hasNoClearLicense
             && lhs.isSelected == rhs.isSelected
     }
 
@@ -936,9 +967,11 @@ struct ProjectRowView: View, Equatable {
 
             Spacer(minLength: 8)
 
-            // Shelf and clone icons sit in fixed slots so they line up down the
-            // list; a row that is both shelved and cloned shows them side by side.
+            // License, shelf and clone icons sit in fixed slots so they line up
+            // down the list; whichever apply show side by side.
             HStack(spacing: 4) {
+                licenseIcon
+                    .frame(width: 16)
                 shelfIcon
                     .frame(width: 16)
                 cloneIcon
@@ -957,6 +990,18 @@ struct ProjectRowView: View, Equatable {
             if flags.contains(.command) { modifiers.insert(.command) }
             if flags.contains(.shift) { modifiers.insert(.shift) }
             onSelect?(modifiers)
+        }
+    }
+
+    @ViewBuilder
+    private var licenseIcon: some View {
+        if hasNoClearLicense {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .help("No clear license: study only, don't copy its code")
+        } else {
+            Color.clear.frame(height: 1)
         }
     }
 
@@ -1019,6 +1064,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onMoveSelectedToShelf: (Notification) -> Void
     let onCloneStatusKnown: (Notification) -> Void
     let onRemoveDuplicates: () -> Void
+    let onYardSaleUnlicensed: () -> Void
     let onPullFolderClones: (Notification) -> Void
 
     func body(content: Content) -> some View {
@@ -1028,6 +1074,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .moveSelectedToShelf), perform: onMoveSelectedToShelf)
             .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown), perform: onCloneStatusKnown)
             .onReceive(NotificationCenter.default.publisher(for: .removeDuplicateRepos)) { _ in onRemoveDuplicates() }
+            .onReceive(NotificationCenter.default.publisher(for: .yardSaleUnlicensed)) { _ in onYardSaleUnlicensed() }
             .onReceive(NotificationCenter.default.publisher(for: .pullFolderClones), perform: onPullFolderClones)
     }
 }

@@ -370,3 +370,13 @@ struct FlowLayout: Layout {
         }
     }
 }
+
+extension ToolProject {
+    /// GitHub found no license, or one it couldn't identify (NOASSERTION / other).
+    /// Only repos with a GitHub link count: without one, an empty license just
+    /// means "never checked". Drives the row icon and the bulk Yard Sale move.
+    var hasNoClearLicense: Bool {
+        guard !githubURL.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        return LicenseInfo.lookup(license)?.strictness == .noLicense
+    }
+}

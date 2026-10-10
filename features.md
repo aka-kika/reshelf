@@ -7,7 +7,7 @@ What **reshelf** does today. Plain-language map of the app — see [README.md](R
 - **Three columns** — sidebar (owl app-icon branding), project list (title + controls header), inspector pane. The sidebar and inspector are **user-resizable** by dragging their dividers; the project list flexes between them.
 - **Merged title bar** — the header row doubles as the window title bar (no separate empty toolbar band). The controls live in the project-list header: a **sidebar toggle** on the left, **search** (⌘K) and **inspector toggle** on the right. Toggles stay visible even when their panel is collapsed, so you can always reopen it. The three column header dividers line up as one clean line, and the sidebar edge is a thin hairline (not a heavy macOS shadow).
 - **Command palette** (⌘K) — floating sheet with search field, recent searches, live project filtering. Paste a GitHub URL → "Capture this repository" row appears → click or press Enter → Quick Capture opens with repo info auto-fetched. Escape dismisses.
-- **Menu bar** — File (New / Quick Capture / Search / Export / Import / Restore / **Check Clones for Updates** ⌘⇧U), View (column toggles + navigation), and the app menu (Settings, About, Check for Updates). No status-bar menu extra.
+- **Menu bar** — File (Quick Capture ⌘N / Search / Export / Import / Restore / **Check Clones for Updates** ⌘⇧U), View (column toggles + navigation), and the app menu (Settings, About, Check for Updates). No status-bar menu extra.
 - **No sign-in** — local app only.
 - **Seed library** — on first empty launch, nine repos worth having are inserted once (jade, Seedling, kika-obsidian-mcp, ollama, Handy, zed, excalidraw, lazygit, immich). Only ever when there is nothing to show.
 
@@ -18,7 +18,7 @@ What **reshelf** does today. Plain-language map of the app — see [README.md](R
 - **Auto-restore-on-empty** — on launch, if the catalog is empty but a backup with data exists, it restores from the backup instead of seeding defaults (so a transient empty state can't silently destroy a real catalog).
 - **Manual recovery** — **File → Restore from Backup…** lists snapshots (date + count) and merges a chosen one in non-destructively. **File → Import GitHub URLs…** bulk-adds a pasted list of repos (also the path to rebuild from a recovered URL list).
 - **Save by link** — `reshelf://add?url=<GitHub repo URL>` saves a repo into The Collector from another app (Undrdr Drop's "Send to reshelf"); duplicates are only selected.
-- **No duplicates** — capture (Quick Capture, Add Project, Import URLs) detects when a repo is already in the catalog by normalized `owner/repo` (so `https`/`www.`/trailing slash/`.git`/case all match) and blocks the save with an "already in your catalog" notice. **File → Remove Duplicate Repos…** cleans up any pre-existing duplicates, keeping the best-filled copy of each (higher shelf, richer/edited data, then the original) and saving a backup first.
+- **No duplicates** — capture (Quick Capture, Import URLs) detects when a repo is already in the catalog by normalized `owner/repo` (so `https`/`www.`/trailing slash/`.git`/case all match) and blocks the save with an "already in your catalog" notice. **File → Remove Duplicate Repos…** cleans up any pre-existing duplicates, keeping the best-filled copy of each (higher shelf, richer/edited data, then the original) and saving a backup first.
 
 ## Each tool project (SwiftData catalog)
 
@@ -59,12 +59,11 @@ Stored fields you can view and edit:
 - Active search term shows as a dismissible chip in the header (set from command palette)
 - Search: name, descriptions, category, tags, notes, use cases
 - **⌘K** — open command palette to search or capture
-- **⌘N** — add project manually
 - Edit from inspector
 
 ## Quick Capture
 
-- **⌘⇧N** — sheet to paste a GitHub URL
+- **⌘N** — sheet to paste a GitHub URL (the old manual "New Project" form was removed in 1.14.0)
 - **⌘V** — with a GitHub repo link on the clipboard and no text field focused, opens Quick Capture with it
 - **Already shelved** — no fetch; an "Already on your shelf" card, and **Return** jumps to the repo in the list
 - Fetches repo info from the **GitHub API** (and can pull README for context)
@@ -81,6 +80,7 @@ Existing projects whose category was empty or just a language name are **re-cate
 
 - Header, links, shelf
 - Metadata, description, use cases, tags, notes
+- **No clear license** — rows of repos whose license GitHub reports as none or unclear (NOASSERTION) show a small warning triangle on the right, next to the shelf and clone icons. **Shelf → Move Repos Without a License to Yard Sale…** moves all of them at once (Top Shelf included): it shows the count first, saves a backup, and only changes their shelf — nothing is deleted, clones stay on disk
 - **License explainer** — an ⓘ next to the license opens a plain-language popover (what you *can* do, what you *must* do, and the takeaway) for MIT, Apache, BSD, ISC, MPL, LGPL, EPL, GPL, AGPL, BUSL, public-domain, and more. When **Warn about strict or missing licenses** is on (Settings), copyleft/source-available repos (GPL, AGPL, MPL, BUSL…) and repos with **no license or an unclear one** (NOASSERTION) also show an automatic caution banner. Plain-language, not legal advice
 - **Clickable tags** — click a tag to list every repo that has it
 - **Links** — left-click opens GitHub / website in the default browser; right-click copies the URL
@@ -128,15 +128,13 @@ Select many rows, then act on all of them — built for the case that motivated 
 
 ## Settings
 
-- **Appearance** — System / Light / Dark (System follows macOS); applies to every window and persists
-- **Warn about strict or missing licenses** — when on (default), the inspector auto-shows a caution for copyleft/source-available licenses (GPL, AGPL, MPL, LGPL, BUSL…) and for repos with no license or an unclear one; the ⓘ license explainer is always available regardless
-- **Capture Assist** — the on-device Apple Intelligence fill (use cases / note / tags): master toggle, live model-availability status, **auto-generate on every capture** (default on), and **Fill Missing Entries** to backfill shelved entries that have none (fill-only, hand-edited data untouched)
-- **GitHub token** (optional) — paste a personal access token to raise the API rate limit from ~60 to 5,000 requests/hour (and let Quick Capture see your private repos). Stored in the macOS Keychain only; saving verifies it against GitHub immediately, with **Test** and **Remove** on hand
-- **Agent Skill** — one-click install of the bundled `reshelf` Claude Code skill to `~/.claude/skills/reshelf` (a previous install is trashed, not deleted; so are the retired `reshelf-catalog` / `reshelf-collector` skills; a symlinked install is left alone). The skill searches Top Shelf first, then The Collector, warns about licenses, and clones a repo only after the user says yes
-- **Repository storage** — choose the folder where repos are cloned (folder picker); defaults to `~/reshelf/repos`. Clones are grouped into **category subfolders** (`<Category>/<repo>`, or `<owner>-<repo>` on a name collision). Changing it affects only new clones; **Reset** returns to the default
-- **Software Update** — automatic update checks on/off (Sparkle), plus **Check for Updates…** on demand. Updates are EdDSA-signed and notarized; the feed is a static file on GitHub Pages
-- **Inspector sections** — show/hide each section **and drag to reorder** them; both visibility and order persist and drive how the inspector renders
-- **About** — app icon, version, tagline, and links (akakika.com, GitHub, X)
+A fixed 560pt window (reshelf → Settings…, ⌘,), five tabs. Flat rows: the label and one line of help on the left, the control on the right, one hairline between sections.
+
+- **General** — **Theme** (System / Light / Dark, applies to every window), **Sidebar tags** (Most used / Recently added), **License warnings** (inspector caution for copyleft, missing or unclear licenses; the ⓘ explainer is always there)
+- **Capture** — **Capture Assist** (on-device Apple Intelligence fill of use cases / note / tags; fill right after each capture; **Fill** for repos without use cases, fill-only) and the optional **GitHub access token** (raises the API limit from ~60 to 5,000 requests/hour, sees private repos; Keychain only, with **Test** / **Remove**)
+- **Library** — **Clone folder** (default `~/reshelf/repos`, clones grouped by `<Category>/<repo>`; **Choose…** / **Reset**), **Last updated dates** read from clones, the **Agent Skill** install (bundled `reshelf` skill to `~/.claude/skills/reshelf`; an old install is trashed, a symlinked one left alone), and the **Inspector** sections (show/hide, drag to reorder)
+- **Guide** — one screen of what is what: the three shelves, the row icons, the main keys, and three steps for using the shelf with an agent
+- **About** — app icon, version, one-line description, **Check for Updates…** and automatic checks (Sparkle), "Made by Kika" with three icon-only links (akakika.com, X, GitHub)
 - One `AppSettings` row in SwiftData (appearance is stored separately in `@AppStorage`)
 
 ## Intelligence database (foundation, not in UI yet)

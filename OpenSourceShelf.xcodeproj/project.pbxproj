@@ -172,13 +172,6 @@
 			path = "OpenSourceShelf/Persistence/IntelligenceMigrations.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		EB786603BBB0BDBED26DFAA5 /* AddProjectSheet.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AddProjectSheet.swift";
-			path = "OpenSourceShelf/Views/AddProjectSheet.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		E0ABEAC1B1EDF262B954C1D2 /* ContentView.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -259,6 +252,13 @@
 			lastKnownFileType = image.png;
 			name = "ReshelfBrand.png";
 			path = "OpenSourceShelf/Resources/ReshelfBrand.png";
+			sourceTree = SOURCE_ROOT;
+		};
+		SOC1F001234567890ABCDE01 /* SocialIcons */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = folder;
+			name = "SocialIcons";
+			path = "OpenSourceShelf/Resources/SocialIcons";
 			sourceTree = SOURCE_ROOT;
 		};
 		SK1LF001234567890ABCDE01 /* reshelf-skill */ = {
@@ -569,7 +569,6 @@
 				BB6B6F1B82553D9F614693EB /* ExplorationQueryRecord.swift */,
 				8E8C0D2D278A4F10E4F2006F /* IntelligenceDatabase.swift */,
 				A4C3FBD350354C15CD25D4C1 /* IntelligenceMigrations.swift */,
-				EB786603BBB0BDBED26DFAA5 /* AddProjectSheet.swift */,
 				E0ABEAC1B1EDF262B954C1D2 /* ContentView.swift */,
 				C1A2F301234567890ABCDEF01 /* CatalogInspectorPane.swift */,
 				DC94FFEC40C505E458DF2D8E /* EditProjectSheet.swift */,
@@ -592,6 +591,7 @@
 				R9R2F001234567890ABCDEF09 /* AppIcon.icns */,
 				R9R1F001234567890ABCDEF07 /* ReshelfBrand.png */,
 				SK1LF001234567890ABCDE01 /* reshelf-skill */,
+				SOC1F001234567890ABCDE01 /* SocialIcons */,
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
 				D4FACC71205A0F08A3FCA160 /* OllamaService.swift */,
 				AIP4REF01234567890ABCDEF04 /* AICompletionService.swift */,
@@ -760,10 +760,6 @@
 			isa = PBXBuildFile;
 			fileRef = A4C3FBD350354C15CD25D4C1;
 		};
-		8CAEF096D0677D6D7640C435 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = EB786603BBB0BDBED26DFAA5;
-		};
 		A650AF434AD64939BBDF1DFC /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = E0ABEAC1B1EDF262B954C1D2;
@@ -819,6 +815,10 @@
 		R9R1B011234567890ABCDEF07 /* ReshelfBrand.png in Resources */ = {
 			isa = PBXBuildFile;
 			fileRef = R9R1F001234567890ABCDEF07;
+		};
+		SOC1B001234567890ABCDE02 /* SocialIcons in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = SOC1F001234567890ABCDE01;
 		};
 		SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */ = {
 			isa = PBXBuildFile;
@@ -972,6 +972,7 @@
 				R9R2B011234567890ABCDEF09 /* AppIcon.icns in Resources */,
 				R9R1B011234567890ABCDEF07 /* ReshelfBrand.png in Resources */,
 				SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */,
+				SOC1B001234567890ABCDE02 /* SocialIcons in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1015,7 +1016,6 @@
 				D2215AFE01E36666F2D1C9EC,
 				D8C9EE93B8029986AD6BFE12,
 				471D22C667DA0F6EAF230ABE,
-				8CAEF096D0677D6D7640C435,
 				A650AF434AD64939BBDF1DFC,
 				23A67F25FEBBEE9AC0709693,
 				A76DA5A54BC8698BFACF93D6,

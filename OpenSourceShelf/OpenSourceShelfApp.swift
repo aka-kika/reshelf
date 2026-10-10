@@ -165,14 +165,12 @@ struct OpenSourceShelfApp: App {
             }
 
             CommandGroup(replacing: .newItem) {
-                Button("New Project…") {
-                    NotificationCenter.default.post(name: .addProject, object: nil)
-                }
-                .keyboardShortcut("n", modifiers: .command)
+                // The manual "New Project" form was removed in 1.14.0: Quick
+                // Capture fills everything from GitHub, so it owns ⌘N now.
                 Button("Quick Capture…") {
                     NotificationCenter.default.post(name: .quickCapture, object: nil)
                 }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .keyboardShortcut("n", modifiers: .command)
                 Button("Search…") {
                     NotificationCenter.default.post(name: .openCommandPalette, object: nil)
                 }
@@ -266,6 +264,12 @@ struct OpenSourceShelfApp: App {
                     NotificationCenter.default.post(name: .moveSelectedToShelf, object: ProjectStatus.yardSale.rawValue)
                 }
                 .keyboardShortcut("y", modifiers: .command)
+
+                Divider()
+
+                Button("Move Repos Without a License to Yard Sale…") {
+                    NotificationCenter.default.post(name: .yardSaleUnlicensed, object: nil)
+                }
             }
 
 
@@ -274,22 +278,15 @@ struct OpenSourceShelfApp: App {
 
         // Standard macOS Settings — app-menu "Settings…" (⌘,).
         //
-        // The ideal size is set so the tallest tab fits without scrolling at the
-        // default: with four tabs the fullest are General (Appearance, Licenses,
-        // Agent Skill) and Library (Repository Storage plus the reorderable
-        // inspector list) — both around 440pt of content, so ~660pt of window
-        // clears them with room for the tab bar.
-        //
-        // The scroll view stays: it's what lets the window still work when
-        // dragged small or opened on a short display. It just shouldn't be doing
-        // any work at the size the window actually opens at.
+        // One fixed size for every tab (Kika's spec: 560pt wide, no resizing
+        // per tab). A fixed frame with .contentSize also overrides an old saved
+        // window size. Tabs taller than this (Guide) scroll.
         Settings {
             SettingsView()
-                .frame(minWidth: 480, idealWidth: 640, maxWidth: .infinity,
-                       minHeight: 400, idealHeight: 660, maxHeight: .infinity)
+                .frame(width: 560, height: 620)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
-        .windowResizability(.contentMinSize)
+        .windowResizability(.contentSize)
         .modelContainer(container)
     }
 
@@ -380,7 +377,6 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 }
 
 extension Notification.Name {
-    static let addProject = Notification.Name("addProject")
     static let quickCapture = Notification.Name("quickCapture")
     static let openCommandPalette = Notification.Name("openCommandPalette")
     /// Sidebar navigation from the app's View menu (userInfo["item"]: SidebarItem rawValue).
@@ -405,4 +401,5 @@ extension Notification.Name {
     /// — lets the list's "updates available" row dot stay in sync after a pull/check.
     static let cloneUpdateStatusKnown = Notification.Name("cloneUpdateStatusKnown")
     static let removeDuplicateRepos = Notification.Name("removeDuplicateRepos")
+    static let yardSaleUnlicensed = Notification.Name("yardSaleUnlicensed")
 }

@@ -183,7 +183,6 @@ struct ContentView: View {
     @State private var listSelection: CatalogListSelection?
     @State private var searchText: String = ""
     @State private var sidebarSelection: ShelfSelection? = .builtin(.allProjects)
-    @State private var showingAddSheet: Bool = false
     @State private var quickCaptureRequest: QuickCaptureRequest?
     @State private var showingCommandPalette: Bool = false
     @State private var showingImportURLs: Bool = false
@@ -210,11 +209,6 @@ struct ContentView: View {
 
     var body: some View {
         catalogRootStack
-            .sheet(isPresented: $showingAddSheet) {
-                AddProjectSheet(isPresented: $showingAddSheet, onSave: { project in
-                    listSelection = .project(project.id)
-                })
-            }
             .sheet(item: $quickCaptureRequest) { request in
                 QuickCaptureSheet(
                     isPresented: Binding(
@@ -258,7 +252,6 @@ struct ContentView: View {
             .modifier(ContentViewNotificationHandlers(
                 sidebarSelection: $sidebarSelection,
                 listSelection: $listSelection,
-                showingAddSheet: $showingAddSheet,
                 showingCommandPalette: $showingCommandPalette,
                 quickCaptureRequest: $quickCaptureRequest,
                 appRefreshStore: appRefreshStore,
@@ -277,7 +270,6 @@ struct ContentView: View {
             // attempt presents cleanly (previously required a force-quit).
             .onReceive(NotificationCenter.default.publisher(for: .verifyWedgedSheets)) { _ in
                 guard !NSApp.windows.contains(where: { $0.isVisible && $0.isSheet }) else { return }
-                showingAddSheet = false
                 showingCommandPalette = false
                 showingImportURLs = false
                 showingRestoreBackup = false
@@ -407,7 +399,7 @@ struct ContentView: View {
     /// ⌘V with a GitHub repo link on the clipboard (and no text field focused):
     /// open Quick Capture with it. The sheet itself handles "already shelved".
     private func captureFromClipboard(_ url: String) {
-        guard quickCaptureRequest == nil, !showingCommandPalette, !showingAddSheet else { return }
+        guard quickCaptureRequest == nil, !showingCommandPalette else { return }
         presentSheetAfterEndingTextEditing {
             quickCaptureRequest = QuickCaptureRequest(url: url)
         }
@@ -560,7 +552,6 @@ struct ContentView: View {
             listSelection: $listSelection,
             searchText: $searchText,
             sidebarSelection: $sidebarSelection,
-            showingAddSheet: $showingAddSheet,
             needsTrafficLightInset: !isSidebarVisible,
             onQuickCapture: {
                 presentSheetAfterEndingTextEditing {
@@ -640,7 +631,6 @@ struct ContentView: View {
 private struct ContentViewNotificationHandlers: ViewModifier {
     @Binding var sidebarSelection: ShelfSelection?
     @Binding var listSelection: CatalogListSelection?
-    @Binding var showingAddSheet: Bool
     @Binding var showingCommandPalette: Bool
     @Binding var quickCaptureRequest: QuickCaptureRequest?
     let appRefreshStore: AppRefreshStore
@@ -656,9 +646,6 @@ private struct ContentViewNotificationHandlers: ViewModifier {
             }
             .onReceive(NotificationCenter.default.publisher(for: .toggleInspectorColumn)) { _ in
                 onToggleInspector()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .addProject)) { _ in
-                presentSheetAfterEndingTextEditing { showingAddSheet = true }
             }
             .onReceive(NotificationCenter.default.publisher(for: .quickCapture)) { _ in
                 presentSheetAfterEndingTextEditing {

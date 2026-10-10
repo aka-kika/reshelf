@@ -37,7 +37,7 @@ source close when you want to learn from or use it. Everything stays on your Mac
 
 ## Success signals (informal)
 
-- New repos land via **⌘K / ⌘⇧N**, not lost browser tabs.
+- New repos land via **⌘K / ⌘N**, not lost browser tabs.
 - Your **Top Shelf** stays short and trustworthy; the rest is easy to triage.
 - Notes + category are enough to reopen a project months later.
 - When you want to build something, your **cloned shelf** is the first place you look.
