@@ -14,7 +14,7 @@ enum RepoInfoRefreshService {
         var starsChanged = 0
         var licensesChanged = 0
         /// Repos GitHub answered 404 for (deleted, renamed away, or private).
-        var notFound: [String] = []
+        var notFound: [ToolProject] = []
         var failed = 0
         /// Set when GitHub's rate limit stopped the run early.
         var rateLimitMessage: String?
@@ -69,7 +69,7 @@ enum RepoInfoRefreshService {
                 case .failure(let error):
                     switch error as? CaptureError {
                     case .notFound:
-                        result.notFound.append(project.name)
+                        result.notFound.append(project)
                     case .rateLimited(let resetText):
                         result.rateLimitMessage = "GitHub's request limit was reached"
                             + (resetText.map { "; it resets \($0)" } ?? "")

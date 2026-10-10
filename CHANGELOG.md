@@ -9,6 +9,11 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.15.1] — 2026-10-10
+
+### Changed
+- **Refresh Info moves repos that are gone from GitHub to Yard Sale** by itself (a backup is saved first; nothing is deleted). This needs a GitHub token in Settings → Capture: without one GitHub also says "not found" for private repos, so those are only listed.
+
 ## [1.15.0] — 2026-10-10
 
 ### Added

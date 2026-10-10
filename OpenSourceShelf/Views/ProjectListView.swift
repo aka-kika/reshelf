@@ -756,18 +756,38 @@ struct ProjectListView: View {
             let result = await RepoInfoRefreshService.refresh(targets, context: modelContext) { done, total in
                 statusNotice = "Refreshing \(shelf.displayName)… \(done) of \(total)"
             }
+            let movedToYardSale = moveGoneReposToYardSale(result.notFound)
             isRefreshingInfo = false
             AppRefreshBus.emit(.catalogStateUpdated)
-            statusNotice = refreshSummary(result, shelf: shelf)
+            statusNotice = refreshSummary(result, shelf: shelf, movedToYardSale: movedToYardSale)
         }
     }
 
-    private func refreshSummary(_ result: RepoInfoRefreshService.Result, shelf: ProjectStatus) -> String {
+    /// Repos GitHub no longer has go to Yard Sale (Kika, 2026-10-10), after a
+    /// backup — never deleted. Only with a token: without one GitHub also
+    /// answers "not found" for private repos, so those are just reported.
+    /// Returns whether the gone repos are (now) in Yard Sale.
+    private func moveGoneReposToYardSale(_ gone: [ToolProject]) -> Bool {
+        guard GitHubAuth.hasToken else { return false }
+        let targets = gone.filter { $0.status != .yardSale }
+        guard !targets.isEmpty else { return true }
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders)
+        for project in targets { project.status = .yardSale }
+        try? modelContext.save()
+        return true
+    }
+
+    private func refreshSummary(_ result: RepoInfoRefreshService.Result,
+                                shelf: ProjectStatus,
+                                movedToYardSale: Bool) -> String {
         var parts = ["Refreshed \(result.checked) \(shelf.displayName) repo\(result.checked == 1 ? "" : "s")"]
         parts.append("\(result.starsChanged) star count\(result.starsChanged == 1 ? "" : "s") and \(result.licensesChanged) license\(result.licensesChanged == 1 ? "" : "s") changed")
         if !result.notFound.isEmpty {
-            let names = result.notFound.prefix(3).joined(separator: ", ")
-            parts.append("\(result.notFound.count) no longer on GitHub (\(names)\(result.notFound.count > 3 ? ", …" : ""))")
+            let names = result.notFound.prefix(3).map(\.name).joined(separator: ", ")
+            let more = result.notFound.count > 3 ? ", …" : ""
+            parts.append(movedToYardSale
+                ? "\(result.notFound.count) no longer on GitHub, now in Yard Sale (\(names)\(more))"
+                : "\(result.notFound.count) no longer on GitHub (\(names)\(more)); add a GitHub token in Settings to move these to Yard Sale automatically")
         }
         if result.failed > 0 { parts.append("\(result.failed) couldn't be read") }
         if let limit = result.rateLimitMessage { parts.append(limit) }
