@@ -1,0 +1,20 @@
+<html><body>
+<p>Fixes from the 2026-10-14 code review (checked one by one, tested in the test VM).</p>
+<h3>Fixed</h3>
+<ul>
+<li>Pull never throws away your own commits. A clone with commits made in it (that upstream never had) is now skipped, like one with unsaved edits, instead of being reset to upstream. A clone that is only *ahead* of upstream shows "Up to date", not "Updates available". Clones whose upstream rewrote its history still update as before.</li>
+<li>Delete in the inspector asks first and writes a backup before removing. When the repo is cloned, the dialog offers Remove Local Clone Only (keeps the entry) next to Remove from Catalog.</li>
+<li>Remove from Catalog (one repo or a batch) writes a backup first, as the dialog always said.</li>
+<li>Remove Duplicate Repos keeps what you wrote: a "Why I saved this", notes or folder on a dropped copy moves to the copy that stays (only into empty fields), and copies with them are preferred as the keeper.</li>
+<li>A broken catalog file no longer crashes reshelf at every launch. The file is kept aside (`catalog-unreadable-<date>.store`), a new one is started and your newest backup is restored into it, with a note saying so. An unrelated app's shared `default.store` is no longer adopted on first launch.</li>
+<li>Odd links can't crash the app: links with spaces, quotes, broken `%` codes or `..` as a name are refused. All 960 saved links read exactly as before.</li>
+<li>The sidebar Cloned count and the row disk badges update right after a clone is added or removed.</li>
+<li>List rows update right after an edit (name, description, category, icon).</li>
+<li>Captures and URL imports ask GitHub once per repo, not twice (better for the 60-an-hour limit without a token), and Quick Capture no longer fetches a throwaway icon.</li>
+<li>Bulk URL import keeps the last-updated date and the Local-First / Self-Hosted flags, like Quick Capture.</li>
+<li>The Edit sheet picks the category from the list instead of free text, so a typo can't drop a repo out of the sidebar categories.</li>
+<li>⌘K spots every GitHub link form (`www.`, `http://`, `git@github.com:`) through the shared link reader, and no longer offers to capture a bare `github.com/`.</li>
+<li>Backups: two written in the same second now sort in the right order and show their date in Restore from Backup; creating, renaming or reordering a folder is now saved in the automatic backups; and an unchanged catalog no longer writes another identical copy (about a third of the 30 kept backups were copies of the one before, so the history reached back less far).</li>
+<li>README: Capture Assist is in Settings → Capture and the agent skill in Settings → Library; the privacy section lists every time reshelf talks to GitHub.</li>
+</ul>
+</body></html>
