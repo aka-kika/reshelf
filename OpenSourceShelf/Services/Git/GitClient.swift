@@ -92,6 +92,17 @@ struct GitClient {
     /// has *tracked* edits, so a hand-modified clone is never clobbered. Untracked
     /// files are left in place. LFS-bypassed like clone.
     func syncToUpstream(repositoryURL: URL, cancellationID: String? = nil) async throws {
+        // Remember every commit the clone already knew from upstream *before* the
+        // fetch: after a force-push, `--prune` drops the old upstream tip from
+        // origin/*, and without this list a plain reference clone would look like
+        // it holds "local" commits and never get past the check below.
+        let knownUpstream = try await trimmedOutput(
+            // Branches only: tags rarely move, and a repo with thousands of
+            // them would overflow the argument list passed to rev-list.
+            arguments: ["for-each-ref", "--format=%(objectname)", "refs/remotes"],
+            workingDirectory: repositoryURL)
+            .split(whereSeparator: \.isNewline).map(String.init)
+
         // `--force`: upstream sometimes re-points a release tag (re-tagged v2.0.1).
         // Without it git refuses to "clobber" the local tag and the whole sync
         // fails; a reference clone should simply mirror upstream's tags.
@@ -107,6 +118,14 @@ struct GitClient {
             throw GitClientError.outputDecodingFailed
         }
 
+        // Commits made in the clone itself (on HEAD or on the local default
+        // branch) that upstream never had. `checkout -B` below would drop them,
+        // so a clone like that is skipped, the same way as one with edits.
+        guard try await localOnlyCommitCount(repositoryURL: repositoryURL, branch: branch,
+                                             knownUpstream: knownUpstream) == 0 else {
+            throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
+        }
+
         // `checkout -B` lands HEAD on the default branch and points it at the
         // upstream tip in one step — covers an already-on-branch fast-forward, a
         // diverged reset, and a detached/other-branch checkout. Safe because the
@@ -114,6 +133,28 @@ struct GitClient {
         _ = try await run(arguments: Self.lfsBypass + ["checkout", "-B", branch, "origin/\(branch)"],
                           workingDirectory: repositoryURL,
                           cancellationID: cancellationID)
+    }
+
+    /// Number of commits reachable from HEAD (and the local `branch`, if it
+    /// exists) that are on no remote-tracking branch or tag, now or before the
+    /// last fetch (`knownUpstream`).
+    func localOnlyCommitCount(repositoryURL: URL, branch: String, knownUpstream: [String]) async throws -> Int {
+        var tips = ["HEAD"]
+        let localBranch = try? await trimmedOutput(
+            arguments: ["rev-parse", "--verify", "--quiet", "refs/heads/\(branch)"],
+            workingDirectory: repositoryURL)
+        if let localBranch, !localBranch.isEmpty { tips.append(localBranch) }
+        let output = try await trimmedOutput(
+            arguments: ["rev-list", "--count"] + tips + ["--not", "--remotes", "--tags"] + knownUpstream,
+            workingDirectory: repositoryURL)
+        return Int(output) ?? 0
+    }
+
+    /// True when `ancestor` is a commit this clone has and HEAD contains it —
+    /// i.e. the clone is level with or ahead of it. Read-only, no network.
+    func headContains(_ ancestor: String, repositoryURL: URL) async -> Bool {
+        (try? await run(arguments: ["merge-base", "--is-ancestor", ancestor, "HEAD"],
+                        workingDirectory: repositoryURL)) != nil
     }
 
     /// True when the clone has no *tracked* modifications. Untracked files are

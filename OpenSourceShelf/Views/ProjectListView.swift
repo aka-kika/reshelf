@@ -138,6 +138,7 @@ struct ProjectListView: View {
                                         isClonedLocally: CatalogCloneService.isCloned(project),
                                         isBehind: behindProjectIDs.contains(project.id),
                                         hasNoClearLicense: project.hasNoClearLicense,
+                                        contentKey: ProjectRowView.contentKey(for: project),
                                         onSelect: { selectProject(project, modifiers: $0) }
                                     )
                                     .equatable()
@@ -249,8 +250,8 @@ struct ProjectListView: View {
             presenting: pendingBatchDelete
         ) { targets in
             Button("Remove \(targets.count) from Catalog", role: .destructive) {
-                for project in targets { deleteProject(project) }
-                statusNotice = "Removed \(targets.count) projects from the catalog."
+                deleteProjects(targets)
+                statusNotice = "Removed \(targets.count) projects from the catalog. A backup was saved."
                 clearBatchSelection()
             }
             Button("Cancel", role: .cancel) {}
@@ -286,7 +287,7 @@ struct ProjectListView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: { project in
-            Text("“\(project.name)” will be removed from your catalog. This can’t be undone. Cloned files and intelligence data are left untouched.")
+            Text("“\(project.name)” will be removed from your catalog. A backup is written first, so Restore from Backup can bring it back. Cloned files on disk are left untouched.")
         }
         .confirmationDialog(
             "Remove the local clone of \(pendingRemoveCloneProject?.name ?? "this repo")?",
@@ -698,15 +699,25 @@ struct ProjectListView: View {
         case .collector: score += 2000
         case .yardSale: score += 1000
         }
+        if !p.personalNote.isEmpty { score += 60 }
         if !p.notes.isEmpty { score += 50 }
+        if p.folderID != nil { score += 40 }
         score += min(p.tags.count, 20)
         score += min(p.useCases.count, 20) * 2
         if !p.longDescription.isEmpty { score += 20 }
         if !p.websiteURL.isEmpty { score += 10 }
         if !p.license.isEmpty { score += 5 }
-        if p.fitScore != 3 { score += 10 }
         if p.lastCheckedDate != nil { score += 10 }
         return score
+    }
+
+    /// What a person typed or chose on a dropped duplicate must not vanish with
+    /// it: fill the kept entry's empty "why I saved this", notes and folder.
+    /// Never overwrites something the kept entry already has.
+    private func mergeHandWrittenFields(from victim: ToolProject, into keeper: ToolProject) {
+        if keeper.personalNote.isEmpty { keeper.personalNote = victim.personalNote }
+        if keeper.notes.isEmpty { keeper.notes = victim.notes }
+        if keeper.folderID == nil { keeper.folderID = victim.folderID }
     }
 
     private func requestRemoveDuplicates() {
@@ -728,7 +739,9 @@ struct ProjectListView: View {
                 let sa = dedupKeepScore(a), sb = dedupKeepScore(b)
                 return sa == sb ? a.addedDate < b.addedDate : sa > sb
             }
+            let keeper = ranked[0]
             for victim in ranked.dropFirst() {
+                mergeHandWrittenFields(from: victim, into: keeper)
                 if listSelection?.projectID == victim.id { listSelection = nil }
                 modelContext.delete(victim)
                 removed += 1
@@ -816,14 +829,20 @@ struct ProjectListView: View {
     // MARK: - Context-menu action helpers
 
     private func deleteProject(_ project: ToolProject) {
-        if listSelection?.projectID == project.id {
-            listSelection = nil
-        }
         let name = project.name
-        modelContext.delete(project)
+        deleteProjects([project])
+        statusNotice = "Removed “\(name)” from the catalog. A backup was saved."
+    }
+
+    /// One backup, then the deletes, then one save.
+    private func deleteProjects(_ projects: [ToolProject]) {
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
+        for project in projects {
+            if listSelection?.projectID == project.id { listSelection = nil }
+            modelContext.delete(project)
+        }
         try? modelContext.save()
         AppRefreshBus.emit(.catalogStateUpdated)
-        statusNotice = "Removed “\(name)” from the catalog."
     }
 
     private var filteredProjects: [ToolProject] {
@@ -964,6 +983,9 @@ struct ProjectRowView: View, Equatable {
     /// Local clone is behind its upstream (updates available to pull).
     var isBehind: Bool = false
     var hasNoClearLicense: Bool = false
+    /// Captured text and icon presence, for the same reason as `statusKey`: an
+    /// edit or a fetched icon changes the project but not the reference.
+    var contentKey: String = ""
     /// Carries the modifier keys held at click time so the list can tell a
     /// plain click from ⌘-click (toggle into batch) and ⇧-click (extend).
     var onSelect: ((EventModifiers) -> Void)?
@@ -978,6 +1000,12 @@ struct ProjectRowView: View, Equatable {
             && lhs.isBehind == rhs.isBehind
             && lhs.hasNoClearLicense == rhs.hasNoClearLicense
             && lhs.isSelected == rhs.isSelected
+            && lhs.contentKey == rhs.contentKey
+    }
+
+    static func contentKey(for project: ToolProject) -> String {
+        [project.name, project.shortDescription, project.category,
+         project.iconData == nil ? "" : "icon"].joined(separator: "\u{1F}")
     }
 
     var body: some View {

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import AppKit
 import Darwin
+import SQLite3
 
 /// One-time migration from the app's former name ("OpenSourceShelf") to "reshelf".
 /// The Xcode target/module and bundle ID intentionally stay `OpenSourceShelf` /
@@ -59,7 +60,8 @@ private enum CatalogStoreLocation {
         // One-time migration from the shared default store (and its -wal/-shm
         // sidecars). Only runs if we haven't created the app-specific store yet.
         if !fm.fileExists(atPath: newURL.path),
-           let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+           let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+           isReshelfStore(appSupport.appendingPathComponent("default.store").path) {
             let oldBase = appSupport.appendingPathComponent("default.store").path
             for suffix in ["", "-wal", "-shm"] {
                 let src = oldBase + suffix
@@ -70,6 +72,47 @@ private enum CatalogStoreLocation {
             }
         }
         return newURL
+    }
+
+    /// The shared default.store can belong to any other non-sandboxed SwiftData
+    /// app; only adopt it when it holds reshelf's own table.
+    private static func isReshelfStore(_ path: String) -> Bool {
+        guard FileManager.default.fileExists(atPath: path) else { return false }
+        var db: OpaquePointer?
+        defer { sqlite3_close(db) }
+        guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else { return false }
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        let sql = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ZTOOLPROJECT'"
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return false }
+        return sqlite3_step(statement) == SQLITE_ROW
+    }
+
+    /// Set when the catalog file couldn't be opened and was moved aside; shown
+    /// once the app has launched.
+    static var recoveryNotice: String?
+
+    /// The store couldn't be opened (corrupt file, or a store from a newer
+    /// reshelf). Instead of crashing at every launch, move it and its sidecars
+    /// aside — kept, never deleted — so a fresh store opens and the usual
+    /// "catalog is empty" auto-restore brings the newest backup back.
+    static func moveAside(_ storeURL: URL, error: Error) {
+        let fm = FileManager.default
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+        let stamp = formatter.string(from: Date())
+        let keptBase = storeURL.deletingLastPathComponent()
+            .appendingPathComponent("catalog-unreadable-\(stamp).store").path
+        for suffix in ["", "-wal", "-shm"] where fm.fileExists(atPath: storeURL.path + suffix) {
+            try? fm.moveItem(atPath: storeURL.path + suffix, toPath: keptBase + suffix)
+        }
+        recoveryNotice = """
+        reshelf couldn't open its catalog file, so it started a new one and restored your newest backup into it.
+
+        The old file is kept at \(keptBase). If you had just used a newer reshelf, quit, update and move that file back to catalog.store.
+
+        Error: \(error.localizedDescription)
+        """
     }
 }
 
@@ -82,6 +125,14 @@ final class FormatMenuPruner: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.prune()
+        if let notice = CatalogStoreLocation.recoveryNotice {
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "Catalog restored from backup"
+                alert.informativeText = notice
+                alert.runModal()
+            }
+        }
         observer = NotificationCenter.default.addObserver(
             forName: NSApplication.didUpdateNotification,
             object: nil,
@@ -134,7 +185,12 @@ struct OpenSourceShelfApp: App {
             // a schema-divergent build that opens it can trigger a destructive reset.
             let storeURL = CatalogStoreLocation.migrateAndResolve()
             let config = ModelConfiguration(schema: schema, url: storeURL)
-            container = try ModelContainer(for: schema, configurations: config)
+            do {
+                container = try ModelContainer(for: schema, configurations: config)
+            } catch {
+                CatalogStoreLocation.moveAside(storeURL, error: error)
+                container = try ModelContainer(for: schema, configurations: config)
+            }
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }

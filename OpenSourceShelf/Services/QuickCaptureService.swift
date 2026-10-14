@@ -54,11 +54,11 @@ struct GitHubRepoInfo: Codable {
 enum QuickCaptureService {
     // Parse GitHub URL and fetch repo metadata
     static func fetchRepoInfo(githubURL: String) async throws -> GitHubRepoInfo {
-        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: githubURL) else {
+        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: githubURL),
+              let apiURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)") else {
             throw CaptureError.invalidURL
         }
 
-        let apiURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)")!
         let data = try await getJSON(from: apiURL, context: "\(owner)/\(repo)")
         do {
             return try JSONDecoder().decode(GitHubRepoInfo.self, from: data)
@@ -289,7 +289,7 @@ enum LinkCaptureService {
         )
         context.insert(project)
         try? context.save()
-        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)
+        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: info)
         IconFetcher.fetch(for: project, in: context)
 
         // Same hands-free assist Quick Capture runs after Save.

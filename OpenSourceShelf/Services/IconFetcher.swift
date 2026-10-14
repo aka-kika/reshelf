@@ -16,12 +16,12 @@ enum IconFetcher {
         inFlightLock.unlock()
         guard shouldStart else { return }
 
-        guard let ownerRepo = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else {
+        guard let ownerRepo = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL),
+              let avatarURL = URL(string: "https://github.com/\(ownerRepo.owner).png?size=64") else {
             clearInFlight(project.id)
             return
         }
 
-        let avatarURL = URL(string: "https://github.com/\(ownerRepo.owner).png?size=64")!
         let projectID = project.id
 
         URLSession.shared.dataTask(with: avatarURL) { data, response, _ in

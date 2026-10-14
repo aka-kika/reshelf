@@ -23,6 +23,7 @@ enum RepositoryIngestionError: LocalizedError {
 
 enum RepositoryIngestionService {
     static func ingestMetadata(githubURL rawURL: String,
+                               prefetched: GitHubRepoInfo? = nil,
                                database: IntelligenceDatabase = .shared,
                                jobID: String? = nil) async throws -> RepositoryIngestionResult {
         guard let parsedURL = GitHubRepositoryURL.parse(rawURL) else {
@@ -87,7 +88,12 @@ enum RepositoryIngestionService {
         }
 
         do {
-            let info = try await QuickCaptureService.fetchRepoInfo(githubURL: parsedURL.canonicalURL)
+            let info: GitHubRepoInfo
+            if let prefetched {
+                info = prefetched
+            } else {
+                info = try await QuickCaptureService.fetchRepoInfo(githubURL: parsedURL.canonicalURL)
+            }
             let completedAt = IntelligenceDatabase.iso8601String()
             if try database.isIngestionJobCancelled(id: job.id) {
                 throw RepositoryIngestionError.cancelled

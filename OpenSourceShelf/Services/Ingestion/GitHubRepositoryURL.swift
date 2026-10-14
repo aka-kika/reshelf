@@ -44,8 +44,17 @@ struct GitHubRepositoryURL: Equatable {
             repo = String(repo[..<cut])
         }
         if repo.lowercased().hasSuffix(".git") { repo = String(repo.dropLast(4)) }
-        guard !repo.isEmpty else { return nil }
-        return (String(parts[0]), repo)
+        let owner = String(parts[0])
+        // Only what GitHub itself allows in a name. A pasted link with spaces,
+        // quotes or broken %-escapes would otherwise reach URL building and
+        // folder paths, and `..` as a repo would point a clone at its parent.
+        guard isGitHubName(owner), isGitHubName(repo) else { return nil }
+        return (owner, repo)
+    }
+
+    private static func isGitHubName(_ value: String) -> Bool {
+        guard value != ".", value != ".." else { return false }
+        return value.range(of: #"^[A-Za-z0-9._-]+$"#, options: .regularExpression) != nil
     }
 
     /// Lowercased, validated repo identity (the metadata store's key).

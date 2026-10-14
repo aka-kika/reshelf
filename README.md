@@ -47,7 +47,7 @@
   each capture can auto-fill **use cases, a note, and tags** right after you save,
   and a one-click backfill fills entries that have none. No setup, no API keys,
   nothing leaves your Mac — and it never overwrites anything you typed.
-  (Settings → General → Capture Assist.)
+  (Settings → Capture → Capture Assist.)
 - **Organize onto shelves** — **Top Shelf** (keepers), **The Collector** (default),
   **Yard Sale** (not sure / let go). Move with one keystroke (⌘T / ⌘Y).
 - **Browse by anything** — sidebar filters by shelf, **live category list**, **folders**,
@@ -159,7 +159,7 @@ reference: when a coding agent is unsure of a library's API, it can search the *
 cloned source instead of guessing from stale docs.
 
 We ship a **Claude Code skill** in [`extras/reshelf-skill`](extras/reshelf-skill). It
-installs itself: **Settings → General → Agent Skill → Install reshelf Skill** copies it
+installs itself: **Settings → Library → Agent Skill → Install reshelf Skill** copies it
 to `~/.claude/skills/reshelf`, no cloning needed. **Click it again after updating
 reshelf** to get the newest version of the skill.
 
@@ -190,7 +190,7 @@ explicitly welcome.
 
 ## Privacy and network
 
-- **GitHub API** — only when you use Quick Capture (repo metadata).
+- **GitHub** — when you capture or import a repo (repo info and its owner's avatar as the icon), when you pull a clone or use Shelf → Refresh Info (fresh stars, license, last activity), and for update checks on clones (`git ls-remote`). Missing icons are fetched again at launch.
 - **AI** — never leaves the Mac. Capture Assist runs on-device Apple Intelligence; there is no cloud provider to configure.
 - **Update checks** — Sparkle fetches a static appcast from GitHub Pages. Nothing about you is sent; it's a plain file request.
 - No sign-in, no required cloud sync. Credentials (when used) live in the macOS Keychain.
@@ -220,8 +220,8 @@ signed and notarized with a Developer ID — it opens with no Gatekeeper warning
 
 ### Does reshelf need an account or send my data anywhere?
 
-No account, no cloud, no telemetry. Your catalog and clones stay on your Mac. The
-GitHub API is called only when you capture a repo, and the optional Capture Assist
+No account, no cloud, no telemetry. Your catalog and clones stay on your Mac. GitHub is
+only asked about the repos you saved (capture, refresh, pull, icons), and the optional Capture Assist
 runs entirely on-device with Apple Intelligence — there is no cloud AI provider to
 configure at all.
 

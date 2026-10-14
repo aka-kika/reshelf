@@ -4,7 +4,6 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## Open
 
-- [ ] **Bug (Kika, 2026-10-03): Delete in the inspector removes the repo with no confirmation.** It takes the whole entry out of the catalog at once (no "are you sure" sheet) and leaves the local clone on disk, so the folder is orphaned. Seen with omnivore and Loop: Kika meant to remove only the clones; both entries vanished, both clones stayed in `~/reshelf/repos`. Fix: a confirmation before deleting (name the repo; say whether its clone is removed too), and offer "Remove Local Clone" as the usual choice. The app's own `~/reshelf/backups/catalog-2026-10-03-00*.json` holds the two entries.
 - [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
 - [ ] *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits using plain git so you can see what changed.
 - [ ] **Verify the folder import round-trip on both Macs** — export here, import there, confirm folders match by name rather than duplicating. The export half is proven (the app's own backup writes folders + memberships correctly); the import half has only been reasoned through, not exercised.

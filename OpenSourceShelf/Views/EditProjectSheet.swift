@@ -73,7 +73,10 @@ struct EditProjectSheet: View {
                     }
                     HStack(spacing: 16) {
                         field("Category") {
-                            TextField("Category", text: $category)
+                            // The picker, not free text: a typo or a case
+                            // difference would drop the repo from every
+                            // sidebar category (they match exact titles).
+                            CategoryMenuPicker(selection: $category)
                         }
                         field("Status") {
                             Picker("", selection: $status) {

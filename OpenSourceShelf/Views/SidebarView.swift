@@ -39,6 +39,9 @@ struct SidebarColumnHost: View, Equatable {
 struct SidebarView: View {
     @Binding var selection: ShelfSelection?
     @Environment(\.modelContext) private var modelContext
+    /// The Cloned count reads the disk, not SwiftData; a clone added or removed
+    /// bumps this store, which re-renders the sidebar.
+    @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
     @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
 

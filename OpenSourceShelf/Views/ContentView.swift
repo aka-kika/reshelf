@@ -321,6 +321,9 @@ struct ContentView: View {
             .onChange(of: allProjects.count) { _, _ in
                 CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
             }
+            .onChange(of: allFolders.count) { _, _ in
+                CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active {
                     CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)

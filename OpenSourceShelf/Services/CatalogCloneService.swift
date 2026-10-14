@@ -131,7 +131,8 @@ enum CatalogCloneService {
             .replacingOccurrences(of: "\\", with: " ")
             .split(whereSeparator: { $0 == " " || $0 == "\t" || $0.isNewline })
             .joined(separator: " ")
-        return cleaned.isEmpty ? "Uncategorized" : cleaned
+        // "." or ".." would put clones in the root or above it.
+        return cleaned.isEmpty || cleaned == "." || cleaned == ".." ? "Uncategorized" : cleaned
     }
 
     /// Where a NEW clone should go: under the project's category subfolder, the
@@ -280,6 +281,7 @@ enum CatalogCloneService {
             // than failing on it.
             if originMatches(dest, owner: owner, repo: repo) {
                 invalidateCloneIndex()
+                AppRefreshBus.emit(.catalogStateUpdated)
                 return dest
             }
             let contents = (try? fm.contentsOfDirectory(atPath: dest.path)) ?? []
@@ -294,6 +296,9 @@ enum CatalogCloneService {
         let url = "https://github.com/\(owner)/\(repo)"
         try await GitClient().clone(repositoryURL: url, destinationURL: dest, blobless: false)
         invalidateCloneIndex()
+        // Clones live on disk, not in SwiftData, so no @Query sees this one:
+        // the sidebar's Cloned count and the row badges wait for this event.
+        AppRefreshBus.emit(.catalogStateUpdated)
         return dest
     }
 
@@ -311,6 +316,7 @@ enum CatalogCloneService {
             try? fm.removeItem(at: parent)
         }
         invalidateCloneIndex()
+        AppRefreshBus.emit(.catalogStateUpdated)
     }
 
     // MARK: - Updates (plain git — no AI)
@@ -332,7 +338,9 @@ enum CatalogCloneService {
             async let remoteTask = git.remoteDefaultHead(repositoryURL: dir)
             let (local, remote) = try await (localTask, remoteTask)
             guard let local, let remote else { return .error("Couldn't read commits.") }
-            return local == remote ? .upToDate : .updatesAvailable
+            if local == remote { return .upToDate }
+            // A clone with its own commits on top of upstream's tip is not behind.
+            return await git.headContains(remote, repositoryURL: dir) ? .upToDate : .updatesAvailable
         } catch {
             return .error(error.localizedDescription)
         }
@@ -342,7 +350,8 @@ enum CatalogCloneService {
     /// Fast-forwards when possible; resets to upstream when the clone has diverged
     /// (e.g. the project force-pushed/rebased its default branch) so updates don't
     /// get stuck. Throws `GitClientError.localChangesPresent` — leaving the clone
-    /// untouched — if the working tree has local edits. After a successful pull
+    /// untouched — if the working tree has local edits or the clone has commits
+    /// of its own that upstream never had. After a successful pull
     /// the repo's GitHub info (stars, license, last activity) is refreshed too:
     /// cloned repos are skipped by Refresh Repo Info, so this is their refresh.
     @MainActor

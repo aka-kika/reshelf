@@ -19,6 +19,7 @@ struct InspectView: View {
     @State private var cloneUpdateStatus: CatalogCloneService.UpdateStatus?
     @State private var isCheckingUpdates = false
     @State private var isPulling = false
+    @State private var isConfirmingDelete = false
 
     private var currentFolder: CatalogFolder? {
         guard let id = project.folderID else { return nil }
@@ -130,7 +131,7 @@ struct InspectView: View {
                         }
                         .buttonStyle(.borderless)
 
-                        Button(role: .destructive, action: deleteProject) {
+                        Button(role: .destructive, action: { isConfirmingDelete = true }) {
                             Label("Delete", systemImage: "trash")
                                 .font(.system(size: 12))
                         }
@@ -143,6 +144,19 @@ struct InspectView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .confirmationDialog("Remove \(project.name)?", isPresented: $isConfirmingDelete) {
+            // Most often only the clone is meant to go (Kika, 2026-10-03), so
+            // offer that first when there is one.
+            if CatalogCloneService.isCloned(project) {
+                Button("Remove Local Clone Only", action: removeLocalCloneOnly)
+            }
+            Button("Remove from Catalog", role: .destructive, action: deleteProject)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(CatalogCloneService.isCloned(project)
+                 ? "Remove Local Clone Only moves the cloned folder to the Trash and keeps the entry. Remove from Catalog takes the entry out (a backup is written first, so Restore from Backup can bring it back) and leaves the cloned folder on disk."
+                 : "“\(project.name)” will be removed from your catalog. A backup is written first, so Restore from Backup can bring it back.")
+        }
         .background(Color(nsColor: .windowBackgroundColor))
         .sheet(isPresented: $isEditing) {
             EditProjectSheet(project: project, isPresented: $isEditing)
@@ -586,9 +600,21 @@ struct InspectView: View {
             .padding(.bottom, 8)
     }
 
+    private func removeLocalCloneOnly() {
+        do {
+            try CatalogCloneService.removeClone(project)
+            cloneUpdateStatus = nil
+            broadcastBehind(false)
+        } catch {
+            localCopyNotice = error.localizedDescription
+        }
+    }
+
     private func deleteProject() {
+        CatalogBackupService.writeSnapshot(from: modelContext) // recoverable via Restore from Backup
         modelContext.delete(project)
         try? modelContext.save()
+        AppRefreshBus.emit(.catalogStateUpdated)
         onDelete?()
     }
 

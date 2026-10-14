@@ -127,11 +127,14 @@ struct ImportURLsSheet: View {
                             status: .collector,
                             license: info.licenseText,
                             stars: info.stars.map(GitHubRepoInfo.formattedStars) ?? "",
-                            tags: info.topics ?? []
+                            tags: info.topics ?? [],
+                            lastUpdatedDate: info.pushedAt.flatMap(GitHubDate.parse),
+                            isLocalFirst: (info.topics ?? []).contains("local-first"),
+                            isSelfHosted: (info.topics ?? []).contains("self-hosted")
                         )
                         modelContext.insert(project)
                         try? modelContext.save()
-                        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)
+                        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: info)
                         IconFetcher.fetch(for: project, in: modelContext)
                         imported += 1
                         progress += 1

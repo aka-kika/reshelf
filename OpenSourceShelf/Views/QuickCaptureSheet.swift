@@ -462,11 +462,6 @@ struct QuickCaptureSheet: View {
                     fetchedURL = trimmed
                     populateFields(from: info, url: trimmed)
                     isFetching = false
-                    // Auto-fetch icon
-                    if !name.isEmpty {
-                        let temp = ToolProject(name: name, githubURL: trimmed)
-                        IconFetcher.fetch(for: temp, in: modelContext)
-                    }
                 }
             } catch {
                 await MainActor.run {
@@ -612,7 +607,10 @@ struct QuickCaptureSheet: View {
         )
         modelContext.insert(project)
         try? modelContext.save()
-        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project)
+        // Reuse the fetched info only if the link wasn't changed after fetching.
+        let prefetched = GitHubRepositoryURL.dedupKey(for: fetchedURL) == GitHubRepositoryURL.dedupKey(for: urlText)
+            ? fetchedInfo : nil
+        CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: prefetched)
         IconFetcher.fetch(for: project, in: modelContext)
         // Hands-free capture assist: fill use cases/note/tags in the background
         // after the sheet closes, so saving stays instant.

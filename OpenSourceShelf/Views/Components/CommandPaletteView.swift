@@ -289,6 +289,5 @@ struct CommandPaletteView: View {
 }
 
 private func isGitHubURL(_ text: String) -> Bool {
-    let trimmed = text.trimmingCharacters(in: .whitespaces)
-    return trimmed.hasPrefix("https://github.com/") || trimmed.hasPrefix("github.com/")
+    GitHubRepositoryURL.ownerAndRepo(from: text) != nil
 }

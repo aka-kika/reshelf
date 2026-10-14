@@ -36,11 +36,18 @@ enum CatalogBackupService {
         // changes looked identical and no snapshot was written. Compare the encoded
         // projects instead — and not the whole file, whose `exportedAt` differs on
         // every call and would make every comparison report a change.
+        // Both sides go through the file format: it stores dates to the whole
+        // second, so comparing against the live rows (sub-second dates) said
+        // "changed" every time and filled the 30 slots with identical copies.
         if let newest = snapshotURLs().first,
            let existing = try? Data(contentsOf: newest),
            let existingRows = try? CatalogExportService.decode(existing),
-           existingRows.count == projects.count,
-           fingerprint(of: existingRows) == fingerprint(of: projects.map(CatalogProjectDTO.init)) {
+           let newRows = try? CatalogExportService.decode(data),
+           existingRows.count == newRows.count,
+           fingerprint(of: existingRows) == fingerprint(of: newRows),
+           // A new, renamed or reordered folder touches no project row.
+           folderFingerprint(of: (try? CatalogExportService.decodeFolders(existing)) ?? [])
+               == folderFingerprint(of: folders.map(CatalogFolderDTO.init)) {
             return // unchanged since last snapshot
         }
 
@@ -66,6 +73,15 @@ enum CatalogBackupService {
         }
     }
 
+    /// Snapshot of everything in the store right now — for a destructive action
+    /// in a view that doesn't hold the whole catalog (the inspector's Delete).
+    @MainActor
+    static func writeSnapshot(from context: ModelContext) {
+        let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+        let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
+        writeSnapshot(projects, folders: folders)
+    }
+
     private static func prune() {
         let urls = snapshotURLs() // newest first
         guard urls.count > maxSnapshots else { return }
@@ -83,7 +99,10 @@ enum CatalogBackupService {
                                                  includingPropertiesForKeys: nil)) ?? []
         return files
             .filter { $0.lastPathComponent.hasPrefix("catalog-") && $0.pathExtension == "json" }
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+            // Compare without ".json": with it, "…-035806.json" sorts after its
+            // same-second sibling "…-035806-2.json" ("." > "-"), so the older
+            // file passed as the newest.
+            .sorted { $0.deletingPathExtension().lastPathComponent > $1.deletingPathExtension().lastPathComponent }
     }
 
     static func projects(in url: URL) -> [CatalogProjectDTO] {
@@ -170,6 +189,10 @@ enum CatalogBackupService {
             hasher.combine(row.folderID)
         }
         return hasher.finalize()
+    }
+
+    private static func folderFingerprint(of folders: [CatalogFolderDTO]) -> [String] {
+        folders.map { "\($0.id)|\($0.name)|\($0.sortIndex)" }.sorted()
     }
 
     private static func projectCount(in data: Data) -> Int {
