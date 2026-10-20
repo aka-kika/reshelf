@@ -1,0 +1,40 @@
+<html><body>
+<p>Fixes from the 2026-10-20 code review (28 findings from three reviewers, each checked in the code; 27 fixed, one waits for a decision), plus a What's new sheet.</p>
+<h3>New</h3>
+<ul>
+<li>Restore from Backup can undo a change ("Also put back changes to repos I still have"), and backups taken before a big change say what they were for. Details under Fixed.</li>
+<li>What's new: this list, once after each update, and from Help → What's New in reshelf.</li>
+</ul>
+<h3>Fixed (urgent)</h3>
+<ul>
+<li>Restore from Backup can now undo a change, not only bring back deleted repos. Turn on Also put back changes to repos I still have and the repos that changed since the backup get their shelf, tags, notes and folder back; the sheet counts them first. Backups taken before a big change say what they were taken before ("Before moving 12 repos to Yard Sale"), so the right one is easy to pick. Restoring writes a backup of the current state first.</li>
+<li>Refresh Info asks before moving repos GitHub can't find to Yard Sale, and lists them. GitHub also says "not found" for private repos your token can't see, so nothing moves without your yes.</li>
+<li>Remove Duplicate Repos keeps everything you wrote on either copy: tags and use cases are joined, two different notes are both kept, and empty fields are filled from the dropped copy.</li>
+<li>No more crash when you delete a repo while reshelf is still working on it (Capture Assist, Refresh Info, Pull, Read from Clones, Check Clones for Updates). The work simply skips the deleted repo.</li>
+<li>Pull keeps a commit you made in a clone even when you also tagged it. Before, a local tag made the commit look like upstream's and Pull reset it away.</li>
+</ul>
+<h3>Fixed (everything else)</h3>
+<ul>
+<li>You can empty your shelf. Deleting every repo used to bring them all back from a backup at the next launch; now an emptied shelf stays empty (no backup restore, no sample repos). A catalog file that can't be opened still gets your newest backup.</li>
+<li>The "catalog restored" alert tells the truth: it says so when no backup was found instead of claiming one was restored. If the catalog file can't be opened or created at all, reshelf opens with a temporary catalog and says changes won't be kept, instead of crashing at every launch.</li>
+<li>A save that fails now says so ("Couldn't save … check the disk has free space") instead of looking fine and losing the change after relaunch. Quick Capture and Edit stay open so you can try again.</li>
+<li>Check Clones for Updates no longer says "All clones are up to date" when it couldn't check (offline, or git missing). It says "Couldn't check 3 (…). Are you online?". Folder Pull Repos does the same.</li>
+<li>The inspector's clone status follows Check Clones for Updates and pulls from the list, instead of showing an older answer.</li>
+<li>GitHub links pasted as `git@github.com:owner/repo` are saved as normal https links. Rows saved broken by earlier versions are fixed at launch and can clone, open, get an icon and be caught as duplicates again.</li>
+<li>Restoring an older backup after editing a repo's link no longer makes two rows share one id.</li>
+<li>Settings tells you when the GitHub token couldn't be saved or removed in the Keychain, instead of saying "Saved".</li>
+<li>git never hangs on a login prompt: a private repo fails at once with a plain message (reshelf clones public repos only). Update checks stop after 60 seconds and pulls after 10 minutes, so one stuck repo can't hold up the rest; a clone stops when the download stalls for 5 minutes.</li>
+<li>A clone cut off midway is no longer shown as Cloned; cloning again replaces it. Clicking Clone twice no longer starts two downloads.</li>
+<li>A custom clone folder can't adopt your own projects: only folders in reshelf's own layout (`<Category>/<repo>`) count as clones, so Remove Local Clone and Pull never touch your working copies.</li>
+<li>Without Apple's Command Line Tools, Clone, Check and Pull say to run `xcode-select --install` instead of showing a raw git error.</li>
+<li>Changing the clone folder tells you how many clones stay in the old one (reshelf doesn't move them), and Remove Local Clone says so when there's nothing to remove.</li>
+<li>Selecting a cloned repo again doesn't ask GitHub again: the update check is kept for the session and refreshed by Check, Pull and Check Clones for Updates.</li>
+<li>Import GitHub URLs has a Stop button, and stops at GitHub's limit with a clear message, keeping the links it didn't get to for later.</li>
+<li>Quick Capture saves only a real GitHub repo link, and a fetch that finishes after you changed the link is ignored.</li>
+<li>Backups wait until the catalog is still for 2 seconds, so a big import no longer fills all 30 backup slots, and Restore from Backup opens without a pause.</li>
+<li>License info knows more licenses (EUPL, PostgreSQL, CC-BY, WTFPL, spelled-out names) and says "read the LICENSE file" for any it doesn't know.</li>
+<li>The reshelf agent skill refuses "." and ".." as names, so a clone can't land outside the clones folder.</li>
+<li>Old `~/OpenSourceShelf` data is merged into `~/reshelf` when both exist, never overwriting, with a note about what stayed behind.</li>
+<li>SECURITY.md now describes the GitHub token that ships (Keychain only, sent only to api.github.com, not to git) instead of AI provider keys.</li>
+</ul>
+</body></html>
