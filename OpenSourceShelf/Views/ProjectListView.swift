@@ -241,8 +241,13 @@ struct ProjectListView: View {
             presenting: pendingBatchRemoveClones
         ) { targets in
             Button("Move \(targets.count) Clones to Trash", role: .destructive) {
-                for project in targets { removeClone(for: project) }
-                statusNotice = "Moved \(targets.count) clones to the Trash."
+                let moved = targets.filter { removeClone(for: $0) }.count
+                // A failure already put its reason in the status line.
+                if moved == targets.count {
+                    statusNotice = "Moved \(moved) clones to the Trash."
+                } else if moved > 0 {
+                    statusNotice = "Moved \(moved) of \(targets.count) clones to the Trash. " + (statusNotice ?? "")
+                }
                 clearBatchSelection()
             }
             Button("Cancel", role: .cancel) {}
@@ -561,13 +566,16 @@ struct ProjectListView: View {
         }
     }
 
-    private func removeClone(for project: ToolProject) {
+    @discardableResult
+    private func removeClone(for project: ToolProject) -> Bool {
         do {
             try CatalogCloneService.removeClone(project)
             behindProjectIDs.remove(project.id)
             statusNotice = "Moved the \(project.name) clone to the Trash."
+            return true
         } catch {
             statusNotice = "Couldn't remove clone: \(error.localizedDescription)"
+            return false
         }
     }
 
@@ -585,6 +593,7 @@ struct ProjectListView: View {
         Task {
             var behind: Set<UUID> = []
             var unchecked: [String] = []
+            var uncheckedReason = ""
             for project in cloned {
                 // A row deleted during an earlier await is skipped, and the
                 // id is read before awaiting (deleted models can't be read).
@@ -593,7 +602,7 @@ struct ProjectListView: View {
                 let status = await CatalogCloneService.updateStatus(for: project)
                 switch status {
                 case .updatesAvailable: behind.insert(id)
-                case .error: unchecked.append(name)
+                case .error(let message): unchecked.append(name); uncheckedReason = message
                 case .upToDate: break
                 }
                 announceCloneStatus(id, status)
@@ -608,7 +617,8 @@ struct ProjectListView: View {
                 // Offline, or git missing: every check errors. Never call
                 // that "up to date".
                 if !unchecked.isEmpty {
-                    parts.append("Couldn't check \(unchecked.count) (\(Self.nameList(unchecked))). Are you online?")
+                    parts.append("Couldn't check \(unchecked.count) (\(Self.nameList(unchecked))). "
+                                 + Self.uncheckedHint(uncheckedReason))
                 }
                 statusNotice = parts.isEmpty ? "All clones are up to date." : parts.joined(separator: " ")
             }
@@ -673,11 +683,12 @@ struct ProjectListView: View {
             var failed: [String] = []
             var pulledIDs: Set<UUID> = []
             var unchecked: [String] = []
+            var uncheckedReason = ""
             for project in cloned {
                 guard LiveProject.isAlive(project) else { continue }
                 let id = project.id, name = project.name
                 let status = await CatalogCloneService.updateStatus(for: project)
-                if case .error = status { unchecked.append(name) }
+                if case .error(let message) = status { unchecked.append(name); uncheckedReason = message }
                 guard case .updatesAvailable = status, LiveProject.isAlive(project) else { continue }
                 do {
                     try await CatalogCloneService.pull(project)
@@ -698,7 +709,7 @@ struct ProjectListView: View {
                 if updated == 0 && skipped == 0 && failed.isEmpty {
                     statusNotice = unchecked.isEmpty
                         ? "\(name): all \(cloned.count) up to date."
-                        : "\(name):" + uncheckedNote + " Are you online?"
+                        : "\(name):" + uncheckedNote + " " + Self.uncheckedHint(uncheckedReason)
                 } else {
                     statusNotice = "\(name): " + pullSummary(updated: updated, skipped: skipped, failed: failed) + uncheckedNote
                 }
@@ -711,6 +722,12 @@ struct ProjectListView: View {
         guard status == .upToDate || status == .updatesAvailable else { return }
         NotificationCenter.default.post(name: .cloneUpdateStatusKnown, object: id.uuidString,
                                         userInfo: ["behind": status == .updatesAvailable])
+    }
+
+    /// Why checks failed, for the status line: git's own plain message when
+    /// git is missing, else the likely cause.
+    static func uncheckedHint(_ reason: String) -> String {
+        reason.contains("Command Line Tools") ? reason : "Are you online?"
     }
 
     /// "zotero, ripgrep, fd +2" for a status line.

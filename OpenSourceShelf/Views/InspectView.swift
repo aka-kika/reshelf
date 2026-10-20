@@ -375,7 +375,9 @@ struct InspectView: View {
             guard let id = note.object as? String, id == project.id.uuidString,
                   !isCheckingUpdates, !isPulling else { return }
             let behind = (note.userInfo?["behind"] as? Bool) ?? false
-            cloneUpdateStatus = behind ? .updatesAvailable : .upToDate
+            let status: CatalogCloneService.UpdateStatus = behind ? .updatesAvailable : .upToDate
+            cloneUpdateStatus = status
+            CatalogCloneService.rememberUpdateStatus(status, for: project.id)
         }
     }
 
@@ -463,9 +465,15 @@ struct InspectView: View {
         )
     }
 
+    /// Reuses this session's last answer for the repo, so selecting it again
+    /// doesn't hit the network; Check and Pull still ask afresh.
     private func autoCheckUpdatesIfCloned() async {
         guard CatalogCloneService.isCloned(project),
               cloneUpdateStatus == nil, !isCheckingUpdates else { return }
+        if let known = CatalogCloneService.cachedUpdateStatus(for: project.id) {
+            cloneUpdateStatus = known
+            return
+        }
         await checkUpdates()
     }
 

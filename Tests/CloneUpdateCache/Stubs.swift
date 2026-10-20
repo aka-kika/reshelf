@@ -1,0 +1,10 @@
+import Foundation
+import SwiftData
+
+// Stand-in for the GitHub info refresh that CatalogCloneService.pull calls
+// after a pull: the real one calls the GitHub API, these tests stay offline.
+@MainActor
+enum RepoInfoRefreshService {
+    struct Result {}
+    static func refresh(_ projects: [ToolProject], context: ModelContext) async -> Result { Result() }
+}

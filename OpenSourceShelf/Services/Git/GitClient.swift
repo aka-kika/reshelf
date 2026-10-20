@@ -43,6 +43,8 @@ enum GitClientError: LocalizedError {
     case loginRequired
     /// A network command ran past its time limit and was stopped.
     case timedOut(arguments: [String], seconds: Int)
+    /// git itself doesn't run (no Command Line Tools), see `GitAvailability`.
+    case gitMissing
 
     var errorDescription: String? {
         switch self {
@@ -62,6 +64,8 @@ enum GitClientError: LocalizedError {
                 arguments[index] != "-c" && (index == 0 || arguments[index - 1] != "-c")
             }.map { arguments[$0] } ?? ""
             return "git \(subcommand) got no answer within \(seconds) seconds and was stopped. Check the network and try again."
+        case .gitMissing:
+            return "reshelf needs Apple's Command Line Tools for git. Install them with xcode-select --install in Terminal, then try again."
         }
     }
 
@@ -101,6 +105,62 @@ private final class GitTimeoutWatchdog: @unchecked Sendable {
 
     func disarm() {
         lock.lock(); workItem?.cancel(); lock.unlock()
+    }
+}
+
+/// Whether git runs at all. On a Mac without Command Line Tools, /usr/bin/git
+/// is a stub that offers to install them and exits non-zero, and its error
+/// means nothing to the user. Asked only after a command failed, once per
+/// launch; a "no" is asked again after a minute, so installing the tools
+/// works without quitting reshelf.
+final class GitAvailability: @unchecked Sendable {
+    static let shared = GitAvailability()
+    static let retryMissingAfter: TimeInterval = 60
+
+    private let lock = NSLock()
+    private var known: [String: (works: Bool, checkedAt: Date)] = [:]
+
+    func works(_ executableURL: URL) async -> Bool {
+        if let answer = cachedAnswer(for: executableURL.path) { return answer }
+        let works = await Self.probe(executableURL)
+        remember(works, for: executableURL.path)
+        return works
+    }
+
+    private func cachedAnswer(for path: String) -> Bool? {
+        lock.lock(); defer { lock.unlock() }
+        guard let entry = known[path] else { return nil }
+        if entry.works || Date().timeIntervalSince(entry.checkedAt) < Self.retryMissingAfter { return entry.works }
+        return nil
+    }
+
+    private func remember(_ works: Bool, for path: String) {
+        lock.lock(); known[path] = (works, Date()); lock.unlock()
+    }
+
+    /// `git --version` exits 0. A probe that hangs is not proof git is missing.
+    private static func probe(_ executableURL: URL) async -> Bool {
+        let process = Process()
+        process.executableURL = executableURL
+        process.arguments = ["--version"]
+        process.environment = GitClient.processEnvironment()
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        let watchdog = GitTimeoutWatchdog()
+        let status: Int32? = await withCheckedContinuation { continuation in
+            process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
+            do {
+                try process.run()
+                watchdog.arm(process, seconds: 15)
+            } catch {
+                process.terminationHandler = nil
+                continuation.resume(returning: nil) // could not even launch
+            }
+        }
+        watchdog.disarm()
+        guard let status else { return false }
+        return status == 0 || watchdog.didFire
     }
 }
 
@@ -374,19 +434,25 @@ struct GitClient {
         let errorData = Task.detached { await Self.drain(errorPipe) }
 
         let watchdog = GitTimeoutWatchdog()
-        let terminationStatus: Int32 = try await withCheckedThrowingContinuation { continuation in
-            process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
-            do {
-                try process.run()
-                if let timeout { watchdog.arm(process, seconds: timeout) }
-            } catch {
-                process.terminationHandler = nil
-                // Never launched: close our write ends so the drains hit EOF
-                // instead of waiting forever on a child that doesn't exist.
-                try? outputPipe.fileHandleForWriting.close()
-                try? errorPipe.fileHandleForWriting.close()
-                continuation.resume(throwing: error)
+        let terminationStatus: Int32
+        do {
+            terminationStatus = try await withCheckedThrowingContinuation { continuation in
+                process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
+                do {
+                    try process.run()
+                    if let timeout { watchdog.arm(process, seconds: timeout) }
+                } catch {
+                    process.terminationHandler = nil
+                    // Never launched: close our write ends so the drains hit EOF
+                    // instead of waiting forever on a child that doesn't exist.
+                    try? outputPipe.fileHandleForWriting.close()
+                    try? errorPipe.fileHandleForWriting.close()
+                    continuation.resume(throwing: error)
+                }
             }
+        } catch {
+            if await !GitAvailability.shared.works(executableURL) { throw GitClientError.gitMissing }
+            throw error
         }
         watchdog.disarm()
 
@@ -404,6 +470,7 @@ struct GitClient {
         }
 
         guard terminationStatus == 0 else {
+            if await !GitAvailability.shared.works(executableURL) { throw GitClientError.gitMissing }
             throw GitClientError.commandFailed(
                 arguments: arguments,
                 exitCode: terminationStatus,

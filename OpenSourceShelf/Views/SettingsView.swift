@@ -37,6 +37,8 @@ struct SettingsView: View {
 
     // Repository clone location (empty = default ~/reshelf/repos)
     @AppStorage(CloneLocation.storageKey) private var cloneRootPath: String = ""
+    // Set when the folder changed and the old one still holds clones.
+    @State private var cloneFolderNotice: String?
 
     init() {
         self._settings = State(initialValue: AppSettings())
@@ -227,6 +229,13 @@ struct SettingsView: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
                     .help(CloneLocation.rootURL.path)
+                    .onChange(of: cloneRootPath) { oldPath, _ in cloneFolderChanged(from: oldPath) }
+                if let cloneFolderNotice {
+                    Text(cloneFolderNotice)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 SettingsRow("Last updated dates",
                             detail: lastUpdatedFillStatus.isEmpty ? "Read from each clone's last commit. Offline." : lastUpdatedFillStatus) {
                     Button(isFillingLastUpdated ? "Reading…" : "Read from Clones") { fillLastUpdatedFromClones() }
@@ -451,6 +460,26 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             cloneRootPath = url.path
         }
+    }
+
+    /// reshelf only sees clones in the current folder and never moves them, so
+    /// clones left in the old one would quietly show as not cloned (and Clone
+    /// would download them again). Say so, with how many and where.
+    private func cloneFolderChanged(from oldPath: String) {
+        CatalogCloneService.invalidateCloneIndex()
+        AppRefreshBus.emit(.catalogStateUpdated)
+        let oldRoot = CloneLocation.rootURL(forStoredPath: oldPath)
+        guard oldRoot.standardizedFileURL.path != CloneLocation.rootURL.standardizedFileURL.path else {
+            cloneFolderNotice = nil
+            return
+        }
+        let left = CatalogCloneService.scanCloneIndex(root: oldRoot).count
+        guard left > 0 else {
+            cloneFolderNotice = nil
+            return
+        }
+        let clones = left == 1 ? "1 clone stays" : "\(left) clones stay"
+        cloneFolderNotice = "\(clones) in \(oldRoot.path). reshelf doesn't move them and only sees clones in the folder above, so they show as not cloned. Move the category folders over yourself, or switch back."
     }
 
     /// Saves the entered token to the Keychain and immediately verifies it

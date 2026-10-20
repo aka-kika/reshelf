@@ -62,7 +62,8 @@
   folders: retire a project's worth of repos together instead of one at a time.
 - **Clone locally, organized** — full clones grouped by category at
   `~/reshelf/repos/<Category>/<repo>`, so you can point an AI agent at one category.
-  Works without `git-lfs`.
+  Works without `git-lfs`. Cloning uses git from Apple's Command Line Tools; if
+  they're missing, run `xcode-select --install` in Terminal once.
 - **Update checks** — a read-only `git ls-remote` tells you which clones are behind;
   one-click **Pull**, **Check Clones for Updates** (⌘⇧U) to sweep them all, or
   right-click a folder → **Pull Repos** to update just that project's clones.

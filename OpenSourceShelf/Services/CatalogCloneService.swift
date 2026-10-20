@@ -4,8 +4,8 @@ import AppKit
 /// Resolves the root folder where repositories are cloned. The user can override
 /// it in Settings; otherwise it defaults to `~/reshelf/repos`. Stored as a
 /// plain path in UserDefaults (the app is not sandboxed, so no security-scoped
-/// bookmark is needed). Existing clones are unaffected — only new clones use the
-/// current value.
+/// bookmark is needed). Clones already in the old folder are not moved and no
+/// longer count as clones; Settings says so when the folder changes.
 enum CloneLocation {
     static let storageKey = "reshelf.cloneRootPath"
 
@@ -22,13 +22,13 @@ enum CloneLocation {
     }
 
     static var rootURL: URL {
-        if let stored = UserDefaults.standard.string(forKey: storageKey) {
-            let trimmed = stored.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                return URL(fileURLWithPath: trimmed, isDirectory: true)
-            }
-        }
-        return defaultRootURL
+        rootURL(forStoredPath: UserDefaults.standard.string(forKey: storageKey))
+    }
+
+    /// The clone folder a stored path stands for (nil or blank = the default).
+    static func rootURL(forStoredPath stored: String?) -> URL {
+        let trimmed = stored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? defaultRootURL : URL(fileURLWithPath: trimmed, isDirectory: true)
     }
 }
 
@@ -42,6 +42,7 @@ enum CatalogCloneService {
         case invalidURL
         case folderInUse(String)
         case alreadyCloning
+        case notCloned(String)
 
         var errorDescription: String? {
             switch self {
@@ -51,6 +52,8 @@ enum CatalogCloneService {
                 return "A non-git folder already exists at \(path)."
             case .alreadyCloning:
                 return "This repo is already being cloned."
+            case let .notCloned(root):
+                return "There's no clone of this repo in \(root), so nothing was moved to the Trash."
             }
         }
     }
@@ -328,6 +331,7 @@ enum CatalogCloneService {
         // the same repo while the first runs would see the first one's
         // half-written folder below and trash it.
         let slug = "\(owner)/\(repo)".lowercased()
+        let projectID = project.id // the row can be deleted during the clone
         guard !clonesInProgress.contains(slug) else { throw CloneError.alreadyCloning }
         clonesInProgress.insert(slug)
         defer { clonesInProgress.remove(slug) }
@@ -360,6 +364,7 @@ enum CatalogCloneService {
         let url = "https://github.com/\(owner)/\(repo)"
         try await GitClient().clone(repositoryURL: url, destinationURL: dest, blobless: false)
         invalidateCloneIndex()
+        forgetUpdateStatus(for: projectID)
         // Clones live on disk, not in SwiftData, so no @Query sees this one:
         // the sidebar's Cloned count and the row badges wait for this event.
         AppRefreshBus.emit(.catalogStateUpdated)
@@ -369,8 +374,13 @@ enum CatalogCloneService {
     /// Remove a project's local clone. The folder is moved to the Trash (not
     /// deleted outright) so the user can recover it; an emptied category folder is
     /// tidied away too. The catalog entry itself is untouched.
+    @MainActor
     static func removeClone(_ project: ToolProject) throws {
-        guard let dir = existingClone(for: project) else { return }
+        // Throws rather than returning quietly: callers say "Moved to the Trash"
+        // on success, and a clone in an earlier clone folder isn't found here.
+        guard let dir = existingClone(for: project) else {
+            throw CloneError.notCloned(CloneLocation.rootURL.path)
+        }
         let fm = FileManager.default
         try fm.trashItem(at: dir, resultingItemURL: nil)
         let parent = dir.deletingLastPathComponent()
@@ -380,6 +390,7 @@ enum CatalogCloneService {
             try? fm.removeItem(at: parent)
         }
         invalidateCloneIndex()
+        forgetUpdateStatus(for: project.id)
         AppRefreshBus.emit(.catalogStateUpdated)
     }
 
@@ -393,8 +404,17 @@ enum CatalogCloneService {
 
     /// Compares the local clone's commit to the remote default branch's tip via a
     /// cheap `ls-remote` (no fetch). Different SHA → upstream has updates.
+    /// Every answer is kept for the session (`knownUpdateStatus`).
     @MainActor
     static func updateStatus(for project: ToolProject) async -> UpdateStatus {
+        let id = project.id
+        let status = await freshUpdateStatus(for: project)
+        rememberUpdateStatus(status, for: id)
+        return status
+    }
+
+    @MainActor
+    private static func freshUpdateStatus(for project: ToolProject) async -> UpdateStatus {
         guard let dir = existingClone(for: project) else { return .error("Not cloned.") }
         let git = GitClient()
         do {
@@ -408,6 +428,27 @@ enum CatalogCloneService {
         } catch {
             return .error(error.localizedDescription)
         }
+    }
+
+    /// The last update check per project, for this session only (in memory).
+    /// Selecting a cloned repo again reuses it instead of another `ls-remote`;
+    /// Check, Check Clones for Updates and Pull replace it. Errors aren't
+    /// kept, so the next selection asks again.
+    @MainActor private static var knownUpdateStatus: [UUID: UpdateStatus] = [:]
+
+    @MainActor
+    static func cachedUpdateStatus(for id: UUID) -> UpdateStatus? {
+        knownUpdateStatus[id]
+    }
+
+    @MainActor
+    static func rememberUpdateStatus(_ status: UpdateStatus, for id: UUID) {
+        if case .error = status { knownUpdateStatus[id] = nil } else { knownUpdateStatus[id] = status }
+    }
+
+    @MainActor
+    static func forgetUpdateStatus(for id: UUID) {
+        knownUpdateStatus[id] = nil
     }
 
     /// Sync the clone to its upstream default branch (LFS-bypassed, like clone).
@@ -425,6 +466,7 @@ enum CatalogCloneService {
         let projectID = project.id
         let context = project.modelContext
         try await GitClient().syncToUpstream(repositoryURL: dir)
+        rememberUpdateStatus(.upToDate, for: projectID)
         if let context, let live = LiveProject.fetch(projectID, in: context) {
             _ = await RepoInfoRefreshService.refresh([live], context: context)
         }
