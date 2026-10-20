@@ -583,8 +583,12 @@ struct ProjectListView: View {
         Task {
             var behind: Set<UUID> = []
             for project in cloned {
+                // A row deleted during an earlier await is skipped, and the
+                // id is read before awaiting (deleted models can't be read).
+                guard LiveProject.isAlive(project) else { continue }
+                let id = project.id
                 if case .updatesAvailable = await CatalogCloneService.updateStatus(for: project) {
-                    behind.insert(project.id)
+                    behind.insert(id)
                 }
             }
             await MainActor.run {
@@ -617,14 +621,16 @@ struct ProjectListView: View {
             var failed: [String] = []
             var pulledIDs: Set<UUID> = []
             for project in flagged {
+                guard LiveProject.isAlive(project) else { continue }
+                let id = project.id, name = project.name
                 do {
                     try await CatalogCloneService.pull(project)
                     updated += 1
-                    pulledIDs.insert(project.id)
+                    pulledIDs.insert(id)
                 } catch let error as GitClientError {
-                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(project.name) }
+                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(name) }
                 } catch {
-                    failed.append(project.name)
+                    failed.append(name)
                 }
             }
             await MainActor.run {
@@ -654,15 +660,18 @@ struct ProjectListView: View {
             var failed: [String] = []
             var pulledIDs: Set<UUID> = []
             for project in cloned {
-                guard case .updatesAvailable = await CatalogCloneService.updateStatus(for: project) else { continue }
+                guard LiveProject.isAlive(project) else { continue }
+                let id = project.id, name = project.name
+                guard case .updatesAvailable = await CatalogCloneService.updateStatus(for: project),
+                      LiveProject.isAlive(project) else { continue }
                 do {
                     try await CatalogCloneService.pull(project)
                     updated += 1
-                    pulledIDs.insert(project.id)
+                    pulledIDs.insert(id)
                 } catch let error as GitClientError {
-                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(project.name) }
+                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(name) }
                 } catch {
-                    failed.append(project.name)
+                    failed.append(name)
                 }
             }
             await MainActor.run {

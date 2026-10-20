@@ -32,17 +32,24 @@ enum LastUpdatedBackfillService {
     @discardableResult
     static func backfillFromClones(in context: ModelContext) async -> Result {
         var result = Result()
+        // Plain values only across the git awaits: a row can be deleted meanwhile.
+        var targets: [(id: UUID, clone: URL)] = []
         for project in projectsMissingDate(in: context) {
             guard let clone = CatalogCloneService.existingClone(for: project) else {
                 result.skippedNotCloned += 1
                 continue
             }
-            if let date = await lastCommitDate(at: clone) {
-                project.lastUpdatedDate = date
-                result.filled += 1
-            } else {
+            targets.append((project.id, clone))
+        }
+        for target in targets {
+            guard let date = await lastCommitDate(at: target.clone) else {
                 result.failed += 1
+                continue
             }
+            guard let live = LiveProject.fetch(target.id, in: context),
+                  live.lastUpdatedDate == nil else { continue }
+            live.lastUpdatedDate = date
+            result.filled += 1
         }
         if result.filled > 0 { try? context.save() }
         return result

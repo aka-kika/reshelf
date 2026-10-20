@@ -366,6 +366,13 @@
 			path = "OpenSourceShelf/Views/Components/ShelfLayout.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		LIVE1F001234567890ABCDE01 /* LiveProject.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "LiveProject.swift";
+			path = "OpenSourceShelf/Services/LiveProject.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -515,6 +522,7 @@
 				SK1LF001234567890ABCDE01 /* reshelf-skill */,
 				SOC1F001234567890ABCDE01 /* SocialIcons */,
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
+				LIVE1F001234567890ABCDE01 /* LiveProject.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
@@ -752,6 +760,10 @@
 			isa = PBXBuildFile;
 			fileRef = DUPM1F001234567890ABCDE01;
 		};
+		LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = LIVE1F001234567890ABCDE01;
+		};
 		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP7REF01234567890ABCDEF07;
@@ -909,6 +921,7 @@
 				E81CE967849EA46EE4133CDC,
 				967CB7F565F1E5FFDFDAD3EA,
 				C5392DFC038F8A68E7A21263,
+				LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */,
 				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
 				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,

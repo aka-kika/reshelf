@@ -357,9 +357,12 @@ enum CatalogCloneService {
     @MainActor
     static func pull(_ project: ToolProject) async throws {
         guard let dir = existingClone(for: project) else { throw CloneError.invalidURL }
+        // The row can be deleted during the git work: keep only plain values.
+        let projectID = project.id
+        let context = project.modelContext
         try await GitClient().syncToUpstream(repositoryURL: dir)
-        if let context = project.modelContext {
-            _ = await RepoInfoRefreshService.refresh([project], context: context)
+        if let context, let live = LiveProject.fetch(projectID, in: context) {
+            _ = await RepoInfoRefreshService.refresh([live], context: context)
         }
     }
 

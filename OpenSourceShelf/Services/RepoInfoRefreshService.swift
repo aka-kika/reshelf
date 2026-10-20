@@ -46,7 +46,11 @@ enum RepoInfoRefreshService {
                         progress: @escaping (Int, Int) -> Void = { _, _ in }) async -> Result {
         var result = Result()
         // Plain values cross into the network tasks; the models stay on main.
+        // Rows can be deleted during the requests, so each result looks its row
+        // up again by id instead of using `projects`.
         let urls = projects.map(\.githubURL)
+        let ids = projects.map(\.id)
+        var notFoundIDs: [UUID] = []
         var nextPosition = 0
         var done = 0
 
@@ -61,15 +65,17 @@ enum RepoInfoRefreshService {
             }
 
             for await fetched in group {
-                let project = projects[fetched.position]
+                let id = ids[fetched.position]
                 switch fetched.outcome {
                 case .success(let info):
-                    apply(info, to: project, result: &result)
-                    result.checked += 1
+                    if let project = LiveProject.fetch(id, in: context) {
+                        apply(info, to: project, result: &result)
+                        result.checked += 1
+                    }
                 case .failure(let error):
                     switch error as? CaptureError {
                     case .notFound:
-                        result.notFound.append(project)
+                        notFoundIDs.append(id)
                     case .rateLimited(let resetText):
                         result.rateLimitMessage = "GitHub's request limit was reached"
                             + (resetText.map { "; it resets \($0)" } ?? "")
@@ -90,6 +96,8 @@ enum RepoInfoRefreshService {
             }
         }
 
+        // Resolved after the last await, so the caller gets only live rows.
+        result.notFound = notFoundIDs.compactMap { LiveProject.fetch($0, in: context) }
         if result.checked > 0 { try? context.save() }
         return result
     }

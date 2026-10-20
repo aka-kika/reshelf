@@ -136,7 +136,9 @@ enum CaptureAssistService {
     @discardableResult
     static func fillIfNeeded(_ project: ToolProject, context: ModelContext) async -> Bool {
         guard AppleIntelligenceService.availability.isAvailable else { return false }
-        guard project.useCases.isEmpty else { return false }
+        // Callers loop over an older list, so the row may already be deleted.
+        guard LiveProject.isAlive(project), project.useCases.isEmpty else { return false }
+        let projectID = project.id
 
         let prompt = """
         Project: \(project.name)
@@ -150,32 +152,33 @@ enum CaptureAssistService {
         guard let suggestion = try? await AppleIntelligenceService.suggestCapture(prompt: prompt) else {
             return false
         }
+        guard let live = LiveProject.fetch(projectID, in: context) else { return false }
 
         // Re-check each field at write time — the user may have edited the entry
         // while the model was generating.
         var wrote = false
-        if project.useCases.isEmpty {
+        if live.useCases.isEmpty {
             let useCases = suggestion.useCases
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
             if !useCases.isEmpty {
-                project.useCases = useCases
+                live.useCases = useCases
                 wrote = true
             }
         }
-        if project.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if live.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let note = suggestion.note.trimmingCharacters(in: .whitespaces)
             if !note.isEmpty {
-                project.notes = note
+                live.notes = note
                 wrote = true
             }
         }
-        if project.tags.isEmpty {
+        if live.tags.isEmpty {
             let tags = suggestion.tags
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
             if !tags.isEmpty {
-                project.tags = tags
+                live.tags = tags
                 wrote = true
             }
         }
