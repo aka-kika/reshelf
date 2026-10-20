@@ -362,7 +362,7 @@ enum CatalogCloneService {
 
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         let url = "https://github.com/\(owner)/\(repo)"
-        try await GitClient().clone(repositoryURL: url, destinationURL: dest, blobless: false)
+        try await GitClient().clone(repositoryURL: url, destinationURL: dest)
         invalidateCloneIndex()
         forgetUpdateStatus(for: projectID)
         // Clones live on disk, not in SwiftData, so no @Query sees this one:

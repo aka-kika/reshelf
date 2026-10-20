@@ -209,21 +209,10 @@ struct GitClient {
         return environment
     }
 
-    /// - Parameter blobless: when true, a partial (`--filter=blob:none`) clone —
-    ///   lighter, used by the intelligence pipeline. When false, a normal full
-    ///   clone — what a user expects when they "clone to work on it."
-    func clone(repositoryURL: String, destinationURL: URL, blobless: Bool = true, cancellationID: String? = nil) async throws {
-        var arguments = Self.lfsBypass + Self.stallGuard + ["clone"]
-        if blobless { arguments.append("--filter=blob:none") }
-        arguments += [repositoryURL, destinationURL.path]
+    /// A normal full clone — what a user expects when they "clone to work on it."
+    func clone(repositoryURL: String, destinationURL: URL, cancellationID: String? = nil) async throws {
+        let arguments = Self.lfsBypass + Self.stallGuard + ["clone", repositoryURL, destinationURL.path]
         _ = try await run(arguments: arguments, cancellationID: cancellationID)
-    }
-
-    func fetch(repositoryURL: URL, cancellationID: String? = nil) async throws {
-        _ = try await run(arguments: ["fetch", "--prune", "--tags"],
-                          workingDirectory: repositoryURL,
-                          cancellationID: cancellationID,
-                          timeout: Self.fetchTimeout)
     }
 
     /// True when HEAD resolves to a commit. A clone killed after git wrote its
@@ -382,16 +371,6 @@ struct GitClient {
         return output.split(whereSeparator: { $0 == "\t" || $0 == " " }).first.map(String.init)
     }
 
-    func branchCount(repositoryURL: URL) async throws -> Int {
-        let output = try await trimmedOutput(arguments: ["branch", "--list", "--all"], workingDirectory: repositoryURL)
-        return lineCount(output)
-    }
-
-    func tagCount(repositoryURL: URL) async throws -> Int {
-        let output = try await trimmedOutput(arguments: ["tag", "--list"], workingDirectory: repositoryURL)
-        return lineCount(output)
-    }
-
     /// - Parameter timeout: seconds before git is stopped and `.timedOut` thrown;
     ///   nil = no limit. Set for network commands only.
     func run(arguments: [String], workingDirectory: URL? = nil, cancellationID: String? = nil,
@@ -494,9 +473,5 @@ struct GitClient {
     private func trimmedOutput(arguments: [String], workingDirectory: URL) async throws -> String {
         let result = try await run(arguments: arguments, workingDirectory: workingDirectory)
         return result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func lineCount(_ output: String) -> Int {
-        output.split(whereSeparator: \.isNewline).count
     }
 }

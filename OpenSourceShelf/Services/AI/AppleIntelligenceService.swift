@@ -7,9 +7,6 @@ import FoundationModels
 /// Safe to reference on any macOS version; generation requires macOS 26+ with
 /// Apple Intelligence enabled and the on-device model downloaded.
 enum AppleIntelligenceService {
-    /// Recorded as the model name in analysis cache keys and insight records.
-    static let modelIdentifier = "apple-foundation-on-device"
-
     enum Availability: Equatable {
         case available
         case osTooOld

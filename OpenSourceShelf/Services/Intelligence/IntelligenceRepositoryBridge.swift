@@ -42,16 +42,6 @@ enum IntelligenceRepositoryBridge {
         return nil
     }
 
-    static func repositoryID(for toolProject: ToolProject,
-                             database: IntelligenceDatabase = .shared) -> String? {
-        findIntelligenceRepository(for: toolProject, database: database)?.id
-    }
-
-    /// Returns a canonical GitHub URL string when the catalog item has a valid repo identity.
-    static func resolvedGitHubURL(for toolProject: ToolProject) -> String? {
-        parseGitHubIdentity(for: toolProject)?.canonicalURL
-    }
-
     static func parseGitHubIdentity(for toolProject: ToolProject) -> GitHubRepositoryURL? {
         let githubURL = toolProject.githubURL.trimmingCharacters(in: .whitespacesAndNewlines)
         if !githubURL.isEmpty, let parsed = GitHubRepositoryURL.parse(githubURL) {

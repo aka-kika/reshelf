@@ -56,13 +56,8 @@ enum CatalogFolderService {
         return members.count
     }
 
-    /// Pass nil to remove a project from whatever folder it's in.
-    static func assign(_ project: ToolProject, to folder: CatalogFolder?, in context: ModelContext) {
-        project.folderID = folder?.id
-        CatalogSave.save(context)
-    }
-
     /// Bulk assign — one save for the whole batch rather than one per project.
+    /// Pass nil to remove the projects from whatever folder they're in.
     static func assign(_ projects: [ToolProject], to folder: CatalogFolder?, in context: ModelContext) {
         for project in projects {
             project.folderID = folder?.id
@@ -83,9 +78,5 @@ enum CatalogFolderService {
         let id = folder.id
         let descriptor = FetchDescriptor<ToolProject>(predicate: #Predicate { $0.folderID == id })
         return (try? context.fetchCount(descriptor)) ?? 0
-    }
-
-    static func folder(withID id: UUID, in context: ModelContext) -> CatalogFolder? {
-        folders(in: context).first { $0.id == id }
     }
 }

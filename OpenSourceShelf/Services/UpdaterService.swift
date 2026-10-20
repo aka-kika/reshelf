@@ -33,8 +33,4 @@ final class UpdaterService: ObservableObject {
         get { controller.updater.automaticallyChecksForUpdates }
         set { controller.updater.automaticallyChecksForUpdates = newValue }
     }
-
-    var lastUpdateCheckDate: Date? {
-        controller.updater.lastUpdateCheckDate
-    }
 }
