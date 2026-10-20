@@ -169,8 +169,8 @@ struct GitClient {
 
     /// Disable Git LFS smudge/process filters. Repos that use LFS (e.g. zotero)
     /// otherwise fail checkout with "git-lfs: command not found" when git-lfs isn't
-    /// installed. reshelf only needs the source tree for stack analysis / runbooks,
-    /// not the LFS binary assets, so LFS files are left as small pointer files —
+    /// installed. reshelf clones are a source reference library and don't need the
+    /// LFS binary assets, so LFS files are left as small pointer files —
     /// which is fine and removes any dependency on git-lfs being installed.
     private static let lfsBypass = [
         "-c", "filter.lfs.smudge=",

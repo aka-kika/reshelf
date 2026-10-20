@@ -8,7 +8,7 @@ import Foundation
 /// refusal — if a backup exists, that is restored and this never runs.
 ///
 /// The mix is deliberate. Every sidebar category that matters shows at least one
-/// row on first launch (AI, macOS, MCP, CLI, Design, Editor, Media), the licences
+/// row on first launch (AI / Agent, macOS, MCP, CLI, Frontend, Editor, Media), the licences
 /// are real and verified at the time of writing, and nothing here is obscure
 /// enough to feel like someone else's bookmarks. `immich` is AGPL on purpose:
 /// it means the copyleft caution demonstrates itself on day one instead of

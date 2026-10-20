@@ -70,7 +70,7 @@ struct AlignedSplitColumnHeader<Content: View>: View {
                 .padding(.trailing, ShelfLayout.splitColumnHeaderHorizontalPadding)
 
             // The fine hairline under the header row — aligned across all three
-            // columns by the sidebar's measured top nudge + content margins.
+            // columns because each column lays out from the window's top edge.
             Divider()
         }
     }

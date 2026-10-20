@@ -122,7 +122,7 @@ private func textInputRemoteViewIsOnScreen() -> Bool {
 /// so normal pasting never changes.
 ///
 /// Hangs off `viewDidMoveToWindow` (like MainWindowChromeConfigurator) so it
-/// only reacts to key events for *this* window, not Settings or the Queue.
+/// only reacts to key events for *this* window, not Settings.
 struct ClipboardCaptureMonitor: NSViewRepresentable {
     var onPasteRepoURL: (String) -> Void
 

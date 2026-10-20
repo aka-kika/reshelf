@@ -16,14 +16,14 @@ struct ProjectListView: View {
     @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
 
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
-    /// Transient one-line status under the list header — clone progress, shelf
-    /// moves, failures. (Was `compareNotice`; Compare merely introduced it.)
     /// The search text the list actually filters on. Trails `searchText` by a
     /// 200ms debounce (pattern borrowed from Applite's InstalledView, which
     /// searches thousands of casks): the field echoes every keystroke, but the
     /// 494-row list rebuilds once per pause instead of once per character.
     /// Clearing skips the delay so escape-to-reset feels instant.
     @State private var debouncedSearchText: String = ""
+    /// Transient one-line status under the list header — clone progress, shelf
+    /// moves, failures.
     @State private var statusNotice: String?
     @State private var pendingDeleteProject: ToolProject?
     /// Non-nil while the New Folder prompt is up; holds what goes into it.
