@@ -47,7 +47,7 @@ enum IconFetcher {
                 guard let live = try? context.fetch(descriptor).first,
                       live.iconData == nil else { return }
                 live.iconData = resized
-                try? context.save()
+                CatalogSave.save(context)
             }
         }.resume()
     }

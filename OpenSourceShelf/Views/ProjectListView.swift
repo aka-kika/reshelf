@@ -405,7 +405,7 @@ struct ProjectListView: View {
                     for project in projects where project.status != shelf {
                         project.status = shelf
                     }
-                    try? modelContext.save()
+                    CatalogSave.save(modelContext)
                     statusNotice = "Moved \(projects.count) project\(projects.count == 1 ? "" : "s") to \(shelf.displayName)."
                     clearBatchSelection()
                 } label: {
@@ -529,7 +529,7 @@ struct ProjectListView: View {
 
     private func setShelf(_ shelf: ProjectStatus, for project: ToolProject) {
         project.status = shelf
-        try? modelContext.save()
+        CatalogSave.save(modelContext)
     }
 
     /// ⌘T / ⌘Y / ⌘⇧G — move the currently selected repo to a shelf.
@@ -811,7 +811,7 @@ struct ProjectListView: View {
                 removed += 1
             }
         }
-        try? modelContext.save()
+        CatalogSave.save(modelContext)
         statusNotice = "Removed \(removed) duplicate\(removed == 1 ? "" : "s"). A backup was saved."
     }
 
@@ -855,7 +855,7 @@ struct ProjectListView: View {
         CatalogBackupService.writeSnapshot(allProjects, folders: folders,
                                            reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") GitHub can't find to Yard Sale")
         for project in targets { project.status = .yardSale }
-        try? modelContext.save()
+        CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
         statusNotice = "Moved \(targets.count) repo\(targets.count == 1 ? "" : "s") GitHub can't find to Yard Sale. A backup was saved."
     }
@@ -889,7 +889,7 @@ struct ProjectListView: View {
         CatalogBackupService.writeSnapshot(allProjects, folders: folders,
                                            reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") without a license to Yard Sale")
         for project in targets { project.status = .yardSale }
-        try? modelContext.save()
+        CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
         statusNotice = "Moved \(targets.count) repos without a clear license to Yard Sale. A backup was saved."
     }
@@ -911,7 +911,7 @@ struct ProjectListView: View {
             if listSelection?.projectID == project.id { listSelection = nil }
             modelContext.delete(project)
         }
-        try? modelContext.save()
+        CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
     }
 

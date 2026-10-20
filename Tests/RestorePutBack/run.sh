@@ -17,6 +17,7 @@ swiftc -o "$out/test" \
     "$app/Services/CatalogImportService.swift" \
     "$app/Services/CatalogBackupService.swift" \
     "$app/Services/DuplicateMerge.swift" \
+    "$app/Services/CatalogSave.swift" \
     "$here/main.swift" 2>&1 | grep -v "warning:" || true
 [ -x "$out/test" ] || { echo "FAIL: build"; exit 1; }
 "$out/test" "$out/backups"

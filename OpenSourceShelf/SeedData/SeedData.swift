@@ -202,6 +202,6 @@ enum SeedData {
         for project in projects {
             context.insert(project)
         }
-        try? context.save()
+        CatalogSave.save(context)
     }
 }

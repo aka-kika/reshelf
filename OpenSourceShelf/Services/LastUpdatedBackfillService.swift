@@ -51,7 +51,7 @@ enum LastUpdatedBackfillService {
             live.lastUpdatedDate = date
             result.filled += 1
         }
-        if result.filled > 0 { try? context.save() }
+        if result.filled > 0 { CatalogSave.save(context) }
         return result
     }
 

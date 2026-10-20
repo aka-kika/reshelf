@@ -606,7 +606,11 @@ struct QuickCaptureSheet: View {
             isSelfHosted: isSelfHosted
         )
         modelContext.insert(project)
-        try? modelContext.save()
+        guard CatalogSave.save(modelContext, "\(project.name)") else {
+            // Take the unsaved insert back out, so Save again can't add it twice.
+            modelContext.delete(project)
+            return
+        }
         // Reuse the fetched info only if the link wasn't changed after fetching.
         let prefetched = GitHubRepositoryURL.dedupKey(for: fetchedURL) == GitHubRepositoryURL.dedupKey(for: urlText)
             ? fetchedInfo : nil

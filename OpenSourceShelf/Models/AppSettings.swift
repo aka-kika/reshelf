@@ -107,7 +107,7 @@ final class AppSettings {
         }
         let settings = AppSettings()
         context.insert(settings)
-        try? context.save()
+        CatalogSave.save(context)
         return settings
     }
 

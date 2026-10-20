@@ -601,7 +601,7 @@ struct ContentView: View {
             if github != project.githubURL { project.githubURL = github; changed = true }
             if website != project.websiteURL { project.websiteURL = website; changed = true }
         }
-        if changed { try? modelContext.save() }
+        if changed { CatalogSave.save(modelContext) }
     }
 
     /// Once per merge version: back up, rename rows in a merged category
@@ -620,7 +620,7 @@ struct ContentView: View {
                     project.category = merged
                 }
             }
-            try? modelContext.save()
+            CatalogSave.save(modelContext)
         }
         CatalogCloneService.mergeCategoryFolders(merges)
         storedCategoryMergeVersion = Self.categoryMergeVersion
@@ -650,7 +650,7 @@ struct ContentView: View {
             }
         }
         if changed {
-            try? modelContext.save()
+            CatalogSave.save(modelContext)
         }
         storedClassifierVersion = Self.classifierVersion
     }

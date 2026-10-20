@@ -32,7 +32,7 @@ enum CatalogFolderService {
         let next = (folders(in: context).map(\.sortIndex).max() ?? -1) + 1
         let folder = CatalogFolder(name: trimmed, sortIndex: next)
         context.insert(folder)
-        try? context.save()
+        CatalogSave.save(context)
         return folder
     }
 
@@ -40,7 +40,7 @@ enum CatalogFolderService {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         folder.name = trimmed
-        try? context.save()
+        CatalogSave.save(context)
     }
 
     /// Removes the folder and clears membership. Returns how many projects were
@@ -52,14 +52,14 @@ enum CatalogFolderService {
             project.folderID = nil          // and nothing else
         }
         context.delete(folder)
-        try? context.save()
+        CatalogSave.save(context)
         return members.count
     }
 
     /// Pass nil to remove a project from whatever folder it's in.
     static func assign(_ project: ToolProject, to folder: CatalogFolder?, in context: ModelContext) {
         project.folderID = folder?.id
-        try? context.save()
+        CatalogSave.save(context)
     }
 
     /// Bulk assign — one save for the whole batch rather than one per project.
@@ -67,7 +67,7 @@ enum CatalogFolderService {
         for project in projects {
             project.folderID = folder?.id
         }
-        try? context.save()
+        CatalogSave.save(context)
     }
 
     static func projects(in folder: CatalogFolder, context: ModelContext) -> [ToolProject] {

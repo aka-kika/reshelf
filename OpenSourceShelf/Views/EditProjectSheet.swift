@@ -197,7 +197,8 @@ struct EditProjectSheet: View {
         project.license = license.trimmingCharacters(in: .whitespaces)
         project.isLocalFirst = isLocalFirst
         project.isSelfHosted = isSelfHosted
-        try? modelContext.save()
+        // Stay open on a failed save: the edits are still here to retry.
+        guard CatalogSave.save(modelContext, "your changes to \(project.name)") else { return }
         isPresented = false
     }
 }

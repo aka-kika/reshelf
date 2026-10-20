@@ -135,7 +135,7 @@ enum CatalogImportService {
             }
         }
         if !plan.additions.isEmpty || (updatingExisting && !plan.matches.isEmpty) {
-            try? context.save()
+            CatalogSave.save(context)
         }
 
         return Result(added: plan.additions.count,
@@ -180,7 +180,7 @@ enum CatalogImportService {
             for (row, existing) in changed where row.folderID == nil && existing.folderID != nil {
                 existing.folderID = nil
             }
-            try? context.save()
+            CatalogSave.save(context)
         }
         return Result(added: result.added, updated: result.updated,
                       skipped: full.matches.count - result.updated)

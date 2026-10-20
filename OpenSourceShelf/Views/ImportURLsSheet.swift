@@ -133,7 +133,7 @@ struct ImportURLsSheet: View {
                             isSelfHosted: (info.topics ?? []).contains("self-hosted")
                         )
                         modelContext.insert(project)
-                        try? modelContext.save()
+                        CatalogSave.save(modelContext)
                         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: info)
                         IconFetcher.fetch(for: project, in: modelContext)
                         imported += 1

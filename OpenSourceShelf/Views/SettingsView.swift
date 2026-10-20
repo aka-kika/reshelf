@@ -250,7 +250,7 @@ struct SettingsView: View {
                                 get: { settings.isVisible(section) },
                                 set: { newValue in
                                     settings.setVisible(section, newValue)
-                                    try? modelContext.save()
+                                    CatalogSave.save(modelContext)
                                 }
                             )
                         )
@@ -272,7 +272,7 @@ struct SettingsView: View {
                                     sectionOrder.move(fromOffsets: IndexSet(integer: fromIndex),
                                                       toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
                                     settings.inspectorSectionOrder = sectionOrder
-                                    try? modelContext.save()
+                                    CatalogSave.save(modelContext)
                                 }
                             }
                             return true

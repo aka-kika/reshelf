@@ -254,6 +254,13 @@
 			path = "OpenSourceShelf/Services/CatalogImportService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		CSAV1F001234567890ABCDE01 /* CatalogSave.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CatalogSave.swift";
+			path = "OpenSourceShelf/Services/CatalogSave.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		DUPM1F001234567890ABCDE01 /* DuplicateMerge.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -531,6 +538,7 @@
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
 				F0LDER201234567890ABCD /* CatalogFolderService.swift */,
 				DUPM1F001234567890ABCDE01 /* DuplicateMerge.swift */,
+				CSAV1F001234567890ABCDE01 /* CatalogSave.swift */,
 				F0LDER101234567890ABCD /* ShelfSelection.swift */,
 				F0LDER001234567890ABCD /* CatalogFolder.swift */,
 				LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */,
@@ -756,6 +764,10 @@
 			isa = PBXBuildFile;
 			fileRef = 07D2AD6B75DA37AAD823A7F8;
 		};
+		CSAV1B001234567890ABCDE01 /* CatalogSave.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = CSAV1F001234567890ABCDE01;
+		};
 		DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = DUPM1F001234567890ABCDE01;
@@ -923,6 +935,7 @@
 				C5392DFC038F8A68E7A21263,
 				LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */,
 				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
+				CSAV1B001234567890ABCDE01 /* CatalogSave.swift in Sources */,
 				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,
 				857F7E93C32C47A1DC69444E,

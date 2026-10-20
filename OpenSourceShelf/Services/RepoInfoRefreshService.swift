@@ -98,7 +98,7 @@ enum RepoInfoRefreshService {
 
         // Resolved after the last await, so the caller gets only live rows.
         result.notFound = notFoundIDs.compactMap { LiveProject.fetch($0, in: context) }
-        if result.checked > 0 { try? context.save() }
+        if result.checked > 0 { CatalogSave.save(context) }
         return result
     }
 

@@ -623,7 +623,7 @@ struct InspectView: View {
     private func deleteProject() {
         CatalogBackupService.writeSnapshot(from: modelContext, reason: "Before removing \(project.name)")
         modelContext.delete(project)
-        try? modelContext.save()
+        CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
         onDelete?()
     }

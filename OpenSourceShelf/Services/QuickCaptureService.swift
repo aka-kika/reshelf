@@ -182,7 +182,7 @@ enum CaptureAssistService {
                 wrote = true
             }
         }
-        if wrote { try? context.save() }
+        if wrote { CatalogSave.save(context) }
         return wrote
     }
 }
@@ -291,7 +291,7 @@ enum LinkCaptureService {
             isSelfHosted: topics.contains("self-hosted")
         )
         context.insert(project)
-        try? context.save()
+        CatalogSave.save(context)
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: info)
         IconFetcher.fetch(for: project, in: context)
 
