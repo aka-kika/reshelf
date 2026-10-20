@@ -70,9 +70,10 @@ enum LicenseStrictness {
         }
     }
 
-    /// Copyleft, source-available and missing licenses warrant a heads-up before reusing the code.
+    /// Copyleft, source-available, missing and unrecognized licenses warrant a heads-up before reusing the code.
     var requiresCaution: Bool {
         self == .weakCopyleft || self == .strongCopyleft || self == .restricted || self == .noLicense
+            || self == .unknown
     }
 }
 
@@ -89,28 +90,63 @@ struct LicenseInfo {
     let mustDo: [String]
     let takeaway: String
 
-    /// Best-effort match from a stored license string (SPDX id or name).
+    /// Match from a stored license string (SPDX id, GitHub's full name, or what
+    /// was typed in). Exact, case-insensitive and by whole words, never by
+    /// substring ("permit" is not MIT). Anything else non-empty is `unrecognized`.
     static func lookup(_ raw: String) -> LicenseInfo? {
-        let k = raw.lowercased()
+        let k = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if isMissing(raw) { return missing }
         if k == "noassertion" || k == "other" { return unclear }
-        func has(_ s: String) -> Bool { k.contains(s) }
-        if has("agpl") { return agpl }
-        if has("lgpl") { return lgpl }
-        if has("gpl") || has("gnu general public") { return gpl }
-        if has("mpl") || has("mozilla public") { return mpl }
-        if has("epl") || has("eclipse public") { return epl }
-        if has("apache") { return apache }
-        if has("bsd") { return bsd }
-        if has("isc") { return isc }
-        if has("mit") { return mit }
-        if has("unlicense") { return publicDomain }
-        if has("cc0") || has("creative commons zero") || has("public domain") { return publicDomain }
-        if has("busl") || has("business source") { return busl }
-        if has("bsl") || has("boost") { return boost }
-        if has("zlib") { return zlib }
-        return nil
+        let words = keyWords(k)
+        if let info = byName[words.joined(separator: " ")] { return info }
+        // "Do What The F*ck You Want To Public License" (the * splits a word).
+        if words.starts(with: ["do", "what"]) { return wtfpl }
+        // Variants and expressions of a known id: "GPL-2.0 WITH Classpath-exception",
+        // "MPL-2.0-no-copyleft-exception", "MIT OR Apache-2.0" (the first one names it).
+        if let first = words.first, let info = byID[first] { return info }
+        return unrecognized(raw)
     }
+
+    /// Lowercased words without versions and filler: "GNU General Public License
+    /// v3.0 or later" → ["general", "public"], "GPLv3" → ["gpl"], "Apache-2.0" → ["apache"].
+    static func keyWords(_ k: String) -> [String] {
+        let filler: Set<String> = ["the", "license", "licence", "version", "only", "or",
+                                   "later", "and", "any", "gnu", "international", "universal"]
+        return k.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "." || $0 == "+") })
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: ".+")) }
+            .compactMap { word -> String? in
+                if word.isEmpty || filler.contains(word) { return nil }
+                if byID[word] != nil { return word }
+                // A bare version ("2.0", "v3", "1.3c") goes; "gplv3" / "mpl2" keep the id.
+                if word.range(of: #"^v?\d+(\.\d+)*[a-z]?$"#, options: .regularExpression) != nil { return nil }
+                if let r = word.range(of: #"v?\d+(\.\d+)*$"#, options: .regularExpression),
+                   byID[String(word[..<r.lowerBound])] != nil {
+                    return String(word[..<r.lowerBound])
+                }
+                return word
+            }
+    }
+
+    /// SPDX ids (and short names) by their first word.
+    static let byID: [String: LicenseInfo] = [
+        "mit": mit, "expat": mit, "apache": apache, "bsd": bsd, "0bsd": bsd, "isc": isc,
+        "zlib": zlib, "gpl": gpl, "agpl": agpl, "lgpl": lgpl, "mpl": mpl, "epl": epl,
+        "eupl": eupl, "busl": busl, "bsl": boost, "boost": boost, "postgresql": postgresql,
+        "wtfpl": wtfpl, "unlicense": publicDomain, "cc0": publicDomain,
+    ]
+
+    /// Full names and multi-word ids, after `keyWords`.
+    static let byName: [String: LicenseInfo] = [
+        "general public": gpl, "gpl": gpl,
+        "affero general public": agpl,
+        "lesser general public": lgpl, "library general public": lgpl,
+        "mozilla public": mpl, "eclipse public": epl,
+        "european union public": eupl,
+        "boost software": boost, "business source": busl,
+        "apache software": apache,
+        "public domain": publicDomain, "creative commons zero": publicDomain,
+        "cc by": ccBy, "creative commons attribution": ccBy,
+    ]
 
     static let mit = LicenseInfo(
         name: "MIT", strictness: .permissive,
@@ -217,6 +253,44 @@ struct LicenseInfo {
         mustDo: ["Avoid restricted production use (often: don't run a competing service)", "Check the repo's LICENSE for the exact grant + change date"],
         takeaway: "Fine to study and self-host non-commercially, but read the terms before shipping anything on it — it's not a normal open-source license.")
 
+    static let postgresql = LicenseInfo(
+        name: "PostgreSQL", strictness: .permissive,
+        summary: "Short and permissive, like MIT or BSD — the license of the PostgreSQL database.",
+        allowed: ["Commercial use", "Modify", "Distribute", "Private use"],
+        mustDo: ["Keep the copyright + license notice"],
+        takeaway: "Treat it like MIT.")
+
+    static let wtfpl = LicenseInfo(
+        name: "WTFPL", strictness: .permissive,
+        summary: "A joke-style license that says you can do whatever you want with the code.",
+        allowed: ["Commercial use", "Modify", "Distribute", "Private use"],
+        mustDo: ["Nothing"],
+        takeaway: "Effectively no conditions. Some companies avoid it because it isn't written like a real license.")
+
+    static let ccBy = LicenseInfo(
+        name: "CC-BY", strictness: .permissive,
+        summary: "Creative Commons Attribution: reuse it freely, even commercially, as long as you credit the author. It's made for writing, images and data, not code — it says nothing about source or patents.",
+        allowed: ["Commercial use", "Modify", "Share"],
+        mustDo: ["Credit the author and link the license", "Say if you changed it"],
+        takeaway: "Fine for docs, images and data with credit. For code, check whether the code itself has a software license.")
+
+    static let eupl = LicenseInfo(
+        name: "EUPL-1.2", strictness: .strongCopyleft,
+        summary: "The European Union's copyleft license: if you share a changed version, or run it as an online service for others, its source must stay open under the EUPL or a listed compatible license (such as GPL).",
+        allowed: ["Commercial use", "Modify", "Distribute", "Relicense under a listed compatible license"],
+        mustDo: ["Share the source of changed versions, also when offered over a network", "Keep notices", "State changes"],
+        takeaway: "Treat it like GPL: great to learn from, but shipping its code means opening your source.")
+
+    /// A license reshelf has no explainer for. Shown instead of nothing.
+    static func unrecognized(_ raw: String) -> LicenseInfo {
+        LicenseInfo(
+            name: "Unrecognized license", strictness: .unknown,
+            summary: "\"\(raw.trimmingCharacters(in: .whitespacesAndNewlines))\" isn't a license reshelf knows, so it can't say what it allows.",
+            allowed: ["Read and learn from it"],
+            mustDo: ["Read the repo's LICENSE file before reusing any code"],
+            takeaway: "Unrecognized license: read the LICENSE file.")
+    }
+
     static let agpl = LicenseInfo(
         name: "AGPL-3.0", strictness: .strongCopyleft,
         summary: "GPL plus a network clause — even offering it as a web service to others triggers the share-source requirement.",
@@ -280,8 +354,8 @@ struct LicenseInfoCard: View {
     }
 }
 
-/// An ⓘ button next to a license that opens the explainer popover. Renders nothing
-/// for an unrecognized license.
+/// An ⓘ button next to a license that opens the explainer popover. An unrecognized
+/// license gets a card that says to read the LICENSE file.
 struct LicenseInfoButton: View {
     let license: String
     @State private var showing = false
@@ -292,7 +366,9 @@ struct LicenseInfoButton: View {
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help(info.strictness == .noLicense ? "What does \(info.name.lowercased()) mean?" : "What does the \(info.name) license allow?")
+            .help(info.strictness == .noLicense ? "What does \(info.name.lowercased()) mean?"
+                  : info.strictness == .unknown ? info.takeaway
+                  : "What does the \(info.name) license allow?")
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 LicenseInfoCard(info: info)
             }
@@ -313,6 +389,8 @@ struct LicenseCautionBanner: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(info.strictness == .noLicense
                          ? "\(info.name). Don't reuse this code yet."
+                         : info.strictness == .unknown
+                         ? "\(info.name). Check it before reusing this code."
                          : "\(info.name) — \(info.strictness.label.lowercased()). Be careful reusing this code.")
                         .font(.system(size: 11, weight: .medium))
                         .fixedSize(horizontal: false, vertical: true)
