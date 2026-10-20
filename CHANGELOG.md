@@ -16,6 +16,29 @@ All notable changes to **reshelf** are documented here. This project follows
 - **No more crash when you delete a repo while reshelf is still working on it** (Capture Assist, Refresh Info, Pull, Read from Clones, Check Clones for Updates). The work simply skips the deleted repo.
 - **Pull keeps a commit you made in a clone even when you also tagged it.** Before, a local tag made the commit look like upstream's and Pull reset it away.
 
+### Fixed (2026-10-20 code review, everything else)
+- **You can empty your shelf.** Deleting every repo used to bring them all back from a backup at the next launch; now an emptied shelf stays empty (no backup restore, no sample repos). A catalog file that can't be opened still gets your newest backup.
+- **The "catalog restored" alert tells the truth:** it says so when no backup was found instead of claiming one was restored. If the catalog file can't be opened or created at all, reshelf opens with a temporary catalog and says changes won't be kept, instead of crashing at every launch.
+- **A save that fails now says so** ("Couldn't save … check the disk has free space") instead of looking fine and losing the change after relaunch. Quick Capture and Edit stay open so you can try again.
+- **Check Clones for Updates no longer says "All clones are up to date" when it couldn't check** (offline, or git missing). It says "Couldn't check 3 (…). Are you online?". Folder **Pull Repos** does the same.
+- **The inspector's clone status follows Check Clones for Updates** and pulls from the list, instead of showing an older answer.
+- **GitHub links pasted as `git@github.com:owner/repo` are saved as normal https links.** Rows saved broken by earlier versions are fixed at launch and can clone, open, get an icon and be caught as duplicates again.
+- **Restoring an older backup after editing a repo's link no longer makes two rows share one id.**
+- **Settings tells you when the GitHub token couldn't be saved or removed** in the Keychain, instead of saying "Saved".
+- **git never hangs on a login prompt:** a private repo fails at once with a plain message (reshelf clones public repos only). Update checks stop after 60 seconds and pulls after 10 minutes, so one stuck repo can't hold up the rest; a clone stops when the download stalls for 5 minutes.
+- **A clone cut off midway is no longer shown as Cloned;** cloning again replaces it. Clicking Clone twice no longer starts two downloads.
+- **A custom clone folder can't adopt your own projects:** only folders in reshelf's own layout (`<Category>/<repo>`) count as clones, so Remove Local Clone and Pull never touch your working copies.
+- **Without Apple's Command Line Tools,** Clone, Check and Pull say to run `xcode-select --install` instead of showing a raw git error.
+- **Changing the clone folder tells you how many clones stay in the old one** (reshelf doesn't move them), and Remove Local Clone says so when there's nothing to remove.
+- **Selecting a cloned repo again doesn't ask GitHub again:** the update check is kept for the session and refreshed by Check, Pull and Check Clones for Updates.
+- **Import GitHub URLs has a Stop button,** and stops at GitHub's limit with a clear message, keeping the links it didn't get to for later.
+- **Quick Capture saves only a real GitHub repo link,** and a fetch that finishes after you changed the link is ignored.
+- **Backups wait until the catalog is still for 2 seconds,** so a big import no longer fills all 30 backup slots, and Restore from Backup opens without a pause.
+- **License info knows more licenses** (EUPL, PostgreSQL, CC-BY, WTFPL, spelled-out names) and says "read the LICENSE file" for any it doesn't know.
+- **The reshelf agent skill refuses "." and ".." as names,** so a clone can't land outside the clones folder.
+- **Old `~/OpenSourceShelf` data is merged** into `~/reshelf` when both exist, never overwriting, with a note about what stayed behind.
+- **SECURITY.md** now describes the GitHub token that ships (Keychain only, sent only to api.github.com, not to git) instead of AI provider keys.
+
 ## [1.15.3] — 2026-10-14
 
 Fixes from the 2026-10-14 code review (checked one by one, tested in the test VM).

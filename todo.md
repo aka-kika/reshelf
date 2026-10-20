@@ -9,7 +9,8 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 - [ ] **Verify the folder import round-trip on both Macs** — export here, import there, confirm folders match by name rather than duplicating. The export half is proven (the app's own backup writes folders + memberships correctly); the import half has only been reasoned through, not exercised.
 - [ ] **The app's docs site** — the how-to/screenshot docs decided to live on the site rather than in-app (no bundled PDF). The repo has no `homepageUrl` set yet either.
 - [ ] **GitHub login inside the app** (first v2 item) — in-app "Connect GitHub" flow: OAuth device flow (primary) + fine-grained PAT (fallback), token in **Keychain**, read-only. The plan in [v2.0-roadmap.md](v2.0-roadmap.md) predates the 1.9.x removals and needs a rewrite before any work.
-- [ ] Unit tests and UI smoke tests (see [future-features.md](future-features.md)).
+- [ ] UI smoke tests (see [future-features.md](future-features.md)). Logic tests exist since 1.16.0: `bash Tests/run.sh` (swiftc, in-memory stores and temp folders, no Xcode test target so nothing opens the real catalog).
+- [ ] Decide `reshelf://add` (review 2026-10-20, f97a): it saves a repo from any link with no confirmation; Undrdr Drop's "Send to reshelf" relies on that.
 
 ## Dead Intelligence code
 
