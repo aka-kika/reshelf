@@ -319,6 +319,15 @@ struct OpenSourceShelfApp: App {
 
             }
 
+            // There is no help book; the Help menu holds What's New instead of
+            // a "Help isn't available" item.
+            CommandGroup(replacing: .help) {
+                Button("What's New in reshelf") {
+                    NotificationCenter.default.post(name: .showWhatsNew, object: nil)
+                }
+                .disabled(WhatsNew.notes(for: WhatsNew.currentVersion) == nil)
+            }
+
             // Drop the default Format menu (Show Fonts steals ⌘T) — this app has
             // no rich-text formatting, and ⌘T is our "Move to Top Shelf".
             CommandGroup(replacing: .textFormatting) { }
@@ -474,6 +483,7 @@ extension Notification.Name {
     static let importURLs = Notification.Name("importURLs")
     static let importCatalog = Notification.Name("importCatalog")
     static let restoreBackup = Notification.Name("restoreBackup")
+    static let showWhatsNew = Notification.Name("showWhatsNew")
     static let checkCloneUpdates = Notification.Name("checkCloneUpdates")
     static let pullCloneUpdates = Notification.Name("pullCloneUpdates")
     /// Check + pull the cloned repos in one folder (object: the folder's UUID).

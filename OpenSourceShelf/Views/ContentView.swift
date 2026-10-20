@@ -187,6 +187,8 @@ struct ContentView: View {
     @State private var showingCommandPalette: Bool = false
     @State private var showingImportURLs: Bool = false
     @State private var showingRestoreBackup: Bool = false
+    /// The "What's new" notes while that sheet is up; nil = no sheet.
+    @State private var whatsNewLines: [WhatsNew.Line]?
     @State private var importCatalogRequest: ImportCatalogRequest?
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingCaptureURL: String = ""
@@ -276,6 +278,7 @@ struct ContentView: View {
                 showingCommandPalette = false
                 showingImportURLs = false
                 showingRestoreBackup = false
+                whatsNewLines = nil
                 importCatalogRequest = nil
                 quickCaptureRequest = nil
             }
@@ -297,6 +300,14 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingRestoreBackup) {
                 RestoreBackupSheet(isPresented: $showingRestoreBackup)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showWhatsNew)) { _ in
+                guard let lines = WhatsNew.notes(for: WhatsNew.currentVersion) else { return }
+                presentSheetAfterEndingTextEditing { whatsNewLines = lines }
+            }
+            .sheet(isPresented: Binding(get: { whatsNewLines != nil },
+                                        set: { if !$0 { closeWhatsNew() } })) {
+                WhatsNewSheet(appName: "reshelf", lines: whatsNewLines ?? []) { closeWhatsNew() }
             }
             // The open panel runs first, with no sheet up — running a modal
             // panel from inside a sheet is what wedges sheet presentation.
@@ -361,7 +372,18 @@ struct ContentView: View {
         }
     }
 
+    private func closeWhatsNew() {
+        WhatsNew.markSeen()
+        whatsNewLines = nil
+    }
+
     private func handleContentAppear() {
+        // Before this launch writes its own backup: existing backups mean an
+        // update from a version that had no What's new yet, not a first install.
+        if WhatsNew.shouldShow(usedBefore: !CatalogBackupService.snapshotURLs().isEmpty),
+           let lines = WhatsNew.notes(for: WhatsNew.currentVersion) {
+            presentSheetAfterEndingTextEditing { whatsNewLines = lines }
+        }
         // Safety net: if the catalog comes up empty but a backup with data exists,
         // restore it instead of seeding defaults over a real (momentarily missing)
         // catalog. Only seed when there's genuinely nothing to restore.

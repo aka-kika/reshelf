@@ -212,6 +212,20 @@
 			path = "OpenSourceShelf/Resources/SocialIcons";
 			sourceTree = SOURCE_ROOT;
 		};
+		WNEW1F001234567890ABCDE01 /* WhatsNew.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "WhatsNew.swift";
+			path = "OpenSourceShelf/Views/WhatsNew.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		RNOT1F001234567890ABCDE01 /* release-notes */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = folder;
+			name = "release-notes";
+			path = "docs/release-notes";
+			sourceTree = SOURCE_ROOT;
+		};
 		SK1LF001234567890ABCDE01 /* reshelf-skill */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = folder;
@@ -527,6 +541,8 @@
 				R9R2F001234567890ABCDEF09 /* AppIcon.icns */,
 				R9R1F001234567890ABCDEF07 /* ReshelfBrand.png */,
 				SK1LF001234567890ABCDE01 /* reshelf-skill */,
+				RNOT1F001234567890ABCDE01 /* release-notes */,
+				WNEW1F001234567890ABCDE01 /* WhatsNew.swift */,
 				SOC1F001234567890ABCDE01 /* SocialIcons */,
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
 				LIVE1F001234567890ABCDE01 /* LiveProject.swift */,
@@ -732,6 +748,14 @@
 			isa = PBXBuildFile;
 			fileRef = SOC1F001234567890ABCDE01;
 		};
+		RNOT1B001234567890ABCDE01 /* release-notes in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = RNOT1F001234567890ABCDE01;
+		};
+		WNEW1B001234567890ABCDE01 /* WhatsNew.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = WNEW1F001234567890ABCDE01;
+		};
 		SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */ = {
 			isa = PBXBuildFile;
 			fileRef = SK1LF001234567890ABCDE01;
@@ -876,6 +900,7 @@
 				R9R2B011234567890ABCDEF09 /* AppIcon.icns in Resources */,
 				R9R1B011234567890ABCDEF07 /* ReshelfBrand.png in Resources */,
 				SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */,
+				RNOT1B001234567890ABCDE01 /* release-notes in Resources */,
 				SOC1B001234567890ABCDE02 /* SocialIcons in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -936,6 +961,7 @@
 				LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */,
 				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
 				CSAV1B001234567890ABCDE01 /* CatalogSave.swift in Sources */,
+				WNEW1B001234567890ABCDE01 /* WhatsNew.swift in Sources */,
 				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,
 				857F7E93C32C47A1DC69444E,
