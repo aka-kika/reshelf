@@ -9,14 +9,22 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
-### Fixed (2026-10-20 code review, urgent items)
+## [1.16.0] — 2026-10-20
+
+Fixes from the 2026-10-20 code review (28 findings from three reviewers, each checked in the code; 27 fixed, one waits for a decision), plus a What's new sheet.
+
+### New
+- **Restore from Backup can undo a change** ("Also put back changes to repos I still have"), and backups taken before a big change say what they were for. Details under Fixed.
+- **What's new:** this list, once after each update, and from **Help → What's New in reshelf**.
+
+### Fixed (urgent)
 - **Restore from Backup can now undo a change, not only bring back deleted repos.** Turn on **Also put back changes to repos I still have** and the repos that changed since the backup get their shelf, tags, notes and folder back; the sheet counts them first. Backups taken before a big change say what they were taken before ("Before moving 12 repos to Yard Sale"), so the right one is easy to pick. Restoring writes a backup of the current state first.
 - **Refresh Info asks before moving repos GitHub can't find to Yard Sale**, and lists them. GitHub also says "not found" for private repos your token can't see, so nothing moves without your yes.
 - **Remove Duplicate Repos keeps everything you wrote on either copy:** tags and use cases are joined, two different notes are both kept, and empty fields are filled from the dropped copy.
 - **No more crash when you delete a repo while reshelf is still working on it** (Capture Assist, Refresh Info, Pull, Read from Clones, Check Clones for Updates). The work simply skips the deleted repo.
 - **Pull keeps a commit you made in a clone even when you also tagged it.** Before, a local tag made the commit look like upstream's and Pull reset it away.
 
-### Fixed (2026-10-20 code review, everything else)
+### Fixed (everything else)
 - **You can empty your shelf.** Deleting every repo used to bring them all back from a backup at the next launch; now an emptied shelf stays empty (no backup restore, no sample repos). A catalog file that can't be opened still gets your newest backup.
 - **The "catalog restored" alert tells the truth:** it says so when no backup was found instead of claiming one was restored. If the catalog file can't be opened or created at all, reshelf opens with a temporary catalog and says changes won't be kept, instead of crashing at every launch.
 - **A save that fails now says so** ("Couldn't save … check the disk has free space") instead of looking fine and losing the change after relaunch. Quick Capture and Edit stay open so you can try again.

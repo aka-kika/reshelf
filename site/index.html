@@ -1289,7 +1289,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
     </div>
     <div class="faq-item">
       <button class="faq-q">Where does my data live?<span class="plus">+</span></button>
-      <div class="faq-a"><div class="faq-a-in">Everything under <code>~/reshelf/</code>: the catalog in <code>catalog.store</code> (SwiftData, isolated), automatic JSON backups in <code>backups/</code>, clones in <code>repos/&lt;Category&gt;/&lt;repo&gt;</code>, and clone records in a GRDB SQLite database. JSON import/export is built in, and auto-restore kicks in if the store is ever empty.</div></div>
+      <div class="faq-a"><div class="faq-a-in">Everything under <code>~/reshelf/</code>: the catalog in <code>catalog.store</code> (SwiftData, isolated), automatic JSON backups in <code>backups/</code>, clones in <code>repos/&lt;Category&gt;/&lt;repo&gt;</code>, and clone records in a GRDB SQLite database. JSON import/export is built in, Restore from Backup can undo a change, and the newest backup comes back by itself if the catalog file is ever lost or unreadable.</div></div>
     </div>
     <div class="faq-item">
       <button class="faq-q">Does the AI send anything anywhere?<span class="plus">+</span></button>
