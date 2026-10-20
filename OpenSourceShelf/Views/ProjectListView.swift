@@ -344,7 +344,9 @@ struct ProjectListView: View {
             Text("Includes \(topShelf) from Top Shelf. Nothing is deleted: they only change shelf, clones stay on disk, and a backup is saved first.")
         }
         .confirmationDialog(
-            "Move \(pendingGoneMove?.ids.count ?? 0) repos GitHub can't find to Yard Sale?",
+            pendingGoneMove?.ids.count == 1
+                ? "Move 1 repo GitHub can't find to Yard Sale?"
+                : "Move \(pendingGoneMove?.ids.count ?? 0) repos GitHub can't find to Yard Sale?",
             isPresented: Binding(
                 get: { pendingGoneMove != nil },
                 set: { if !$0 { pendingGoneMove = nil } }
@@ -354,11 +356,11 @@ struct ProjectListView: View {
             Button("Move \(gone.ids.count) to Yard Sale") {
                 performGoneReposMove(gone)
             }
-            Button("Keep Them Where They Are", role: .cancel) {}
+            Button(gone.ids.count == 1 ? "Keep It Where It Is" : "Keep Them Where They Are", role: .cancel) {}
         } message: { gone in
             let names = gone.names.prefix(12).joined(separator: ", ")
             let more = gone.names.count > 12 ? ", and \(gone.names.count - 12) more" : ""
-            Text("GitHub answered “not found” for: \(names)\(more). That also happens for private repos your token can't see, so keep them if any is yours or private. Nothing is deleted, and a backup is saved first.")
+            Text("GitHub answered “not found” for: \(names)\(more). That also happens for private repos your token can't see, so keep \(gone.ids.count == 1 ? "it if it is" : "them if any is") yours or private. Nothing is deleted, and a backup is saved first.")
         }
     }
 
@@ -819,7 +821,7 @@ struct ProjectListView: View {
         let targets = allProjects.filter { ids.contains($0.id) && $0.status != .yardSale }
         guard !targets.isEmpty else { return }
         CatalogBackupService.writeSnapshot(allProjects, folders: folders,
-                                           reason: "Before moving \(targets.count) repos GitHub can't find to Yard Sale")
+                                           reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") GitHub can't find to Yard Sale")
         for project in targets { project.status = .yardSale }
         try? modelContext.save()
         AppRefreshBus.emit(.catalogStateUpdated)
@@ -853,7 +855,7 @@ struct ProjectListView: View {
 
     private func performYardSaleUnlicensed(_ targets: [ToolProject]) {
         CatalogBackupService.writeSnapshot(allProjects, folders: folders,
-                                           reason: "Before moving \(targets.count) repos without a license to Yard Sale")
+                                           reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") without a license to Yard Sale")
         for project in targets { project.status = .yardSale }
         try? modelContext.save()
         AppRefreshBus.emit(.catalogStateUpdated)

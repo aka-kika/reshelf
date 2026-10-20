@@ -107,7 +107,7 @@ struct RestoreBackupSheet: View {
             }
             .padding(12)
         }
-        .frame(width: 460, height: 480)
+        .frame(width: 460, height: 440)
         .onAppear { load() }
         .onChange(of: selected) { _, _ in
             resultMessage = nil
@@ -124,7 +124,9 @@ struct RestoreBackupSheet: View {
         if preview.changed == 0 {
             changed = "No repo you still have differs from this backup."
         } else if puttingBackChanges {
-            changed = "Puts back \(preview.changed) changed repo\(preview.changed == 1 ? "" : "s") as they were (shelf, tags, notes, folder). Repos added since stay."
+            changed = preview.changed == 1
+                ? "Puts back 1 changed repo as it was (shelf, tags, notes, folder). Repos added since stay."
+                : "Puts back \(preview.changed) changed repos as they were (shelf, tags, notes, folder). Repos added since stay."
         } else {
             changed = "\(preview.changed) repo\(preview.changed == 1 ? "" : "s") changed since; turn this on to put them back."
         }
