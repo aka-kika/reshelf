@@ -9,6 +9,13 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+### Fixed (2026-10-20 code review, urgent items)
+- **Restore from Backup can now undo a change, not only bring back deleted repos.** Turn on **Also put back changes to repos I still have** and the repos that changed since the backup get their shelf, tags, notes and folder back; the sheet counts them first. Backups taken before a big change say what they were taken before ("Before moving 12 repos to Yard Sale"), so the right one is easy to pick. Restoring writes a backup of the current state first.
+- **Refresh Info asks before moving repos GitHub can't find to Yard Sale**, and lists them. GitHub also says "not found" for private repos your token can't see, so nothing moves without your yes.
+- **Remove Duplicate Repos keeps everything you wrote on either copy:** tags and use cases are joined, two different notes are both kept, and empty fields are filled from the dropped copy.
+- **No more crash when you delete a repo while reshelf is still working on it** (Capture Assist, Refresh Info, Pull, Read from Clones, Check Clones for Updates). The work simply skips the deleted repo.
+- **Pull keeps a commit you made in a clone even when you also tagged it.** Before, a local tag made the commit look like upstream's and Pull reset it away.
+
 ## [1.15.3] — 2026-10-14
 
 Fixes from the 2026-10-14 code review (checked one by one, tested in the test VM).
