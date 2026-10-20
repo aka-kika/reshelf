@@ -736,13 +736,8 @@ struct ProjectListView: View {
         return score
     }
 
-    /// What a person typed or chose on a dropped duplicate must not vanish with
-    /// it: fill the kept entry's empty "why I saved this", notes and folder.
-    /// Never overwrites something the kept entry already has.
     private func mergeHandWrittenFields(from victim: ToolProject, into keeper: ToolProject) {
-        if keeper.personalNote.isEmpty { keeper.personalNote = victim.personalNote }
-        if keeper.notes.isEmpty { keeper.notes = victim.notes }
-        if keeper.folderID == nil { keeper.folderID = victim.folderID }
+        DuplicateMerge.merge(from: victim, into: keeper)
     }
 
     private func requestRemoveDuplicates() {

@@ -254,6 +254,13 @@
 			path = "OpenSourceShelf/Services/CatalogImportService.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		DUPM1F001234567890ABCDE01 /* DuplicateMerge.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DuplicateMerge.swift";
+			path = "OpenSourceShelf/Services/DuplicateMerge.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		F0LDER201234567890ABCD /* CatalogFolderService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -515,6 +522,7 @@
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
 				F0LDER201234567890ABCD /* CatalogFolderService.swift */,
+				DUPM1F001234567890ABCDE01 /* DuplicateMerge.swift */,
 				F0LDER101234567890ABCD /* ShelfSelection.swift */,
 				F0LDER001234567890ABCD /* CatalogFolder.swift */,
 				LUPD00011234567890ABCD /* LastUpdatedBackfillService.swift */,
@@ -740,6 +748,10 @@
 			isa = PBXBuildFile;
 			fileRef = 07D2AD6B75DA37AAD823A7F8;
 		};
+		DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = DUPM1F001234567890ABCDE01;
+		};
 		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP7REF01234567890ABCDEF07;
@@ -897,6 +909,7 @@
 				E81CE967849EA46EE4133CDC,
 				967CB7F565F1E5FFDFDAD3EA,
 				C5392DFC038F8A68E7A21263,
+				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
 				AIP7BUILD1234567890ABCDEF07,
 				233FCACEDD0C4EC0B290CF77,
 				857F7E93C32C47A1DC69444E,
