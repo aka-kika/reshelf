@@ -38,6 +38,11 @@ enum GitClientError: LocalizedError {
     case commandFailed(arguments: [String], exitCode: Int32, standardError: String)
     case outputDecodingFailed
     case localChangesPresent(repository: String)
+    /// Git wanted a username/password (prompts are off, see `processEnvironment`).
+    /// On GitHub that means the repo is private, or was renamed or deleted.
+    case loginRequired
+    /// A network command ran past its time limit and was stopped.
+    case timedOut(arguments: [String], seconds: Int)
 
     var errorDescription: String? {
         switch self {
@@ -49,7 +54,53 @@ enum GitClientError: LocalizedError {
             return "Could not decode Git command output."
         case let .localChangesPresent(repository):
             return "\(repository) has local changes — skipped to protect them."
+        case .loginRequired:
+            return "GitHub asked for a login: the repo is private, renamed or deleted. reshelf can only clone public repos."
+        case let .timedOut(arguments, seconds):
+            // The subcommand ("fetch", "ls-remote"), skipping `-c key=value` pairs.
+            let subcommand = arguments.indices.first { index in
+                arguments[index] != "-c" && (index == 0 || arguments[index - 1] != "-c")
+            }.map { arguments[$0] } ?? ""
+            return "git \(subcommand) got no answer within \(seconds) seconds and was stopped. Check the network and try again."
         }
+    }
+
+    /// Git's messages when it needed credentials it could not ask for.
+    static func isLoginFailure(_ standardError: String) -> Bool {
+        ["terminal prompts disabled", "could not read Username", "could not read Password",
+         "Authentication failed"].contains { standardError.contains($0) }
+    }
+}
+
+/// Stops a git process that runs past its time limit: SIGTERM first (git
+/// cleans up a half-written clone/fetch on it), SIGKILL 5 seconds later if it
+/// is still there.
+private final class GitTimeoutWatchdog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var fired = false
+    private var workItem: DispatchWorkItem?
+
+    var didFire: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return fired
+    }
+
+    func arm(_ process: Process, seconds: TimeInterval) {
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, process.isRunning else { return }
+            self.lock.lock(); self.fired = true; self.lock.unlock()
+            process.terminate()
+            let pid = process.processIdentifier
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) {
+                if process.isRunning { kill(pid, SIGKILL) }
+            }
+        }
+        lock.lock(); workItem = item; lock.unlock()
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds, execute: item)
+    }
+
+    func disarm() {
+        lock.lock(); workItem?.cancel(); lock.unlock()
     }
 }
 
@@ -68,11 +119,41 @@ struct GitClient {
         "-c", "filter.lfs.required=false"
     ]
 
+    /// Time limits for network commands. Check and Pull walk the clones one by
+    /// one, so one stuck server (or a prompt nobody answers) would stall the
+    /// rest. `ls-remote` is one small round trip: 60 seconds is plenty. A fetch
+    /// downloads what changed since the last pull: 10 minutes covers a big repo
+    /// that is far behind. Clone has no limit (a large repo can take a long
+    /// while); it gets the stall guard below instead.
+    static let lsRemoteTimeout: TimeInterval = 60
+    static let fetchTimeout: TimeInterval = 600
+
+    /// Clone only: abort when the download stays under 1 KB/s for 5 minutes, so
+    /// a dead connection doesn't hang a clone forever. GitHub sends keep-alive
+    /// data while it packs, so a slow-to-start clone of a big repo is not hit.
+    private static let stallGuard = [
+        "-c", "http.lowSpeedLimit=1000",
+        "-c", "http.lowSpeedTime=300"
+    ]
+
+    /// The environment git runs with: the app's own, plus no credential prompts.
+    /// Launched from a terminal, git would otherwise wait on a username prompt
+    /// for a private repo forever (from Finder there is no terminal, but a
+    /// configured askpass helper could still pop a dialog). An empty
+    /// GIT_ASKPASS switches off every askpass program (core.askPass and
+    /// SSH_ASKPASS too); saved credential helpers (Keychain) still work.
+    static func processEnvironment(_ base: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+        var environment = base
+        environment["GIT_TERMINAL_PROMPT"] = "0"
+        environment["GIT_ASKPASS"] = ""
+        return environment
+    }
+
     /// - Parameter blobless: when true, a partial (`--filter=blob:none`) clone —
     ///   lighter, used by the intelligence pipeline. When false, a normal full
     ///   clone — what a user expects when they "clone to work on it."
     func clone(repositoryURL: String, destinationURL: URL, blobless: Bool = true, cancellationID: String? = nil) async throws {
-        var arguments = Self.lfsBypass + ["clone"]
+        var arguments = Self.lfsBypass + Self.stallGuard + ["clone"]
         if blobless { arguments.append("--filter=blob:none") }
         arguments += [repositoryURL, destinationURL.path]
         _ = try await run(arguments: arguments, cancellationID: cancellationID)
@@ -81,7 +162,15 @@ struct GitClient {
     func fetch(repositoryURL: URL, cancellationID: String? = nil) async throws {
         _ = try await run(arguments: ["fetch", "--prune", "--tags"],
                           workingDirectory: repositoryURL,
-                          cancellationID: cancellationID)
+                          cancellationID: cancellationID,
+                          timeout: Self.fetchTimeout)
+    }
+
+    /// True when HEAD resolves to a commit. A clone killed after git wrote its
+    /// config but before it finished has an origin and no HEAD commit.
+    func headResolves(repositoryURL: URL) async -> Bool {
+        (try? await run(arguments: ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"],
+                        workingDirectory: repositoryURL)) != nil
     }
 
     /// Sync a read-only reference clone to its upstream default branch. Fetches,
@@ -108,7 +197,8 @@ struct GitClient {
         // fails; a reference clone should simply mirror upstream's tags.
         _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--prune", "--tags", "--force"],
                           workingDirectory: repositoryURL,
-                          cancellationID: cancellationID)
+                          cancellationID: cancellationID,
+                          timeout: Self.fetchTimeout)
 
         guard try await workingTreeIsClean(repositoryURL: repositoryURL) else {
             throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
@@ -152,7 +242,8 @@ struct GitClient {
         // as upstream, or a tagged local commit would be dropped by the reset.
         let upstreamTags = try await run(arguments: ["ls-remote", "--tags", "--refs", "origin"],
                                          workingDirectory: repositoryURL,
-                                         cancellationID: cancellationID)
+                                         cancellationID: cancellationID,
+                                         timeout: Self.lsRemoteTimeout)
             .standardOutput.split(whereSeparator: \.isNewline)
             .compactMap { line -> String? in
                 guard let ref = line.split(separator: "\t").last else { return nil }
@@ -201,7 +292,8 @@ struct GitClient {
     func remoteDefaultBranch(repositoryURL: URL, cancellationID: String? = nil) async throws -> String? {
         let result = try await run(arguments: ["ls-remote", "--symref", "origin", "HEAD"],
                                    workingDirectory: repositoryURL,
-                                   cancellationID: cancellationID)
+                                   cancellationID: cancellationID,
+                                   timeout: Self.lsRemoteTimeout)
         let headsPrefix = "refs/heads/"
         for rawLine in result.standardOutput.split(whereSeparator: \.isNewline) {
             let line = String(rawLine)
@@ -221,8 +313,11 @@ struct GitClient {
     /// The remote default branch's tip SHA — a cheap, read-only `ls-remote`
     /// (one network round-trip, no objects fetched, doesn't touch the clone).
     func remoteDefaultHead(repositoryURL: URL, cancellationID: String? = nil) async throws -> String? {
-        let output = try await trimmedOutput(arguments: ["ls-remote", "origin", "HEAD"],
-                                             workingDirectory: repositoryURL)
+        let output = try await run(arguments: ["ls-remote", "origin", "HEAD"],
+                                   workingDirectory: repositoryURL,
+                                   cancellationID: cancellationID,
+                                   timeout: Self.lsRemoteTimeout)
+            .standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
         // Output line: "<sha>\tHEAD"
         return output.split(whereSeparator: { $0 == "\t" || $0 == " " }).first.map(String.init)
     }
@@ -237,11 +332,17 @@ struct GitClient {
         return lineCount(output)
     }
 
-    func run(arguments: [String], workingDirectory: URL? = nil, cancellationID: String? = nil) async throws -> GitCommandResult {
+    /// - Parameter timeout: seconds before git is stopped and `.timedOut` thrown;
+    ///   nil = no limit. Set for network commands only.
+    func run(arguments: [String], workingDirectory: URL? = nil, cancellationID: String? = nil,
+             timeout: TimeInterval? = nil) async throws -> GitCommandResult {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
         process.currentDirectoryURL = workingDirectory
+        process.environment = Self.processEnvironment()
+        // Git never needs our stdin; a prompt must not be able to read it.
+        process.standardInput = FileHandle.nullDevice
 
         let outputPipe = Pipe()
         let errorPipe = Pipe()
@@ -264,13 +365,20 @@ struct GitClient {
         // waitUntilExit inside a detached task parks a Swift-concurrency
         // cooperative thread for the whole clone, so a few clones in a row
         // starved the pool and hung every async task in the app.
-        async let outputData = Self.drain(outputPipe)
-        async let errorData = Self.drain(errorPipe)
+        //
+        // Unstructured tasks, not `async let`: after a timeout we throw without
+        // waiting for EOF, because a child git started (git-remote-https) can
+        // hold the pipes open after git itself is gone, and an `async let`
+        // would be awaited on the way out anyway.
+        let outputData = Task.detached { await Self.drain(outputPipe) }
+        let errorData = Task.detached { await Self.drain(errorPipe) }
 
+        let watchdog = GitTimeoutWatchdog()
         let terminationStatus: Int32 = try await withCheckedThrowingContinuation { continuation in
             process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
             do {
                 try process.run()
+                if let timeout { watchdog.arm(process, seconds: timeout) }
             } catch {
                 process.terminationHandler = nil
                 // Never launched: close our write ends so the drains hit EOF
@@ -280,10 +388,19 @@ struct GitClient {
                 continuation.resume(throwing: error)
             }
         }
+        watchdog.disarm()
 
-        guard let standardOutput = String(data: await outputData, encoding: .utf8),
-              let standardError = String(data: await errorData, encoding: .utf8) else {
+        if terminationStatus != 0, watchdog.didFire, let timeout {
+            throw GitClientError.timedOut(arguments: arguments, seconds: Int(timeout))
+        }
+
+        guard let standardOutput = String(data: await outputData.value, encoding: .utf8),
+              let standardError = String(data: await errorData.value, encoding: .utf8) else {
             throw GitClientError.outputDecodingFailed
+        }
+
+        if terminationStatus != 0, GitClientError.isLoginFailure(standardError) {
+            throw GitClientError.loginRequired
         }
 
         guard terminationStatus == 0 else {

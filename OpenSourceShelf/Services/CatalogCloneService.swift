@@ -41,6 +41,7 @@ enum CatalogCloneService {
     enum CloneError: LocalizedError {
         case invalidURL
         case folderInUse(String)
+        case alreadyCloning
 
         var errorDescription: String? {
             switch self {
@@ -48,9 +49,14 @@ enum CatalogCloneService {
                 return "This project doesn't have a valid GitHub URL to clone."
             case let .folderInUse(path):
                 return "A non-git folder already exists at \(path)."
+            case .alreadyCloning:
+                return "This repo is already being cloned."
             }
         }
     }
+
+    /// `owner/repo` (lowercased) of clones running right now. Main actor only.
+    @MainActor private static var clonesInProgress: Set<String> = []
 
     // MARK: - Clone index (cached)
 
@@ -69,43 +75,83 @@ enum CatalogCloneService {
         cloneIndexLock.unlock()
     }
 
-    /// `owner/repo` → clone folder for every git checkout under the clone root
-    /// (root level for legacy flat clones, plus one level deep for category
-    /// folders). One filesystem walk, then cached.
     private static func cloneIndex() -> [String: URL] {
         cloneIndexLock.lock()
         defer { cloneIndexLock.unlock() }
         if let cached = cloneIndexCache { return cached }
-
-        var index: [String: URL] = [:]
-        let fm = FileManager.default
-        let root = CloneLocation.rootURL
-
-        var dirs: [URL] = [root]
-        if let entries = try? fm.contentsOfDirectory(
-            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
-            for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                dirs.append(entry)
-            }
-        }
-
-        for dir in dirs {
-            guard let entries = try? fm.contentsOfDirectory(
-                at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { continue }
-            for entry in entries {
-                guard fm.fileExists(atPath: entry.appendingPathComponent(".git").path),
-                      let slug = originSlug(fromConfigAt: entry) else { continue }
-                if index[slug] == nil { index[slug] = entry }
-            }
-        }
-
+        let index = scanCloneIndex(root: CloneLocation.rootURL)
         cloneIndexCache = index
         return index
     }
 
+    /// `owner/repo` → clone folder for every finished checkout at reshelf's own
+    /// layout, `<root>/<Category>/<repo>` or `<root>/<Category>/<owner>-<repo>`,
+    /// where the folder name matches the checkout's own origin. Anything else
+    /// under the root is not ours: with the clone folder pointed at a dev
+    /// folder, a working copy at `<root>/<project>` or `<root>/work/<other name>`
+    /// must not count as a clone (Remove Local Clone would trash it, Pull would
+    /// reset it). Half-written clones are skipped too (`isFinishedCheckout`).
+    static func scanCloneIndex(root: URL) -> [String: URL] {
+        var index: [String: URL] = [:]
+        let fm = FileManager.default
+        guard let categoryDirs = try? fm.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else { return index }
+        for dir in categoryDirs where (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+            guard let entries = try? fm.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { continue }
+            for entry in entries {
+                guard fm.fileExists(atPath: entry.appendingPathComponent(".git").path),
+                      let slug = originSlug(fromConfigAt: entry),
+                      isLayoutFolderName(entry.lastPathComponent, forSlug: slug),
+                      isFinishedCheckout(entry) else { continue }
+                if index[slug] == nil { index[slug] = entry }
+            }
+        }
+        return index
+    }
+
+    /// Whether `folderName` is a name reshelf gives a clone of `slug`
+    /// (`owner/repo`, lowercased): `<repo>` or the `<owner>-<repo>` fallback.
+    static func isLayoutFolderName(_ folderName: String, forSlug slug: String) -> Bool {
+        let parts = slug.split(separator: "/", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return false }
+        let name = folderName.lowercased()
+        return name == parts[1] || name == "\(parts[0])-\(parts[1])"
+    }
+
+    /// A finished checkout: HEAD points at a commit and git wrote the index
+    /// (the last step of a clone). A clone killed midway (app quit, crash,
+    /// power cut) leaves `.git` with origin set but no HEAD branch, or no
+    /// index if it died during checkout. File reads only — no git process —
+    /// because the clone index runs this for every clone on the main thread.
+    static func isFinishedCheckout(_ dir: URL) -> Bool {
+        let gitDir = dir.appendingPathComponent(".git", isDirectory: true)
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: gitDir.appendingPathComponent("index").path),
+              let head = try? String(contentsOf: gitDir.appendingPathComponent("HEAD"), encoding: .utf8)
+        else { return false }
+        let target = head.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard target.hasPrefix("ref:") else {
+            // Detached HEAD: a commit id.
+            return target.count >= 40 && target.allSatisfy(\.isHexDigit)
+        }
+        // reftable repos keep refs in binary tables; the index file is the
+        // evidence there.
+        if fm.fileExists(atPath: gitDir.appendingPathComponent("reftable").path) { return true }
+        let ref = target.dropFirst(4).trimmingCharacters(in: .whitespaces)
+        guard ref.hasPrefix("refs/") else { return false }
+        if let loose = try? String(contentsOf: gitDir.appendingPathComponent(ref), encoding: .utf8),
+           !loose.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        guard let packed = try? String(contentsOf: gitDir.appendingPathComponent("packed-refs"), encoding: .utf8)
+        else { return false }
+        return packed.split(whereSeparator: \.isNewline).contains { $0.hasSuffix(" \(ref)") }
+    }
+
     /// Extract `owner/repo` (lowercased) from a checkout's `.git/config` origin URL,
     /// handling https and ssh forms (`github.com/owner/repo[.git]`, `github.com:owner/repo`).
-    private static func originSlug(fromConfigAt dir: URL) -> String? {
+    static func originSlug(fromConfigAt dir: URL) -> String? {
         guard let config = try? String(contentsOf: dir.appendingPathComponent(".git/config"), encoding: .utf8),
               let hostRange = config.range(of: "github.com", options: .caseInsensitive) else { return nil }
         var rest = config[hostRange.upperBound...]
@@ -193,6 +239,9 @@ enum CatalogCloneService {
     /// into their project's category subfolder. No-op once everything is organized.
     @discardableResult
     static func migrateClonesIntoCategoryFolders(_ projects: [ToolProject]) -> Int {
+        // Flat clones only ever existed in the default folder. A custom clone
+        // folder may be a dev folder, whose own checkouts must never be moved.
+        guard !CloneLocation.isCustom else { return 0 }
         let fm = FileManager.default
         let root = CloneLocation.rootURL
         var moved = 0
@@ -275,15 +324,30 @@ enum CatalogCloneService {
             throw CloneError.invalidURL
         }
         let fm = FileManager.default
+        // The list and the inspector each have a Clone button: a second clone of
+        // the same repo while the first runs would see the first one's
+        // half-written folder below and trash it.
+        let slug = "\(owner)/\(repo)".lowercased()
+        guard !clonesInProgress.contains(slug) else { throw CloneError.alreadyCloning }
+        clonesInProgress.insert(slug)
+        defer { clonesInProgress.remove(slug) }
 
         if fm.fileExists(atPath: dest.path) {
-            // Adopt a checkout of this exact repo that the index missed rather
-            // than failing on it.
             if originMatches(dest, owner: owner, repo: repo) {
-                invalidateCloneIndex()
-                AppRefreshBus.emit(.catalogStateUpdated)
-                return dest
+                // Adopt a finished checkout of this exact repo that the index
+                // missed rather than failing on it.
+                if isFinishedCheckout(dest), await GitClient().headResolves(repositoryURL: dest) {
+                    invalidateCloneIndex()
+                    AppRefreshBus.emit(.catalogStateUpdated)
+                    return dest
+                }
+                // A clone of this repo that died midway: origin is set but the
+                // checkout never finished. Trash it (recoverable) and clone again.
+                try fm.trashItem(at: dest, resultingItemURL: nil)
             }
+        }
+
+        if fm.fileExists(atPath: dest.path) {
             let contents = (try? fm.contentsOfDirectory(atPath: dest.path)) ?? []
             if contents.isEmpty || contents.allSatisfy({ $0 == ".DS_Store" }) {
                 try? fm.removeItem(at: dest)
