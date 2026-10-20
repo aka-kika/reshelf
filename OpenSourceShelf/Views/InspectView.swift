@@ -611,7 +611,7 @@ struct InspectView: View {
     }
 
     private func deleteProject() {
-        CatalogBackupService.writeSnapshot(from: modelContext) // recoverable via Restore from Backup
+        CatalogBackupService.writeSnapshot(from: modelContext, reason: "Before removing \(project.name)")
         modelContext.delete(project)
         try? modelContext.save()
         AppRefreshBus.emit(.catalogStateUpdated)

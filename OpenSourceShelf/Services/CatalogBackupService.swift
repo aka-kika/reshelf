@@ -12,7 +12,14 @@ enum CatalogBackupService {
     /// How many snapshots to retain. Old ones are pruned oldest-first.
     static let maxSnapshots = 30
 
+    /// Tests point backups at a temp folder; the app never sets this.
+    static var backupsDirectoryOverride: URL?
+
     static var backupsDirectory: URL {
+        if let override = backupsDirectoryOverride {
+            try? FileManager.default.createDirectory(at: override, withIntermediateDirectories: true)
+            return override
+        }
         let root = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("reshelf", isDirectory: true)
             .appendingPathComponent("backups", isDirectory: true)
@@ -26,9 +33,12 @@ enum CatalogBackupService {
     /// the catalog is empty (never overwrite history with nothing) or when the
     /// newest snapshot is byte-identical (avoid churn on no-op saves).
     /// Folders ride along so a restore doesn't silently ungroup the catalog.
-    static func writeSnapshot(_ projects: [ToolProject], folders: [CatalogFolder] = []) {
+    /// `reason` labels a safety backup taken before a big change; a labelled
+    /// one is always written, even when nothing changed since the newest file,
+    /// so Restore from Backup can show "Before …" for every such action.
+    static func writeSnapshot(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil) {
         guard !projects.isEmpty else { return }
-        guard let data = try? CatalogExportService.encode(projects, folders: folders) else { return }
+        guard let data = try? CatalogExportService.encode(projects, folders: folders, reason: reason) else { return }
 
         // Skip only when the *content* is genuinely unchanged. This used to compare
         // byte lengths, which quietly failed: an edit that swaps one value for
@@ -39,7 +49,8 @@ enum CatalogBackupService {
         // Both sides go through the file format: it stores dates to the whole
         // second, so comparing against the live rows (sub-second dates) said
         // "changed" every time and filled the 30 slots with identical copies.
-        if let newest = snapshotURLs().first,
+        if reason == nil,
+           let newest = snapshotURLs().first,
            let existing = try? Data(contentsOf: newest),
            let existingRows = try? CatalogExportService.decode(existing),
            let newRows = try? CatalogExportService.decode(data),
@@ -76,10 +87,10 @@ enum CatalogBackupService {
     /// Snapshot of everything in the store right now — for a destructive action
     /// in a view that doesn't hold the whole catalog (the inspector's Delete).
     @MainActor
-    static func writeSnapshot(from context: ModelContext) {
+    static func writeSnapshot(from context: ModelContext, reason: String? = nil) {
         let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
         let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
-        writeSnapshot(projects, folders: folders)
+        writeSnapshot(projects, folders: folders, reason: reason)
     }
 
     private static func prune() {
@@ -117,6 +128,11 @@ enum CatalogBackupService {
         return folders
     }
 
+    static func reason(in url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return (try? CatalogExportService.decodeReason(data)) ?? nil
+    }
+
     /// The newest snapshot that actually contains projects.
     static func latestNonEmptySnapshot() -> (url: URL, projects: [CatalogProjectDTO])? {
         for url in snapshotURLs() {
@@ -141,14 +157,19 @@ enum CatalogBackupService {
         return true
     }
 
-    /// Restores a chosen snapshot, merging in any projects not already present
-    /// (matched by GitHub URL, then id). Returns the number inserted.
+    /// Restores a chosen snapshot: adds the projects the catalog is missing
+    /// (matched by GitHub URL, then id) and, with `puttingBackChanges`, gives
+    /// the ones it still has their backed-up version again. A backup of the
+    /// current state is written first, so a restore can itself be undone.
     @MainActor
     @discardableResult
-    static func restore(from url: URL, into context: ModelContext) -> Int {
+    static func restore(from url: URL, puttingBackChanges: Bool, into context: ModelContext,
+                        snapshotDate: String) -> CatalogImportService.Result {
         let incoming = projects(in: url)
-        guard !incoming.isEmpty else { return 0 }
-        return CatalogImportService.merge(incoming, folders: folders(in: url), into: context)
+        guard !incoming.isEmpty else { return .init(added: 0, updated: 0, skipped: 0) }
+        return CatalogImportService.restore(incoming, folders: folders(in: url),
+                                            puttingBackChanges: puttingBackChanges, into: context,
+                                            backupReason: "Before restoring the backup from \(snapshotDate)")
     }
 
     // MARK: - Helpers

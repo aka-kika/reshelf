@@ -732,7 +732,8 @@ struct ProjectListView: View {
     private func performRemoveDuplicates() {
         let groups = duplicateGroups()
         guard !groups.isEmpty else { return }
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                           reason: "Before Remove Duplicate Repos") // recoverable via Restore from Backup
         var removed = 0
         for group in groups {
             let ranked = group.sorted { a, b in
@@ -819,7 +820,8 @@ struct ProjectListView: View {
     }
 
     private func performYardSaleUnlicensed(_ targets: [ToolProject]) {
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                           reason: "Before moving \(targets.count) repos without a license to Yard Sale")
         for project in targets { project.status = .yardSale }
         try? modelContext.save()
         AppRefreshBus.emit(.catalogStateUpdated)
@@ -836,7 +838,9 @@ struct ProjectListView: View {
 
     /// One backup, then the deletes, then one save.
     private func deleteProjects(_ projects: [ToolProject]) {
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders) // recoverable via Restore from Backup
+        let what = projects.count == 1 ? projects[0].name : "\(projects.count) repos"
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                           reason: "Before removing \(what)") // recoverable via Restore from Backup
         for project in projects {
             if listSelection?.projectID == project.id { listSelection = nil }
             modelContext.delete(project)

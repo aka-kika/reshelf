@@ -108,9 +108,11 @@ enum CatalogImportService {
     /// an unwanted import is always recoverable from Restore from Backup.
     @MainActor
     @discardableResult
-    static func apply(_ plan: Plan, updatingExisting: Bool, into context: ModelContext) -> Result {
+    static func apply(_ plan: Plan, updatingExisting: Bool, into context: ModelContext,
+                      backupReason: String? = nil) -> Result {
         let before = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
-        CatalogBackupService.writeSnapshot(before, folders: CatalogFolderService.folders(in: context))
+        CatalogBackupService.writeSnapshot(before, folders: CatalogFolderService.folders(in: context),
+                                           reason: backupReason ?? "Before importing \(plan.sourceURL.lastPathComponent)")
 
         // Folders first, so the projects inserted below can be remapped onto
         // local folders that are guaranteed to exist.
@@ -150,7 +152,57 @@ enum CatalogImportService {
                       into context: ModelContext) -> Int {
         let plan = plan(rows: rows, folders: folders,
                         sourceURL: URL(fileURLWithPath: "/"), context: context)
-        return apply(plan, updatingExisting: false, into: context).added
+        return apply(plan, updatingExisting: false, into: context,
+                     backupReason: "Before restoring a backup").added
+    }
+
+    /// Restore from Backup. Always adds the repos the backup has and the
+    /// catalog lost. With `puttingBackChanges`, repos still in the catalog get
+    /// the backup's version back too (shelf, tags, notes, folder) — the undo
+    /// for a Yard Sale move, an import that updated rows, or a duplicate merge.
+    /// Only rows that really differ are touched and counted.
+    @MainActor
+    @discardableResult
+    static func restore(_ rows: [CatalogProjectDTO],
+                        folders: [CatalogFolderDTO],
+                        puttingBackChanges: Bool,
+                        into context: ModelContext,
+                        backupReason: String) -> Result {
+        let full = plan(rows: rows, folders: folders, sourceURL: URL(fileURLWithPath: "/"), context: context)
+        let changed = changedMatches(in: full, context: context)
+        let plan = Plan(sourceURL: full.sourceURL, additions: full.additions,
+                        matches: puttingBackChanges ? changed : [], folders: folders)
+        let result = apply(plan, updatingExisting: puttingBackChanges, into: context, backupReason: backupReason)
+        // `apply` never takes a repo out of a folder (an import from an older
+        // file has no folder key). A backup that records folders does say
+        // which repos were in none, so a put-back honors that.
+        if puttingBackChanges, !folders.isEmpty {
+            for (row, existing) in changed where row.folderID == nil && existing.folderID != nil {
+                existing.folderID = nil
+            }
+            try? context.save()
+        }
+        return Result(added: result.added, updated: result.updated,
+                      skipped: full.matches.count - result.updated)
+    }
+
+    /// Matched rows whose backup version differs from the catalog's, folder
+    /// included (compared by name, the way folders are matched on import).
+    @MainActor
+    static func changedMatches(in plan: Plan, context: ModelContext) -> [(row: CatalogProjectDTO, existing: ToolProject)] {
+        let localFolderNames = Dictionary(
+            CatalogFolderService.folders(in: context).map { ($0.id, $0.name.lowercased()) },
+            uniquingKeysWith: { first, _ in first })
+        let fileFolderNames = Dictionary(
+            plan.folders.map { ($0.id, $0.name.lowercased()) },
+            uniquingKeysWith: { first, _ in first })
+        return plan.matches.filter { row, existing in
+            if row.differs(from: existing) { return true }
+            guard !plan.folders.isEmpty else { return false }
+            let fileFolder = row.folderID.flatMap { fileFolderNames[$0] }
+            let localFolder = existing.folderID.flatMap { localFolderNames[$0] }
+            return fileFolder != localFolder
+        }
     }
 
     /// Maps each folder id in the file to the id of the local folder that should

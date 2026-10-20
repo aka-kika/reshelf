@@ -2,9 +2,10 @@ import SwiftUI
 import SwiftData
 
 /// Lists the automatic catalog snapshots in `~/reshelf/backups/` and restores a
-/// chosen one. Restore is a non-destructive merge — it adds any projects from the
-/// snapshot that aren't already in the catalog (matched by GitHub URL), so it's
-/// safe to run without losing current work.
+/// chosen one. Restore always adds the projects the snapshot has and the catalog
+/// lost (matched by GitHub URL). "Put back changes" also returns the projects
+/// still in the catalog to their backed-up version — the undo for Yard Sale
+/// moves, updating imports and duplicate merges. A backup is written first.
 struct RestoreBackupSheet: View {
     @Binding var isPresented: Bool
     @Environment(\.modelContext) private var modelContext
@@ -12,12 +13,16 @@ struct RestoreBackupSheet: View {
     @State private var snapshots: [SnapshotInfo] = []
     @State private var selected: URL?
     @State private var resultMessage: String?
+    @State private var puttingBackChanges = false
+    /// What restoring the selected snapshot would do: (missing, changed).
+    @State private var preview: (missing: Int, changed: Int)?
 
     struct SnapshotInfo: Identifiable {
         var id: URL { url }
         let url: URL
         let date: Date?
         let count: Int
+        let reason: String?
     }
 
     var body: some View {
@@ -57,9 +62,11 @@ struct RestoreBackupSheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(displayDate(snapshot.date))
                                     .font(.system(size: 12))
-                                Text("\(snapshot.count) project\(snapshot.count == 1 ? "" : "s")")
+                                Text("\(snapshot.count) project\(snapshot.count == 1 ? "" : "s")"
+                                     + (snapshot.reason.map { " · \($0)" } ?? ""))
                                     .font(.system(size: 10))
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(1)
                             }
                             Spacer()
                         }
@@ -70,6 +77,21 @@ struct RestoreBackupSheet: View {
             }
 
             Divider()
+
+            if !snapshots.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Also put back changes to repos I still have", isOn: $puttingBackChanges)
+                        .font(.system(size: 12))
+                        .toggleStyle(.checkbox)
+                    Text(previewText)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+            }
 
             HStack(spacing: 10) {
                 if let resultMessage {
@@ -85,25 +107,66 @@ struct RestoreBackupSheet: View {
             }
             .padding(12)
         }
-        .frame(width: 460, height: 440)
-        .onAppear(perform: load)
+        .frame(width: 460, height: 480)
+        .onAppear { load() }
+        .onChange(of: selected) { _, _ in
+            resultMessage = nil
+            updatePreview()
+        }
     }
 
-    private func load() {
+    private var previewText: String {
+        guard let preview else { return "Pick a backup." }
+        let missing = preview.missing == 0
+            ? "Nothing is missing from your catalog."
+            : "Adds back \(preview.missing) repo\(preview.missing == 1 ? "" : "s") your catalog no longer has."
+        let changed: String
+        if preview.changed == 0 {
+            changed = "No repo you still have differs from this backup."
+        } else if puttingBackChanges {
+            changed = "Puts back \(preview.changed) changed repo\(preview.changed == 1 ? "" : "s") as they were (shelf, tags, notes, folder). Repos added since stay."
+        } else {
+            changed = "\(preview.changed) repo\(preview.changed == 1 ? "" : "s") changed since; turn this on to put them back."
+        }
+        return missing + " " + changed
+    }
+
+    private func updatePreview() {
+        guard let selected else { preview = nil; return }
+        let plan = CatalogImportService.plan(rows: CatalogBackupService.projects(in: selected),
+                                             folders: CatalogBackupService.folders(in: selected),
+                                             sourceURL: selected, context: modelContext)
+        preview = (plan.additions.count,
+                   CatalogImportService.changedMatches(in: plan, context: modelContext).count)
+    }
+
+    private func load(keeping selection: URL? = nil) {
         snapshots = CatalogBackupService.snapshotURLs().map { url in
             SnapshotInfo(url: url,
                          date: parseDate(from: url.lastPathComponent),
-                         count: CatalogBackupService.projects(in: url).count)
+                         count: CatalogBackupService.projects(in: url).count,
+                         reason: CatalogBackupService.reason(in: url))
         }
-        selected = snapshots.first?.url
+        selected = selection ?? snapshots.first?.url
+        updatePreview()
     }
 
     private func restore() {
         guard let selected else { return }
-        let inserted = CatalogBackupService.restore(from: selected, into: modelContext)
-        resultMessage = inserted == 0
-            ? "Nothing new to restore — those projects are already in your catalog."
-            : "Restored \(inserted) project\(inserted == 1 ? "" : "s") (duplicates skipped)."
+        let date = displayDate(snapshots.first { $0.url == selected }?.date)
+        let result = CatalogBackupService.restore(from: selected, puttingBackChanges: puttingBackChanges,
+                                                  into: modelContext, snapshotDate: date)
+        if result.added == 0 && result.updated == 0 {
+            resultMessage = "Nothing to restore: your catalog already matches this backup."
+        } else {
+            var parts: [String] = []
+            if result.added > 0 { parts.append("added back \(result.added)") }
+            if result.updated > 0 { parts.append("put back \(result.updated)") }
+            resultMessage = "Done: " + parts.joined(separator: ", ") + ". The catalog as it was just before is backed up too."
+        }
+        AppRefreshBus.emit(.catalogStateUpdated)
+        // The restore wrote a new "Before restoring…" backup: list it.
+        load(keeping: selected)
     }
 
     // MARK: - Date helpers

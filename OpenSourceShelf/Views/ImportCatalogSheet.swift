@@ -99,7 +99,7 @@ struct ImportCatalogSheet: View {
 
             Divider()
 
-            Text("A backup is taken before importing, so you can undo this from Restore from Backup.")
+            Text("A backup is taken before importing. To undo, open Restore from Backup, pick “Before importing…” and turn on “Also put back changes”.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

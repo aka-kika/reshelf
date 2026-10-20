@@ -126,6 +126,37 @@ struct CatalogProjectDTO: Codable {
         project.isLocalFirst = isLocalFirst
         project.isSelfHosted = isSelfHosted
     }
+
+    /// True when `apply(to:)` would change something the user can see, so a
+    /// restore can count (and touch) only the repos that really differ. Dates
+    /// compare to the whole second: the file stores no finer.
+    func differs(from project: ToolProject) -> Bool {
+        func sameDate(_ a: Date?, _ b: Date?) -> Bool {
+            switch (a, b) {
+            case (nil, nil): return true
+            case let (a?, b?): return Int(a.timeIntervalSince1970) == Int(b.timeIntervalSince1970)
+            default: return false
+            }
+        }
+        return name != project.name
+            || shortDescription != project.shortDescription
+            || longDescription != project.longDescription
+            || githubURL != project.githubURL
+            || websiteURL != project.websiteURL
+            || category != project.category
+            || (ProjectStatus(rawValue: status) ?? project.status) != project.status
+            || license != project.license
+            || stars != project.stars
+            || tags != project.tags
+            || useCases != project.useCases
+            || notes != project.notes
+            || (personalNote.map { $0 != project.personalNote } ?? false)
+            || isLocalFirst != project.isLocalFirst
+            || isSelfHosted != project.isSelfHosted
+            || !sameDate(addedDate, project.addedDate)
+            || !sameDate(lastCheckedDate, project.lastCheckedDate)
+            || (lastUpdatedDate.map { !sameDate($0, project.lastUpdatedDate) } ?? false)
+    }
 }
 
 /// One folder in an export. Travels with the catalog so the grouping survives
@@ -153,6 +184,10 @@ struct CatalogSnapshotDTO: Codable {
     var projects: [CatalogProjectDTO]
     /// Optional so exports written before folders existed still decode.
     var folders: [CatalogFolderDTO]?
+    /// What a backup was taken before ("Before moving 12 repos to Yard Sale"),
+    /// shown in Restore from Backup so the right one is easy to pick. Nil for
+    /// routine snapshots and manual exports.
+    var reason: String?
 }
 
 /// Exports the catalog (`ToolProject`s) to a portable JSON file the user picks
@@ -174,14 +209,15 @@ enum CatalogExportService {
     }
 
     /// Encodes the given projects to pretty-printed, ISO-8601-dated JSON.
-    static func encode(_ projects: [ToolProject], folders: [CatalogFolder] = []) throws -> Data {
+    static func encode(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil) throws -> Data {
         let payload = CatalogSnapshotDTO(
             exportedAt: Date(),
             app: "reshelf",
             version: 1,
             projectCount: projects.count,
             projects: projects.map(CatalogProjectDTO.init),
-            folders: folders.isEmpty ? nil : folders.map(CatalogFolderDTO.init)
+            folders: folders.isEmpty ? nil : folders.map(CatalogFolderDTO.init),
+            reason: reason
         )
         return try makeEncoder().encode(payload)
     }
@@ -189,6 +225,11 @@ enum CatalogExportService {
     /// Decodes a snapshot/export JSON back into project rows.
     static func decode(_ data: Data) throws -> [CatalogProjectDTO] {
         try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).projects
+    }
+
+    /// The label a backup was written with, if any.
+    static func decodeReason(_ data: Data) throws -> String? {
+        try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).reason
     }
 
     /// The folders in a snapshot/export. Empty for files written before folders
