@@ -142,13 +142,39 @@ enum CatalogBackupService {
         return nil
     }
 
+    /// Set when the user removes the last project, so the next launch leaves
+    /// the catalog empty instead of restoring the newest backup or seeding the
+    /// sample repos (before, an emptied shelf always came back). Cleared as
+    /// soon as the catalog has a project again, or the store is replaced.
+    private static let emptiedByUserKey = "reshelf.catalogEmptiedByUser"
+
+    static var emptiedByUser: Bool {
+        UserDefaults.standard.bool(forKey: emptiedByUserKey)
+    }
+
+    static func clearEmptiedByUser() {
+        UserDefaults.standard.removeObject(forKey: emptiedByUserKey)
+    }
+
+    /// Called on every project-count change while the app runs. A drop to zero
+    /// mid-session is a deletion; an empty catalog at launch is not, so it
+    /// never sets the flag.
+    static func noteProjectCount(old: Int, new: Int) {
+        if new == 0, old > 0 {
+            UserDefaults.standard.set(true, forKey: emptiedByUserKey)
+        } else if new > 0 {
+            clearEmptiedByUser()
+        }
+    }
+
     /// Safety net: if the catalog is empty but a backup with data exists, restore
     /// it instead of letting the app seed defaults over a real (but momentarily
-    /// missing) catalog. Returns `true` if a restore happened.
+    /// missing) catalog. Not when the user emptied it on purpose. Returns `true`
+    /// if a restore happened.
     @MainActor
     static func restoreIfCatalogEmpty(context: ModelContext) -> Bool {
         let count = (try? context.fetchCount(FetchDescriptor<ToolProject>())) ?? 0
-        guard count == 0, let snapshot = latestNonEmptySnapshot() else { return false }
+        guard count == 0, !emptiedByUser, let snapshot = latestNonEmptySnapshot() else { return false }
 
         CatalogImportService.merge(snapshot.projects, folders: folders(in: snapshot.url), into: context)
         #if DEBUG

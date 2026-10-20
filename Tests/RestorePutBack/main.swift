@@ -107,7 +107,23 @@ func run() throws {
     CatalogBackupService.writeSnapshot(all(ctx), folders: CatalogFolderService.folders(in: ctx), reason: "Before x")
     check("labelled snapshot is always written", CatalogBackupService.snapshotURLs().count == afterRoutine + 1)
 
-    // 5. Remove Duplicate Repos merge.
+    // 5. Emptying the shelf on purpose sticks; an empty catalog at launch still restores.
+    let ctx2 = try makeContext()
+    CatalogBackupService.clearEmptiedByUser()
+    check("empty catalog at launch restores the newest backup",
+          CatalogBackupService.restoreIfCatalogEmpty(context: ctx2) && !all(ctx2).isEmpty)
+    let ctx3 = try makeContext()
+    CatalogBackupService.noteProjectCount(old: 0, new: 0)
+    check("launch with 0 rows does not count as emptied", !CatalogBackupService.emptiedByUser)
+    CatalogBackupService.noteProjectCount(old: 3, new: 0)
+    check("deleting the last repo is remembered", CatalogBackupService.emptiedByUser)
+    check("an emptied shelf is not refilled from a backup",
+          !CatalogBackupService.restoreIfCatalogEmpty(context: ctx3) && all(ctx3).isEmpty)
+    CatalogBackupService.noteProjectCount(old: 0, new: 1)
+    check("adding a repo clears it", !CatalogBackupService.emptiedByUser)
+    CatalogBackupService.clearEmptiedByUser()
+
+    // 6. Remove Duplicate Repos merge.
     let keeper = project("dup", .topShelf, tags: ["Swift", "ui"], notes: "short")
     keeper.useCases = ["menus"]
     let victim = project("dup", .collector, tags: ["swift", "mcp"], notes: "a much longer note about why")

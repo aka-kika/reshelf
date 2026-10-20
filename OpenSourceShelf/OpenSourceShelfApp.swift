@@ -50,7 +50,7 @@ private enum LegacyNameMigration {
 /// (next to the intelligence DB) instead of the shared, non-namespaced
 /// `~/Library/Application Support/default.store`. On first run it copies any
 /// existing shared store over so no data is left behind.
-private enum CatalogStoreLocation {
+enum CatalogStoreLocation {
     static func migrateAndResolve() -> URL {
         let fm = FileManager.default
         let root = fm.homeDirectoryForCurrentUser.appendingPathComponent("reshelf", isDirectory: true)
@@ -88,9 +88,34 @@ private enum CatalogStoreLocation {
         return sqlite3_step(statement) == SQLITE_ROW
     }
 
-    /// Set when the catalog file couldn't be opened and was moved aside; shown
-    /// once the app has launched.
-    static var recoveryNotice: String?
+    /// Set when the catalog file couldn't be opened and was moved aside. The
+    /// alert is built after the launch restore, so it can say whether a backup
+    /// was actually restored (ContentView.handleContentAppear).
+    static var recovery: (keptPath: String, error: String)?
+
+    /// Set when even a fresh catalog file couldn't be created: the app runs on
+    /// a temporary in-memory catalog instead of crashing at every launch.
+    static var openFailure: String?
+
+    static func recoveryMessage(restored: Bool) -> String? {
+        if let openFailure {
+            return """
+            reshelf couldn't open or create its catalog file, so it is running on a temporary catalog. \(restored ? "It shows your newest backup, but changes" : "Anything you add") won't be kept after you quit.
+
+            Check that the disk has free space and that ~/reshelf can be written to, then open reshelf again.
+
+            Error: \(openFailure)
+            """
+        }
+        guard let recovery else { return nil }
+        return """
+        reshelf couldn't open its catalog file, so it started a new one\(restored ? " and restored your newest backup into it" : ". No backup was found to restore").
+
+        The old file is kept at \(recovery.keptPath). If you had just used a newer reshelf, quit, update and move that file back to catalog.store.
+
+        Error: \(recovery.error)
+        """
+    }
 
     /// The store couldn't be opened (corrupt file, or a store from a newer
     /// reshelf). Instead of crashing at every launch, move it and its sidecars
@@ -106,13 +131,10 @@ private enum CatalogStoreLocation {
         for suffix in ["", "-wal", "-shm"] where fm.fileExists(atPath: storeURL.path + suffix) {
             try? fm.moveItem(atPath: storeURL.path + suffix, toPath: keptBase + suffix)
         }
-        recoveryNotice = """
-        reshelf couldn't open its catalog file, so it started a new one and restored your newest backup into it.
-
-        The old file is kept at \(keptBase). If you had just used a newer reshelf, quit, update and move that file back to catalog.store.
-
-        Error: \(error.localizedDescription)
-        """
+        recovery = (keptBase, error.localizedDescription)
+        // A new store must get the newest backup, even if the old one had
+        // been emptied on purpose.
+        CatalogBackupService.clearEmptiedByUser()
     }
 }
 
@@ -125,14 +147,6 @@ final class FormatMenuPruner: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.prune()
-        if let notice = CatalogStoreLocation.recoveryNotice {
-            DispatchQueue.main.async {
-                let alert = NSAlert()
-                alert.messageText = "Catalog restored from backup"
-                alert.informativeText = notice
-                alert.runModal()
-            }
-        }
         observer = NotificationCenter.default.addObserver(
             forName: NSApplication.didUpdateNotification,
             object: nil,
@@ -189,7 +203,15 @@ struct OpenSourceShelfApp: App {
                 container = try ModelContainer(for: schema, configurations: config)
             } catch {
                 CatalogStoreLocation.moveAside(storeURL, error: error)
-                container = try ModelContainer(for: schema, configurations: config)
+                do {
+                    container = try ModelContainer(for: schema, configurations: config)
+                } catch {
+                    // Full disk, or ~/reshelf not writable: run on a temporary
+                    // catalog and say so, instead of crashing at every launch.
+                    CatalogStoreLocation.openFailure = error.localizedDescription
+                    container = try ModelContainer(
+                        for: schema, configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true))
+                }
             }
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")

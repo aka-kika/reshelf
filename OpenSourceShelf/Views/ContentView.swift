@@ -318,8 +318,9 @@ struct ContentView: View {
             }
             // Auto-backup: snapshot whenever the project count changes (add/remove)
             // and when the app goes to the background (catches in-place edits).
-            .onChange(of: allProjects.count) { _, _ in
+            .onChange(of: allProjects.count) { oldCount, newCount in
                 CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+                CatalogBackupService.noteProjectCount(old: oldCount, new: newCount)
             }
             .onChange(of: allFolders.count) { _, _ in
                 CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
@@ -364,8 +365,21 @@ struct ContentView: View {
         // Safety net: if the catalog comes up empty but a backup with data exists,
         // restore it instead of seeding defaults over a real (momentarily missing)
         // catalog. Only seed when there's genuinely nothing to restore.
-        if !CatalogBackupService.restoreIfCatalogEmpty(context: modelContext) {
+        let restored = CatalogBackupService.restoreIfCatalogEmpty(context: modelContext)
+        if !restored, !CatalogBackupService.emptiedByUser {
             SeedData.seedIfNeeded(context: modelContext)
+        }
+        if let message = CatalogStoreLocation.recoveryMessage(restored: restored) {
+            let title = CatalogStoreLocation.openFailure != nil
+                ? "Catalog file can't be opened"
+                : (restored ? "Catalog restored from backup" : "Catalog file replaced")
+            CatalogStoreLocation.recovery = nil
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = title
+                alert.informativeText = message
+                alert.runModal()
+            }
         }
         // Reclassify before snapshotting so the launch backup reflects the
         // corrected categories (not the pre-reclassify state).
