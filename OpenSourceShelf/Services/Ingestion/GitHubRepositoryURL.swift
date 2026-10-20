@@ -19,15 +19,19 @@ struct GitHubRepositoryURL: Equatable {
     /// Owner and repo from a link, in their original case (clone folders use
     /// it). Accepts `https://`, `http://`, `ssh://`, no scheme at all, `www.`,
     /// and `git@github.com:owner/repo`. Ignores `/tree/…` and `/blob/…`, a
-    /// `?query` or `#anchor` after the repo, and a trailing `.git`.
+    /// `?query` or `#anchor` after the repo, and a trailing `.git`. Also reads
+    /// `https://git@github.com:owner/repo`, which older builds stored for a
+    /// pasted SSH link, so those rows work until the launch repair fixes them.
     static func ownerAndRepo(from rawValue: String) -> (owner: String, repo: String)? {
         var cleaned = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cleaned.lowercased().hasPrefix("git@github.com:") {
-            cleaned = "github.com/" + cleaned.dropFirst("git@github.com:".count)
-        }
-        for prefix in ["https://", "http://", "ssh://git@", "ssh://"] where cleaned.lowercased().hasPrefix(prefix) {
+        for prefix in ["https://", "http://", "ssh://"] where cleaned.lowercased().hasPrefix(prefix) {
             cleaned = String(cleaned.dropFirst(prefix.count))
             break
+        }
+        if cleaned.lowercased().hasPrefix("git@github.com:") {
+            cleaned = "github.com/" + cleaned.dropFirst("git@github.com:".count)
+        } else if cleaned.lowercased().hasPrefix("git@") {
+            cleaned = String(cleaned.dropFirst("git@".count))
         }
         if cleaned.lowercased().hasPrefix("www.") {
             cleaned = String(cleaned.dropFirst(4))
@@ -50,6 +54,17 @@ struct GitHubRepositoryURL: Equatable {
         // folder paths, and `..` as a repo would point a clone at its parent.
         guard isGitHubName(owner), isGitHubName(repo) else { return nil }
         return (owner, repo)
+    }
+
+    /// `https://github.com/<owner>/<repo>` for a GitHub link written the SSH
+    /// way (`git@github.com:o/r.git`, `ssh://git@github.com/o/r`, or the broken
+    /// `https://git@github.com:o/r` older builds stored). Nil for every other
+    /// link, so plain https links are never rewritten.
+    static func webLink(fromSSH rawValue: String) -> String? {
+        let lower = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard lower.hasPrefix("ssh://") || lower.contains("git@github.com"),
+              let (owner, repo) = ownerAndRepo(from: rawValue) else { return nil }
+        return "https://github.com/\(owner)/\(repo)"
     }
 
     private static func isGitHubName(_ value: String) -> Bool {
@@ -107,5 +122,28 @@ struct GitHubRepositoryURL: Equatable {
             return false
         }
         return value.range(of: #"^[a-z0-9._-]+$"#, options: .regularExpression) != nil
+    }
+}
+
+/// Web links as typed or pasted ("github.com/owner/repo") have no scheme, and
+/// `NSWorkspace.open` then treats them as file paths (Finder error -50).
+/// Lives here, next to the link reader, so a GitHub SSH link becomes the
+/// https link every other part of the app can read.
+enum WebLink {
+    static func normalized(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // "git@github.com:o/r" would otherwise get "https://" glued on and
+        // become a link nothing can read (no clone, no icon, no duplicate check).
+        if let web = GitHubRepositoryURL.webLink(fromSSH: trimmed) { return web }
+        guard !trimmed.isEmpty, !trimmed.contains("://") else { return trimmed }
+        // Only a host-looking start ("github.com/…", "example.org") gets a scheme.
+        let host = trimmed.split(separator: "/", maxSplits: 1).first ?? ""
+        guard host.contains("."), !host.contains(" ") else { return trimmed }
+        return "https://" + trimmed
+    }
+
+    static func url(_ raw: String) -> URL? {
+        let link = normalized(raw)
+        return link.isEmpty ? nil : URL(string: link)
     }
 }
