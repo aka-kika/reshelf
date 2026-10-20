@@ -118,8 +118,15 @@ enum CatalogImportService {
         // local folders that are guaranteed to exist.
         let folderMap = resolveFolders(plan.folders, in: context)
 
+        // A row keeps the file's id unless a repo here (or an earlier row in
+        // this batch) already has it: after a repo's GitHub URL was edited, an
+        // older backup no longer matches it by URL, and reusing its id would
+        // leave two rows with one id (selection and the inspector pick either).
+        var usedIDs = Set(before.map(\.id))
         for row in plan.additions {
             let project = row.makeToolProject()
+            if usedIDs.contains(project.id) { project.id = UUID() }
+            usedIDs.insert(project.id)
             project.folderID = row.folderID.flatMap { folderMap[$0] }
             context.insert(project)
         }
