@@ -47,6 +47,14 @@ struct ProjectListView: View {
     @State private var pendingDuplicateRemoval: Int?
     /// Repos without a clear license about to go to Yard Sale; nil = no dialog.
     @State private var pendingUnlicensedMove: [ToolProject]?
+    /// Repos Refresh Info got "not found" for, waiting on a yes before going
+    /// to Yard Sale; nil = no dialog.
+    @State private var pendingGoneMove: GoneRepos?
+
+    struct GoneRepos {
+        let ids: [UUID]
+        let names: [String]
+    }
     @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
 
     private var sortOrder: CatalogSortOrder {
@@ -334,6 +342,23 @@ struct ProjectListView: View {
         } message: { targets in
             let topShelf = targets.filter { $0.status == .topShelf }.count
             Text("Includes \(topShelf) from Top Shelf. Nothing is deleted: they only change shelf, clones stay on disk, and a backup is saved first.")
+        }
+        .confirmationDialog(
+            "Move \(pendingGoneMove?.ids.count ?? 0) repos GitHub can't find to Yard Sale?",
+            isPresented: Binding(
+                get: { pendingGoneMove != nil },
+                set: { if !$0 { pendingGoneMove = nil } }
+            ),
+            presenting: pendingGoneMove
+        ) { gone in
+            Button("Move \(gone.ids.count) to Yard Sale") {
+                performGoneReposMove(gone)
+            }
+            Button("Keep Them Where They Are", role: .cancel) {}
+        } message: { gone in
+            let names = gone.names.prefix(12).joined(separator: ", ")
+            let more = gone.names.count > 12 ? ", and \(gone.names.count - 12) more" : ""
+            Text("GitHub answered “not found” for: \(names)\(more). That also happens for private repos your token can't see, so keep them if any is yours or private. Nothing is deleted, and a backup is saved first.")
         }
     }
 
@@ -770,38 +795,41 @@ struct ProjectListView: View {
             let result = await RepoInfoRefreshService.refresh(targets, context: modelContext) { done, total in
                 statusNotice = "Refreshing \(shelf.displayName)… \(done) of \(total)"
             }
-            let movedToYardSale = moveGoneReposToYardSale(result.notFound)
             isRefreshingInfo = false
             AppRefreshBus.emit(.catalogStateUpdated)
-            statusNotice = refreshSummary(result, shelf: shelf, movedToYardSale: movedToYardSale)
+            statusNotice = refreshSummary(result, shelf: shelf)
+            // Repos GitHub no longer has can go to Yard Sale (Kika, 2026-10-10),
+            // but only after she says yes: a 404 also comes back for private
+            // repos the token can't see (fine-grained or SSO-limited tokens).
+            let gone = result.notFound.filter { $0.status != .yardSale }
+            if !gone.isEmpty {
+                pendingGoneMove = GoneRepos(ids: gone.map(\.id), names: gone.map(\.name))
+            }
         }
     }
 
-    /// Repos GitHub no longer has go to Yard Sale (Kika, 2026-10-10), after a
-    /// backup — never deleted. Only with a token: without one GitHub also
-    /// answers "not found" for private repos, so those are just reported.
-    /// Returns whether the gone repos are (now) in Yard Sale.
-    private func moveGoneReposToYardSale(_ gone: [ToolProject]) -> Bool {
-        guard GitHubAuth.hasToken else { return false }
-        let targets = gone.filter { $0.status != .yardSale }
-        guard !targets.isEmpty else { return true }
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders)
+    /// The yes from the "not found" dialog: a labelled backup, then the move.
+    /// Never deletes. Rows removed while the dialog was up are skipped.
+    private func performGoneReposMove(_ gone: GoneRepos) {
+        let ids = Set(gone.ids)
+        let targets = allProjects.filter { ids.contains($0.id) && $0.status != .yardSale }
+        guard !targets.isEmpty else { return }
+        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                           reason: "Before moving \(targets.count) repos GitHub can't find to Yard Sale")
         for project in targets { project.status = .yardSale }
         try? modelContext.save()
-        return true
+        AppRefreshBus.emit(.catalogStateUpdated)
+        statusNotice = "Moved \(targets.count) repo\(targets.count == 1 ? "" : "s") GitHub can't find to Yard Sale. A backup was saved."
     }
 
     private func refreshSummary(_ result: RepoInfoRefreshService.Result,
-                                shelf: ProjectStatus,
-                                movedToYardSale: Bool) -> String {
+                                shelf: ProjectStatus) -> String {
         var parts = ["Refreshed \(result.checked) \(shelf.displayName) repo\(result.checked == 1 ? "" : "s")"]
         parts.append("\(result.starsChanged) star count\(result.starsChanged == 1 ? "" : "s") and \(result.licensesChanged) license\(result.licensesChanged == 1 ? "" : "s") changed")
         if !result.notFound.isEmpty {
             let names = result.notFound.prefix(3).map(\.name).joined(separator: ", ")
             let more = result.notFound.count > 3 ? ", …" : ""
-            parts.append(movedToYardSale
-                ? "\(result.notFound.count) no longer on GitHub, now in Yard Sale (\(names)\(more))"
-                : "\(result.notFound.count) no longer on GitHub (\(names)\(more)); add a GitHub token in Settings to move these to Yard Sale automatically")
+            parts.append("\(result.notFound.count) not found on GitHub (\(names)\(more))")
         }
         if result.failed > 0 { parts.append("\(result.failed) couldn't be read") }
         if let limit = result.rateLimitMessage { parts.append(limit) }
