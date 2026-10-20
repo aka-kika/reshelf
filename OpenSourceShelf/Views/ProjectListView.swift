@@ -584,23 +584,33 @@ struct ProjectListView: View {
         statusNotice = "Checking \(cloned.count) clone\(cloned.count == 1 ? "" : "s") for updates…"
         Task {
             var behind: Set<UUID> = []
+            var unchecked: [String] = []
             for project in cloned {
                 // A row deleted during an earlier await is skipped, and the
                 // id is read before awaiting (deleted models can't be read).
                 guard LiveProject.isAlive(project) else { continue }
-                let id = project.id
-                if case .updatesAvailable = await CatalogCloneService.updateStatus(for: project) {
-                    behind.insert(id)
+                let id = project.id, name = project.name
+                let status = await CatalogCloneService.updateStatus(for: project)
+                switch status {
+                case .updatesAvailable: behind.insert(id)
+                case .error: unchecked.append(name)
+                case .upToDate: break
                 }
+                announceCloneStatus(id, status)
             }
             await MainActor.run {
                 behindProjectIDs = behind
                 isCheckingCloneUpdates = false
-                if behind.isEmpty {
-                    statusNotice = "All clones are up to date."
-                } else {
-                    statusNotice = "\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Press ⌘U to pull all."
+                var parts: [String] = []
+                if !behind.isEmpty {
+                    parts.append("\(behind.count) clone\(behind.count == 1 ? " has" : "s have") updates available. Press ⌘U to pull all.")
                 }
+                // Offline, or git missing: every check errors. Never call
+                // that "up to date".
+                if !unchecked.isEmpty {
+                    parts.append("Couldn't check \(unchecked.count) (\(Self.nameList(unchecked))). Are you online?")
+                }
+                statusNotice = parts.isEmpty ? "All clones are up to date." : parts.joined(separator: " ")
             }
         }
     }
@@ -629,6 +639,7 @@ struct ProjectListView: View {
                     try await CatalogCloneService.pull(project)
                     updated += 1
                     pulledIDs.insert(id)
+                    announceCloneStatus(id, .upToDate)
                 } catch let error as GitClientError {
                     if case .localChangesPresent = error { skipped += 1 } else { failed.append(name) }
                 } catch {
@@ -661,15 +672,18 @@ struct ProjectListView: View {
             var skipped = 0
             var failed: [String] = []
             var pulledIDs: Set<UUID> = []
+            var unchecked: [String] = []
             for project in cloned {
                 guard LiveProject.isAlive(project) else { continue }
                 let id = project.id, name = project.name
-                guard case .updatesAvailable = await CatalogCloneService.updateStatus(for: project),
-                      LiveProject.isAlive(project) else { continue }
+                let status = await CatalogCloneService.updateStatus(for: project)
+                if case .error = status { unchecked.append(name) }
+                guard case .updatesAvailable = status, LiveProject.isAlive(project) else { continue }
                 do {
                     try await CatalogCloneService.pull(project)
                     updated += 1
                     pulledIDs.insert(id)
+                    announceCloneStatus(id, .upToDate)
                 } catch let error as GitClientError {
                     if case .localChangesPresent = error { skipped += 1 } else { failed.append(name) }
                 } catch {
@@ -679,11 +693,29 @@ struct ProjectListView: View {
             await MainActor.run {
                 behindProjectIDs.subtract(pulledIDs)
                 isPullingClones = false
-                statusNotice = updated == 0 && skipped == 0 && failed.isEmpty
-                    ? "\(name): all \(cloned.count) up to date."
-                    : "\(name): " + pullSummary(updated: updated, skipped: skipped, failed: failed)
+                let uncheckedNote = unchecked.isEmpty ? ""
+                    : " Couldn't check \(unchecked.count) (\(Self.nameList(unchecked)))."
+                if updated == 0 && skipped == 0 && failed.isEmpty {
+                    statusNotice = unchecked.isEmpty
+                        ? "\(name): all \(cloned.count) up to date."
+                        : "\(name):" + uncheckedNote + " Are you online?"
+                } else {
+                    statusNotice = "\(name): " + pullSummary(updated: updated, skipped: skipped, failed: failed) + uncheckedNote
+                }
             }
         }
+    }
+
+    /// Tells the inspector (and the row dot) what a sweep found for one repo.
+    private func announceCloneStatus(_ id: UUID, _ status: CatalogCloneService.UpdateStatus) {
+        guard status == .upToDate || status == .updatesAvailable else { return }
+        NotificationCenter.default.post(name: .cloneUpdateStatusKnown, object: id.uuidString,
+                                        userInfo: ["behind": status == .updatesAvailable])
+    }
+
+    /// "zotero, ripgrep, fd +2" for a status line.
+    static func nameList(_ names: [String]) -> String {
+        names.prefix(3).joined(separator: ", ") + (names.count > 3 ? " +\(names.count - 3)" : "")
     }
 
     /// One-line result for a Pull All run, e.g.

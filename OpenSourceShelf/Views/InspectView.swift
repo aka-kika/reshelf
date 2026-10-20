@@ -369,6 +369,14 @@ struct InspectView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: project.id) { await autoCheckUpdatesIfCloned() }
+        // Check Clones for Updates and Pull in the list announce what they
+        // found per repo; without this the inspector kept an older answer.
+        .onReceive(NotificationCenter.default.publisher(for: .cloneUpdateStatusKnown)) { note in
+            guard let id = note.object as? String, id == project.id.uuidString,
+                  !isCheckingUpdates, !isPulling else { return }
+            let behind = (note.userInfo?["behind"] as? Bool) ?? false
+            cloneUpdateStatus = behind ? .updatesAvailable : .upToDate
+        }
     }
 
     /// Up-to-date / updates-available / check / pull line for a cloned repo.
@@ -417,26 +425,28 @@ struct InspectView: View {
 
     private func checkUpdates() async {
         isCheckingUpdates = true
+        let id = project.id // the row may be deleted during the check
         let status = await CatalogCloneService.updateStatus(for: project)
         cloneUpdateStatus = status
         isCheckingUpdates = false
         // Keep the list row's "updates available" dot in sync with what we found.
         switch status {
-        case .upToDate: broadcastBehind(false)
-        case .updatesAvailable: broadcastBehind(true)
+        case .upToDate: broadcastBehind(false, id: id)
+        case .updatesAvailable: broadcastBehind(true, id: id)
         case .error: break
         }
     }
 
     private func pullUpdates() {
         isPulling = true
+        let id = project.id
         Task {
             do {
                 try await CatalogCloneService.pull(project)
                 await MainActor.run {
                     isPulling = false
                     cloneUpdateStatus = .upToDate
-                    broadcastBehind(false) // clear the orange row dot now that it's current
+                    broadcastBehind(false, id: id) // clear the orange row dot now that it's current
                 }
             } catch {
                 await MainActor.run { isPulling = false; cloneUpdateStatus = .error(error.localizedDescription) }
@@ -445,10 +455,10 @@ struct InspectView: View {
     }
 
     /// Tell the list whether this repo's clone is behind upstream, so its row dot matches.
-    private func broadcastBehind(_ behind: Bool) {
+    private func broadcastBehind(_ behind: Bool, id: UUID? = nil) {
         NotificationCenter.default.post(
             name: .cloneUpdateStatusKnown,
-            object: project.id.uuidString,
+            object: (id ?? project.id).uuidString,
             userInfo: ["behind": behind]
         )
     }
