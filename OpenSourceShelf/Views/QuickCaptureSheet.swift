@@ -74,7 +74,7 @@ struct QuickCaptureSheet: View {
                     Button("Save") { saveProject() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small).font(.system(size: 13))
-                        .disabled(name.isEmpty || duplicateProject != nil)
+                        .disabled(name.isEmpty || duplicateProject != nil || !isRepoLink)
                         // Return saves once a repo is fetched, so ⌘K → paste →
                         // Enter (fetch) → Enter (save) needs no mouse.
                         .keyboardShortcut(.defaultAction)
@@ -97,6 +97,8 @@ struct QuickCaptureSheet: View {
                                 .font(.system(size: 13))
                                 .onSubmit { handleSubmit() }
                                 .onChange(of: urlText) {
+                                    // An old fetch error would hide the link hint.
+                                    if fetchedInfo == nil { errorMessage = nil }
                                     guard fetchedInfo != nil,
                                           urlText.trimmingCharacters(in: .whitespaces) != fetchedURL else { return }
                                     fetchedInfo = nil
@@ -112,11 +114,14 @@ struct QuickCaptureSheet: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
-                            .disabled(urlText.isEmpty || isFetching || duplicateProject != nil)
+                            .disabled(!isRepoLink || isFetching || duplicateProject != nil)
                         }
                         if let error = errorMessage {
                             Text(error)
                                 .font(.system(size: 11)).foregroundStyle(.red)
+                        } else if !isRepoLink, !urlText.trimmingCharacters(in: .whitespaces).isEmpty {
+                            Text("Not a GitHub repo link yet. Use one like github.com/owner/repo.")
+                                .font(.system(size: 11)).foregroundStyle(.secondary)
                         }
                     }
 
@@ -444,9 +449,15 @@ struct QuickCaptureSheet: View {
             openExisting()
         } else if fetchedInfo == nil {
             fetchRepo()
-        } else if !name.isEmpty {
+        } else if !name.isEmpty, isRepoLink {
             saveProject()
         }
+    }
+
+    /// Save and Fetch need a link GitHub can answer for: any other text would
+    /// be saved as the repo's GitHub URL (reshelf captures GitHub repos only).
+    private var isRepoLink: Bool {
+        GitHubRepositoryURL.ownerAndRepo(from: urlText) != nil
     }
 
     private func fetchRepo() {
@@ -458,15 +469,19 @@ struct QuickCaptureSheet: View {
             do {
                 let info = try await QuickCaptureService.fetchRepoInfo(githubURL: trimmed)
                 await MainActor.run {
+                    isFetching = false
+                    // The link was edited while this fetch ran: its result
+                    // belongs to the old link, so it must not enable Save.
+                    guard urlText.trimmingCharacters(in: .whitespaces) == trimmed else { return }
                     fetchedInfo = info
                     fetchedURL = trimmed
                     populateFields(from: info, url: trimmed)
-                    isFetching = false
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = error.localizedDescription
                     isFetching = false
+                    guard urlText.trimmingCharacters(in: .whitespaces) == trimmed else { return }
+                    errorMessage = error.localizedDescription
                 }
             }
         }
@@ -586,7 +601,7 @@ struct QuickCaptureSheet: View {
 
     private func saveProject() {
         // Safety net behind the disabled Save button / Enter handler.
-        guard duplicateProject == nil else { return }
+        guard duplicateProject == nil, isRepoLink else { return }
         let project = ToolProject(
             name: name.trimmingCharacters(in: .whitespaces),
             shortDescription: shortDescription.trimmingCharacters(in: .whitespaces),
