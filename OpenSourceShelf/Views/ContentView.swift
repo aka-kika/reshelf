@@ -393,6 +393,16 @@ struct ContentView: View {
         if !restored, !CatalogBackupService.emptiedByUser {
             SeedData.seedIfNeeded(context: modelContext)
         }
+        // Once: what the move from the old ~/OpenSourceShelf folder left there.
+        if let notice = LegacyNameMigration.leftBehindNotice {
+            UserDefaults.standard.removeObject(forKey: LegacyNameMigration.noticeKey)
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "Some old files stayed in ~/OpenSourceShelf"
+                alert.informativeText = notice
+                alert.runModal()
+            }
+        }
         if let message = CatalogStoreLocation.recoveryMessage(restored: restored) {
             let title = CatalogStoreLocation.openFailure != nil
                 ? "Catalog file can't be opened"

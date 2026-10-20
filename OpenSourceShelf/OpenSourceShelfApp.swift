@@ -9,26 +9,112 @@ import SQLite3
 /// `com.kika.opensourceshelf`, so the SwiftData catalog (default store, keyed by
 /// bundle ID) and the UserDefaults domain are unchanged — only the on-disk data
 /// folder and our own prefixed keys move.
-private enum LegacyNameMigration {
+enum LegacyNameMigration {
+    /// What stayed in ~/OpenSourceShelf after a merge (one line), see `leftBehindNotice`.
+    static let noticeKey = "reshelf.legacyFolderNotice"
+    private static let mergedKey = "reshelf.legacyFolderMerged"
+
     static func runIfNeeded() {
         migrateDataFolder()
         migrateUserDefaults()
     }
 
-    /// `~/OpenSourceShelf` → `~/reshelf` (intelligence DB + cloned repos).
+    /// One line for the app to show while ~/OpenSourceShelf still holds items
+    /// that ~/reshelf already had. Nil when nothing stayed behind.
+    static var leftBehindNotice: String? {
+        let old = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("OpenSourceShelf", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: old.path) else { return nil }
+        return UserDefaults.standard.string(forKey: noticeKey)
+    }
+
+    /// `~/OpenSourceShelf` → `~/reshelf` (intelligence DB + cloned repos). When
+    /// both exist, merges once instead of skipping silently.
     private static func migrateDataFolder() {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let old = home.appendingPathComponent("OpenSourceShelf", isDirectory: true)
         let new = home.appendingPathComponent("reshelf", isDirectory: true)
-        guard fm.fileExists(atPath: old.path), !fm.fileExists(atPath: new.path) else { return }
-        do {
-            try fm.moveItem(at: old, to: new)
-        } catch {
-            #if DEBUG
-            print("[reshelf] Data folder migration failed: \(error)")
-            #endif
+        guard fm.fileExists(atPath: old.path) else { return }
+        guard fm.fileExists(atPath: new.path) else {
+            do {
+                try fm.moveItem(at: old, to: new)
+            } catch {
+                #if DEBUG
+                print("[reshelf] Data folder migration failed: \(error)")
+                #endif
+            }
+            return
         }
+        // Once only: a later launch must not refill a clone she removed from ~/reshelf.
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: mergedKey) else { return }
+        let leftBehind = mergeDataFolder(from: old, into: new, fileManager: fm)
+        defaults.set(true, forKey: mergedKey)
+        defaults.set(notice(leftBehind: leftBehind), forKey: noticeKey)
+    }
+
+    /// Moves what `new` lacks from `old` into `new`, never overwriting or
+    /// deleting, and returns what stayed in `old` (paths relative to it). The
+    /// catalog store moves with its -wal/-shm only when `new` has none of them;
+    /// `backups` merge file by file and `repos` clone by clone (<Category>/<repo>);
+    /// anything else moves only when `new` has nothing of that name.
+    static func mergeDataFolder(from old: URL, into new: URL,
+                                fileManager fm: FileManager = .default) -> [String] {
+        var leftBehind: [String] = []
+        let store = ["catalog.store", "catalog.store-wal", "catalog.store-shm"]
+        let newHasStore = store.contains { exists(new.appendingPathComponent($0), fm) }
+        for name in store where exists(old.appendingPathComponent(name), fm) {
+            if newHasStore {
+                leftBehind.append(name)
+            } else {
+                move(name, from: old, into: new, levels: 0, fm, &leftBehind)
+            }
+        }
+        let levels = ["backups": 1, "repos": 2]
+        let names = (try? fm.contentsOfDirectory(atPath: old.path)) ?? []
+        for name in names.sorted() where !store.contains(name) {
+            move(name, from: old, into: new, levels: levels[name] ?? 0, fm, &leftBehind)
+        }
+        return leftBehind
+    }
+
+    /// `levels` = how deep a folder both sides have is merged item by item.
+    private static func move(_ relative: String, from old: URL, into new: URL, levels: Int,
+                             _ fm: FileManager, _ leftBehind: inout [String]) {
+        let src = old.appendingPathComponent(relative)
+        let dst = new.appendingPathComponent(relative)
+        if !exists(dst, fm) {
+            // moveItem never replaces an existing item.
+            do { try fm.moveItem(at: src, to: dst) } catch { leftBehind.append(relative) }
+            return
+        }
+        guard levels > 0, isFolder(src, fm), isFolder(dst, fm) else {
+            if src.lastPathComponent != ".DS_Store" { leftBehind.append(relative) }
+            return
+        }
+        let children = (try? fm.contentsOfDirectory(atPath: src.path)) ?? []
+        for child in children.sorted() {
+            move(relative + "/" + child, from: old, into: new, levels: levels - 1, fm, &leftBehind)
+        }
+    }
+
+    /// Also true for a dangling symlink, so it is never moved over.
+    private static func exists(_ url: URL, _ fm: FileManager) -> Bool {
+        (try? fm.attributesOfItem(atPath: url.path)) != nil
+    }
+
+    private static func isFolder(_ url: URL, _ fm: FileManager) -> Bool {
+        var dir: ObjCBool = false
+        return fm.fileExists(atPath: url.path, isDirectory: &dir) && dir.boolValue
+    }
+
+    /// One line naming what stayed behind (first three), or nil.
+    static func notice(leftBehind: [String]) -> String? {
+        guard !leftBehind.isEmpty else { return nil }
+        let shown = leftBehind.prefix(3).joined(separator: ", ")
+        let more = leftBehind.count > 3 ? " and \(leftBehind.count - 3) more" : ""
+        return "Left in ~/OpenSourceShelf because ~/reshelf already had them: \(shown)\(more). Nothing was overwritten or deleted."
     }
 
     /// `OpenSourceShelf.*` keys → `reshelf.*` (same defaults domain; bundle ID unchanged).
