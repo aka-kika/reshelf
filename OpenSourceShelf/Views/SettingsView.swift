@@ -458,7 +458,13 @@ struct SettingsView: View {
     private func saveGitHubToken() {
         let trimmed = githubTokenText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        GitHubAuth.setToken(trimmed)
+        do {
+            try GitHubAuth.setToken(trimmed)
+        } catch {
+            // Keep the typed token in the field so a retry needs no re-paste.
+            githubTokenStatus = error.localizedDescription
+            return
+        }
         githubTokenText = ""
         githubTokenStored = true
         githubTokenStatus = "Saved."
@@ -466,7 +472,12 @@ struct SettingsView: View {
     }
 
     private func removeGitHubToken() {
-        GitHubAuth.removeToken()
+        do {
+            try GitHubAuth.removeToken()
+        } catch {
+            githubTokenStatus = error.localizedDescription
+            return
+        }
         githubTokenText = ""
         githubTokenStored = false
         githubTokenStatus = "Removed."

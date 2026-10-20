@@ -48,41 +48,67 @@ enum GitHubAuth {
 
     static var hasToken: Bool { token != nil }
 
+    /// A Keychain write that didn't work, with the status it returned.
+    struct KeychainError: LocalizedError, Equatable {
+        let status: OSStatus
+        let removing: Bool
+
+        var errorDescription: String? {
+            removing
+                ? "Couldn't remove the token from the Keychain (error \(status))."
+                : "Couldn't save the token to the Keychain (error \(status))."
+        }
+    }
+
     /// Saves the token, replacing any existing one. An empty string removes it.
-    static func setToken(_ raw: String) {
+    /// Throws when the Keychain write fails; the in-memory copy changes only
+    /// after a write that worked, so Settings never says "Saved" for a token
+    /// that isn't there.
+    static func setToken(_ raw: String) throws {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            removeToken()
-            return
-        }
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        let data = Data(trimmed.utf8)
-        let status = SecItemUpdate(base as CFDictionary,
-                                   [kSecValueData as String: data] as CFDictionary)
-        if status == errSecItemNotFound {
-            var add = base
-            add[kSecValueData as String] = data
-            SecItemAdd(add as CFDictionary, nil)
-        }
+        guard !trimmed.isEmpty else { return try removeToken() }
+        let status = saveKeychain(trimmed, service: service, account: account)
+        guard status == errSecSuccess else { throw KeychainError(status: status, removing: false) }
         cacheLock.lock()
         cachedToken = .some(trimmed)
         cacheLock.unlock()
     }
 
-    static func removeToken() {
+    /// Removes the token. A token that was never stored counts as removed.
+    static func removeToken() throws {
+        let status = deleteKeychain(service: service, account: account)
+        guard status == errSecSuccess else { throw KeychainError(status: status, removing: true) }
+        cacheLock.lock()
+        cachedToken = .some(nil)
+        cacheLock.unlock()
+    }
+
+    /// Writes one generic-password item (update, or add when missing).
+    /// `service` is a parameter so tests can use a throwaway item.
+    static func saveKeychain(_ value: String, service: String, account: String) -> OSStatus {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        let data = Data(value.utf8)
+        let status = SecItemUpdate(base as CFDictionary,
+                                   [kSecValueData as String: data] as CFDictionary)
+        guard status == errSecItemNotFound else { return status }
+        var add = base
+        add[kSecValueData as String] = data
+        return SecItemAdd(add as CFDictionary, nil)
+    }
+
+    /// Deletes one generic-password item; "not found" counts as success.
+    static func deleteKeychain(service: String, account: String) -> OSStatus {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        SecItemDelete(query as CFDictionary)
-        cacheLock.lock()
-        cachedToken = .some(nil)
-        cacheLock.unlock()
+        let status = SecItemDelete(query as CFDictionary)
+        return status == errSecItemNotFound ? errSecSuccess : status
     }
 
     /// Adds the Authorization header when a token is stored; no-op otherwise.
