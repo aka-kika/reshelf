@@ -14,8 +14,6 @@ enum IntelligenceDatabaseError: LocalizedError {
 
 final class IntelligenceDatabase {
     static let shared = IntelligenceDatabase()
-    private static let defaultEmbeddingModel = "nomic-embed-text"
-    private static let semanticIndexStateQueryHash = "__semantic_index_state__"
 
     private let fileManager: FileManager
     private let baseDirectoryURL: URL
@@ -70,12 +68,6 @@ final class IntelligenceDatabase {
         try requireDatabaseQueue().write(updates)
     }
 
-    func fetchRepository(id: String) throws -> RepositoryRecord? {
-        try read { db in
-            try RepositoryRecord.fetchOne(db, key: id)
-        }
-    }
-
     func fetchRepository(fullName: String) throws -> RepositoryRecord? {
         try read { db in
             try RepositoryRecord
@@ -126,16 +118,6 @@ final class IntelligenceDatabase {
         }
     }
 
-    func upsert(aiInsight: AIInsightRecord,
-                repositoryScore: RepositoryScoreRecord,
-                ingestionJob: IngestionJobRecord) throws {
-        try write { db in
-            try aiInsight.upsert(db)
-            try repositoryScore.upsert(db)
-            try ingestionJob.upsert(db)
-        }
-    }
-
     func fetchMetadata(repositoryID: String) throws -> RepositoryMetadataRecord? {
         try read { db in
             try RepositoryMetadataRecord.fetchOne(db, key: repositoryID)
@@ -145,38 +127,6 @@ final class IntelligenceDatabase {
     func fetchCloneState(repositoryID: String) throws -> CloneStateRecord? {
         try read { db in
             try CloneStateRecord.fetchOne(db, key: repositoryID)
-        }
-    }
-
-    private func decodeStringArray(_ json: String) -> [String] {
-        guard let data = json.data(using: .utf8),
-              let values = try? JSONDecoder().decode([String].self, from: data) else {
-            return []
-        }
-        return values
-    }
-
-    func fetchActivePipelineJobs(repositoryID: String) throws -> [IngestionJobRecord] {
-        try read { db in
-            let pipelineTypes = Array(CatalogIntelligencePipelineJob.types)
-            return try IngestionJobRecord
-                .filter(Column("repository_id") == repositoryID)
-                .filter(pipelineTypes.contains(Column("type")))
-                .filter(["pending", "running"].contains(Column("status")))
-                .order(Column("created_at").desc)
-                .fetchAll(db)
-        }
-    }
-
-    func fetchLatestFailedPipelineJob(repositoryID: String) throws -> IngestionJobRecord? {
-        try read { db in
-            let pipelineTypes = Array(CatalogIntelligencePipelineJob.types)
-            return try IngestionJobRecord
-                .filter(Column("repository_id") == repositoryID)
-                .filter(pipelineTypes.contains(Column("type")))
-                .filter(Column("status") == "failed")
-                .order(Column("completed_at").desc)
-                .fetchOne(db)
         }
     }
 

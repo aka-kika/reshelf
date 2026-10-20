@@ -60,13 +60,6 @@
 			path = "OpenSourceShelf/Models/CatalogListSelection.swift";
 			sourceTree = SOURCE_ROOT;
 		};
-		D6764E798CF4E16BDB8B88A6 /* AIInsightRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "AIInsightRecord.swift";
-			path = "OpenSourceShelf/Models/Intelligence/AIInsightRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
 		01DD0CEBD5343C0C44787E9D /* CloneStateRecord.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -93,20 +86,6 @@
 			lastKnownFileType = sourcecode.swift;
 			name = "RepositoryRecord.swift";
 			path = "OpenSourceShelf/Models/Intelligence/RepositoryRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		FE0D5A128D3A9931CFBB22BA /* RepositoryScoreRecord.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "RepositoryScoreRecord.swift";
-			path = "OpenSourceShelf/Models/Intelligence/RepositoryScoreRecord.swift";
-			sourceTree = SOURCE_ROOT;
-		};
-		DD0C372CC45921B00B25CB56 /* CatalogIntelligenceStatus.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "CatalogIntelligenceStatus.swift";
-			path = "OpenSourceShelf/Models/Catalog/CatalogIntelligenceStatus.swift";
 			sourceTree = SOURCE_ROOT;
 		};
 		8E8C0D2D278A4F10E4F2006F /* IntelligenceDatabase.swift */ = {
@@ -510,13 +489,10 @@
 				37F255F7393A8F75EB2F40DD /* ToolProject.swift */,
 				LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */,
 				CLS1REF01234567890ABCDEF01 /* CatalogListSelection.swift */,
-				D6764E798CF4E16BDB8B88A6 /* AIInsightRecord.swift */,
 				01DD0CEBD5343C0C44787E9D /* CloneStateRecord.swift */,
 				5F59F9A622EF5A00C6DC42B2 /* IngestionJobRecord.swift */,
 				4CB083F8AA79491C629CA857 /* RepositoryMetadataRecord.swift */,
 				64D2374F43F4F300343BE1E7 /* RepositoryRecord.swift */,
-				FE0D5A128D3A9931CFBB22BA /* RepositoryScoreRecord.swift */,
-				DD0C372CC45921B00B25CB56 /* CatalogIntelligenceStatus.swift */,
 				8E8C0D2D278A4F10E4F2006F /* IntelligenceDatabase.swift */,
 				A4C3FBD350354C15CD25D4C1 /* IntelligenceMigrations.swift */,
 				E0ABEAC1B1EDF262B954C1D2 /* ContentView.swift */,
@@ -652,10 +628,6 @@
 			isa = PBXBuildFile;
 			fileRef = 37F255F7393A8F75EB2F40DD;
 		};
-		0B7F928390FCE2F0D1D5696C /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = D6764E798CF4E16BDB8B88A6;
-		};
 		030C225C1E14B46FCEFB22DE /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 01DD0CEBD5343C0C44787E9D;
@@ -671,14 +643,6 @@
 		5CD0EF1F7E8F08533D1381DA /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 64D2374F43F4F300343BE1E7;
-		};
-		9A3343A23E8DEBE739A088D4 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = FE0D5A128D3A9931CFBB22BA;
-		};
-		E3DEF8B73D9A8B80BFCD4893 /* in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = DD0C372CC45921B00B25CB56;
 		};
 		D8C9EE93B8029986AD6BFE12 /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -930,13 +894,10 @@
 				DEF4DA349BA405B0E952B67B,
 				D30704CE6F993A6E147922F1,
 				9A351B1C2BFE2065F9BF1608,
-				0B7F928390FCE2F0D1D5696C,
 				030C225C1E14B46FCEFB22DE,
 				DE53E47A3460823564E6B178,
 				22A771DBB640E62424217243,
 				5CD0EF1F7E8F08533D1381DA,
-				9A3343A23E8DEBE739A088D4,
-				E3DEF8B73D9A8B80BFCD4893,
 				D8C9EE93B8029986AD6BFE12,
 				471D22C667DA0F6EAF230ABE,
 				A650AF434AD64939BBDF1DFC,
