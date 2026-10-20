@@ -31,6 +31,9 @@ APPLE_EPOCH = 978307200
 
 
 def clone_root():
+    # RESHELF_CLONE_ROOT is for tests: it keeps the app's setting out of it.
+    if os.environ.get("RESHELF_CLONE_ROOT"):
+        return os.path.expanduser(os.environ["RESHELF_CLONE_ROOT"])
     try:
         out = subprocess.run(
             ["defaults", "read", "com.kika.opensourceshelf", "reshelf.cloneRootPath"],
@@ -99,11 +102,20 @@ def _iso_seconds(text):
         return 0.0
 
 
+def _github_name(value):
+    """Same rule as the app (GitHubRepositoryURL): GitHub's own characters,
+    never "." or "..", which would point a clone at its parent folder."""
+    return value not in (".", "..") and re.fullmatch(r"[A-Za-z0-9._-]+", value) is not None
+
+
 def owner_repo(url):
     m = re.search(r"github\.com[/:]([^/\s]+)/([^/\s#?]+)", url or "")
     if not m:
         return None
-    return m.group(1), re.sub(r"\.git$", "", m.group(2))
+    owner, repo = m.group(1), re.sub(r"\.git$", "", m.group(2), flags=re.I)
+    if not (_github_name(owner) and _github_name(repo)):
+        return None
+    return owner, repo
 
 
 def clone_index(root):
@@ -207,8 +219,10 @@ def cmd_find(args):
 # --- clone ---------------------------------------------------------------------
 
 def category_folder(category):
+    """Same as the app's CatalogCloneService.folderName(forCategory:)."""
     cleaned = " ".join(re.sub(r"[/:\\]", " ", category or "").split())
-    return cleaned or "Uncategorized"
+    # "." or ".." would put clones in the root or above it.
+    return "Uncategorized" if cleaned in ("", ".", "..") else cleaned
 
 
 def cmd_clone(args):
@@ -231,7 +245,7 @@ def cmd_clone(args):
     p = matches[0]
     o = owner_repo(p["url"])
     if not o:
-        sys.exit(f"{p['name']} has no GitHub URL, so there is nothing to clone.")
+        sys.exit(f"{p['name']} has no usable GitHub URL ({p['url'] or 'none'}), so there is nothing to clone.")
     if p["status"] == "yardSale":
         sys.exit(f"{p['name']} is in the Yard Sale. Move it back to a shelf in the app first.")
     root = clone_root()
@@ -248,6 +262,9 @@ def cmd_clone(args):
             break
     if dest is None:
         sys.exit(f"Both {o[1]} and {o[0]}-{o[1]} are taken in {folder}. Sort it out in the app.")
+    # Never clone (or clear a leftover folder) anywhere but <root>/<Category>/<repo>.
+    if os.path.dirname(os.path.dirname(os.path.normpath(dest))) != os.path.normpath(root):
+        sys.exit(f"Refusing to clone outside {root}: {dest}")
 
     print(f"Repo:     {p['name']}  ({p['status']})")
     print(f"From:     https://github.com/{o[0]}/{o[1]}")
