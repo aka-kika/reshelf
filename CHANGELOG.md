@@ -5,6 +5,16 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Cleanup (2026-10-20, no change in what the app does)
+- Removed dead code left from the old intelligence engine: the unused status
+  pipeline (`CatalogIntelligenceStatus` and the resolver's snapshot path), the
+  AI insight and score record types, unused database, git, folder, bridge and
+  updater helpers, and the unused `extras/afm-harness` script. Database tables
+  stay, so the store does not change.
+- Clones: the never-used partial-clone (`blobless`) option is gone; clones are
+  the same full clones as before.
+- Fixed outdated code comments and three stale doc lines.
+
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).

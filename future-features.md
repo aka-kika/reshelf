@@ -25,7 +25,7 @@ Ideas **not** built yet — a backlog, not a commitment. The headline next item
 
 ## Clones & workflow
 
-- [ ] Open a clone directly in Cursor / VS Code / Zed from the row menu
+- [x] Open a clone directly in Cursor / VS Code / Zed (shipped as **Open in…** in the inspector's Local Copy section, not the row menu)
 - [ ] Per-repo update history (what changed since you last pulled)
 - [ ] Strict-license **gate before cloning** (not just an inspector caution)
 - [ ] Export a category's clones as a manifest for an AI agent

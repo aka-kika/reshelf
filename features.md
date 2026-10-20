@@ -140,16 +140,16 @@ A fixed 560pt window (reshelf → Settings…, ⌘,), five tabs. Flat rows: the 
 - **About** — app icon, version, one-line description, **Check for Updates…** and automatic checks (Sparkle), "Made by Kika" with three icon-only links (akakika.com, X, GitHub)
 - One `AppSettings` row in SwiftData (appearance is stored separately in `@AppStorage`)
 
-## Intelligence database (foundation, not in UI yet)
+## GitHub metadata store
 
-At launch the app also opens a **GRDB SQLite** database under `~/reshelf/database/opensource-shelf.sqlite` with tables for:
+At launch the app also opens a **GRDB SQLite** database (GRDB = a Swift toolkit for SQLite) under `~/reshelf/database/opensource-shelf.sqlite` with tables for:
 
 - **Repositories** — owner, name, URLs, branch, local path, status
 - **Repository metadata** — stars, topics, license, language, etc.
 - **Clone states** — clone status, path, head, sizes, errors
 - **Ingestion jobs** — queued work with status and progress
 
-This layer is initialized and has a **smoke test** API in code; the shelf UI still uses **SwiftData only**. Bridging catalog ↔ intelligence is planned — see [future-features.md](future-features.md).
+When a repo is captured or imported, its GitHub metadata is recorded here (`CatalogCaptureIntelligenceService`), and the inspector reads the GitHub topics and description from it. The shelf itself (rows, shelves, folders) is **SwiftData only**; nothing new goes into this database.
 
 ## Technical stack
 
