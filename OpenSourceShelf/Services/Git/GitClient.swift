@@ -121,8 +121,9 @@ struct GitClient {
         // Commits made in the clone itself (on HEAD or on the local default
         // branch) that upstream never had. `checkout -B` below would drop them,
         // so a clone like that is skipped, the same way as one with edits.
-        guard try await localOnlyCommitCount(repositoryURL: repositoryURL, branch: branch,
-                                             knownUpstream: knownUpstream) == 0 else {
+        guard try await !hasLocalOnlyCommits(repositoryURL: repositoryURL, branch: branch,
+                                             knownUpstream: knownUpstream,
+                                             cancellationID: cancellationID) else {
             throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
         }
 
@@ -135,19 +136,45 @@ struct GitClient {
                           cancellationID: cancellationID)
     }
 
-    /// Number of commits reachable from HEAD (and the local `branch`, if it
-    /// exists) that are on no remote-tracking branch or tag, now or before the
-    /// last fetch (`knownUpstream`).
-    func localOnlyCommitCount(repositoryURL: URL, branch: String, knownUpstream: [String]) async throws -> Int {
+    /// True when HEAD (or the local `branch`, if it exists) reaches a commit that
+    /// is on no remote-tracking branch or upstream tag, now or before the last
+    /// fetch (`knownUpstream`). Fails closed: any doubt counts as local commits.
+    func hasLocalOnlyCommits(repositoryURL: URL, branch: String, knownUpstream: [String],
+                             cancellationID: String? = nil) async throws -> Bool {
         var tips = ["HEAD"]
         let localBranch = try? await trimmedOutput(
             arguments: ["rev-parse", "--verify", "--quiet", "refs/heads/\(branch)"],
             workingDirectory: repositoryURL)
         if let localBranch, !localBranch.isEmpty { tips.append(localBranch) }
-        let output = try await trimmedOutput(
-            arguments: ["rev-list", "--count"] + tips + ["--not", "--remotes", "--tags"] + knownUpstream,
+
+        // `--tags` covers a clone detached on an upstream release tag whose commit
+        // is on no upstream branch. Tags made in the clone itself must not count
+        // as upstream, or a tagged local commit would be dropped by the reset.
+        let upstreamTags = try await run(arguments: ["ls-remote", "--tags", "--refs", "origin"],
+                                         workingDirectory: repositoryURL,
+                                         cancellationID: cancellationID)
+            .standardOutput.split(whereSeparator: \.isNewline)
+            .compactMap { line -> String? in
+                guard let ref = line.split(separator: "\t").last else { return nil }
+                return ref.hasPrefix("refs/tags/") ? String(ref.dropFirst("refs/tags/".count)) : nil
+            }
+        let localTags = try await trimmedOutput(
+            arguments: ["for-each-ref", "--format=%(refname:strip=2)", "refs/tags"],
             workingDirectory: repositoryURL)
-        return Int(output) ?? 0
+            .split(whereSeparator: \.isNewline).map(String.init)
+        let localOnlyTags = Set(localTags).subtracting(upstreamTags)
+        // `--exclude` takes a glob; git forbids these characters in ref names,
+        // so seeing one means something odd is going on.
+        if localOnlyTags.contains(where: { tag in tag.contains(where: { "*?[\\".contains($0) }) }) {
+            return true
+        }
+
+        let output = try await trimmedOutput(
+            arguments: ["rev-list", "--count"] + tips + ["--not", "--remotes"]
+                + localOnlyTags.sorted().map { "--exclude=\($0)" } + ["--tags"] + knownUpstream,
+            workingDirectory: repositoryURL)
+        guard let count = Int(output) else { return true }
+        return count > 0
     }
 
     /// True when `ancestor` is a commit this clone has and HEAD contains it —
