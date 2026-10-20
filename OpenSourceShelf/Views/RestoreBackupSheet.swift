@@ -16,6 +16,8 @@ struct RestoreBackupSheet: View {
     @State private var puttingBackChanges = false
     /// What restoring the selected snapshot would do: (missing, changed).
     @State private var preview: (missing: Int, changed: Int)?
+    /// True until the first list is read; reading every file happens off main.
+    @State private var isLoading = true
 
     struct SnapshotInfo: Identifiable {
         var id: URL { url }
@@ -40,7 +42,11 @@ struct RestoreBackupSheet: View {
 
             Divider()
 
-            if snapshots.isEmpty {
+            if isLoading && snapshots.isEmpty {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if snapshots.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "clock.badge.questionmark")
                         .font(.system(size: 26))
@@ -142,15 +148,23 @@ struct RestoreBackupSheet: View {
                    CatalogImportService.changedMatches(in: plan, context: modelContext).count)
     }
 
+    /// Reads the files in the background (30 snapshots of a big catalog took
+    /// a visible pause on open), then fills the list on main.
     private func load(keeping selection: URL? = nil) {
-        snapshots = CatalogBackupService.snapshotURLs().map { url in
-            SnapshotInfo(url: url,
-                         date: parseDate(from: url.lastPathComponent),
-                         count: CatalogBackupService.projects(in: url).count,
-                         reason: CatalogBackupService.reason(in: url))
+        Task {
+            let summaries = await Task.detached(priority: .userInitiated) {
+                CatalogBackupService.snapshotSummaries()
+            }.value
+            snapshots = summaries.map { summary in
+                SnapshotInfo(url: summary.url,
+                             date: parseDate(from: summary.url.lastPathComponent),
+                             count: summary.count,
+                             reason: summary.reason)
+            }
+            isLoading = false
+            selected = selection ?? snapshots.first?.url
+            updatePreview()
         }
-        selected = selection ?? snapshots.first?.url
-        updatePreview()
     }
 
     private func restore() {

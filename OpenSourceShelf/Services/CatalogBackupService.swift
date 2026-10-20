@@ -36,9 +36,63 @@ enum CatalogBackupService {
     /// `reason` labels a safety backup taken before a big change; a labelled
     /// one is always written, even when nothing changed since the newest file,
     /// so Restore from Backup can show "Before …" for every such action.
+    /// Synchronous: the file is on disk when this returns, so a safety backup
+    /// is in place before the change it protects.
     static func writeSnapshot(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil) {
         guard !projects.isEmpty else { return }
-        guard let data = try? CatalogExportService.encode(projects, folders: folders, reason: reason) else { return }
+        // Copied on the caller's thread: models must not cross threads.
+        let rows = projects.map(CatalogProjectDTO.init)
+        let folderRows = folders.map(CatalogFolderDTO.init)
+        writeQueue.sync { write(rows, folders: folderRows, reason: reason) }
+    }
+
+    // MARK: - Routine snapshots (debounced)
+
+    /// How long the catalog has to stay still before a routine snapshot is
+    /// written. A bulk import changes the count once per repo; without the wait
+    /// each change wrote a snapshot and 30 kept files were one import's worth.
+    static var debounceDelay: TimeInterval = 2
+
+    @MainActor private static var pendingSnapshot: Task<Void, Never>?
+
+    /// Every write goes through here, one at a time. Routine snapshots encode
+    /// and write here in the background; labelled and quit writes wait on it.
+    private static let writeQueue = DispatchQueue(label: "reshelf.backup-writes", qos: .utility)
+
+    /// Routine snapshot after a change: waits for `debounceDelay` without a
+    /// newer call, then copies the catalog on main and writes it off main.
+    @MainActor
+    static func scheduleSnapshot(from context: ModelContext) {
+        pendingSnapshot?.cancel()
+        pendingSnapshot = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            pendingSnapshot = nil
+            let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+            guard !projects.isEmpty else { return }
+            let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
+            let rows = projects.map(CatalogProjectDTO.init)
+            let folderRows = folders.map(CatalogFolderDTO.init)
+            writeQueue.async { write(rows, folders: folderRows, reason: nil) }
+        }
+    }
+
+    /// On quit: drops the waiting routine snapshot and writes now, synchronously.
+    @MainActor
+    static func writeSnapshotNow(_ projects: [ToolProject], folders: [CatalogFolder] = []) {
+        pendingSnapshot?.cancel()
+        pendingSnapshot = nil
+        writeSnapshot(projects, folders: folders)
+    }
+
+    /// Waits until every queued write is on disk (tests).
+    static func waitForWrites() {
+        writeQueue.sync {}
+    }
+
+    /// Runs on `writeQueue` only.
+    private static func write(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], reason: String?) {
+        guard let data = try? encode(rows, folders: folders, reason: reason) else { return }
 
         // Skip only when the *content* is genuinely unchanged. This used to compare
         // byte lengths, which quietly failed: an edit that swaps one value for
@@ -58,7 +112,7 @@ enum CatalogBackupService {
            fingerprint(of: existingRows) == fingerprint(of: newRows),
            // A new, renamed or reordered folder touches no project row.
            folderFingerprint(of: (try? CatalogExportService.decodeFolders(existing)) ?? [])
-               == folderFingerprint(of: folders.map(CatalogFolderDTO.init)) {
+               == folderFingerprint(of: folders) {
             return // unchanged since last snapshot
         }
 
@@ -82,6 +136,24 @@ enum CatalogBackupService {
             print("[reshelf] Backup write failed: \(error)")
             #endif
         }
+    }
+
+    /// The same file `CatalogExportService.encode` writes, from rows already
+    /// copied off the models.
+    private static func encode(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], reason: String?) throws -> Data {
+        let payload = CatalogSnapshotDTO(
+            exportedAt: Date(),
+            app: "reshelf",
+            version: 1,
+            projectCount: rows.count,
+            projects: rows,
+            folders: folders.isEmpty ? nil : folders,
+            reason: reason
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(payload)
     }
 
     /// Snapshot of everything in the store right now — for a destructive action
@@ -131,6 +203,29 @@ enum CatalogBackupService {
     static func reason(in url: URL) -> String? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return (try? CatalogExportService.decodeReason(data)) ?? nil
+    }
+
+    struct SnapshotSummary {
+        let url: URL
+        let count: Int
+        let reason: String?
+    }
+
+    /// Count and label of every snapshot, newest first, without building the
+    /// project rows. Reads every file: call it off the main thread.
+    static func snapshotSummaries() -> [SnapshotSummary] {
+        snapshotURLs().map { url in
+            let header = (try? Data(contentsOf: url))
+                .flatMap { try? JSONDecoder().decode(SnapshotHeader.self, from: $0) }
+            return SnapshotSummary(url: url, count: header?.projects.count ?? 0, reason: header?.reason)
+        }
+    }
+
+    /// Just enough of a snapshot file for the Restore list.
+    private struct SnapshotHeader: Decodable {
+        struct Skipped: Decodable { init(from decoder: Decoder) {} }
+        let projects: [Skipped]
+        let reason: String?
     }
 
     /// The newest snapshot that actually contains projects.

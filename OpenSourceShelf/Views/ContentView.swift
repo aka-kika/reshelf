@@ -329,16 +329,18 @@ struct ContentView: View {
             }
             // Auto-backup: snapshot whenever the project count changes (add/remove)
             // and when the app goes to the background (catches in-place edits).
+            // Written 2 seconds after the last change, so a bulk import is one
+            // snapshot, not one per repo.
             .onChange(of: allProjects.count) { oldCount, newCount in
-                CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+                CatalogBackupService.scheduleSnapshot(from: modelContext)
                 CatalogBackupService.noteProjectCount(old: oldCount, new: newCount)
             }
             .onChange(of: allFolders.count) { _, _ in
-                CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+                CatalogBackupService.scheduleSnapshot(from: modelContext)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active {
-                    CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+                    CatalogBackupService.scheduleSnapshot(from: modelContext)
                 }
             }
             // …and on quit. `scenePhase` is not reliably delivered before the
@@ -349,7 +351,7 @@ struct ContentView: View {
             // the window a last write needs.
             .onReceive(NotificationCenter.default.publisher(
                 for: NSApplication.willTerminateNotification)) { _ in
-                CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+                CatalogBackupService.writeSnapshotNow(allProjects, folders: allFolders)
             }
     }
 
