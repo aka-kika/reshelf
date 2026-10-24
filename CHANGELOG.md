@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A repo named like a compound topic is categorized from that name.** browser-use lands in Computer Use even when GitHub sent no topics.
 - **Renaming a folder onto an existing name is refused.** Capitals do not make it a different folder, same as creating one.
 - **Move N Clones to Trash lists every failure.** An earlier clone that could not be moved is no longer replaced by the last message.
 - **Send to reshelf stops when the save fails.** It no longer fetches an icon or runs Capture Assist for a repo that was not saved. Quick Capture already stopped.

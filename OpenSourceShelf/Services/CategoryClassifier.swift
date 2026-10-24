@@ -334,7 +334,12 @@ enum CategoryClassifier {
             topicTerms.insert(lowered)
             topicTerms.formUnion(tokens(of: lowered))
         }
-        let nameTokens = Set(tokens(of: name.lowercased()))
+        let loweredName = name.lowercased()
+        // The whole name too ("browser-use"), not only its split tokens
+        // ("browser", "use"). A compound topic otherwise never matches the name.
+        var nameTokens = Set(tokens(of: loweredName))
+        nameTokens.insert(loweredName)
+        nameTokens.insert(tokens(of: loweredName).joined(separator: "-"))
         let descWords = normalizedWords(description)
 
         var best: (category: String, score: Int)?
