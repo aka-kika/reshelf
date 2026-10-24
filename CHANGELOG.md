@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A catalog restored at launch is classified.** The one-time category tidy no longer marks itself done while it is still looking at the empty list from before the restore.
 - **Import GitHub URLs writes a labelled backup before it adds anything.** If that backup cannot be written, nothing is imported and the links stay in the box.
 - **The agent skill's folder map cannot be pointed outside the clone folder.** A category name is cleaned the same way the app cleans one, so "." and ".." and slashes stay inside the clone root.
 - **Refresh Info no longer says every repo is cloned when some have no GitHub link.** It says so.

@@ -417,12 +417,16 @@ struct ContentView: View {
         }
         // Reclassify before snapshotting so the launch backup reflects the
         // corrected categories (not the pre-reclassify state).
+        // Fetch here, not from @Query: a restore that just ran has written
+        // the rows, and the query can still be the empty list from launch.
         mergeCategoriesIfNeeded()
         reclassifyProjectsIfNeeded()
         repairSchemelessLinks()
+        let projects = freshProjects()
+        let folders = freshFolders()
         // Tidy any legacy flat clones into their category subfolders.
-        CatalogCloneService.migrateClonesIntoCategoryFolders(allProjects)
-        CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+        CatalogCloneService.migrateClonesIntoCategoryFolders(projects)
+        CatalogBackupService.writeSnapshot(projects, folders: folders)
         ensureCatalogSelectionIfNeeded()
         applyColumnVisibility()
     }
@@ -627,9 +631,19 @@ struct ContentView: View {
 
     /// Rows imported before WebLink existed can hold "github.com/…" without a
     /// scheme. Only adds "https://"; never changes a link that has one.
+    /// The catalog as stored right now. `@Query` can still be empty on the
+    /// turn a launch restore inserted the rows.
+    private func freshProjects() -> [ToolProject] {
+        (try? modelContext.fetch(FetchDescriptor<ToolProject>())) ?? allProjects
+    }
+
+    private func freshFolders() -> [CatalogFolder] {
+        (try? modelContext.fetch(FetchDescriptor<CatalogFolder>())) ?? allFolders
+    }
+
     private func repairSchemelessLinks() {
         var changed = false
-        for project in allProjects {
+        for project in freshProjects() {
             let github = WebLink.normalized(project.githubURL)
             let website = WebLink.normalized(project.websiteURL)
             if github != project.githubURL { project.githubURL = github; changed = true }
@@ -644,11 +658,12 @@ struct ContentView: View {
     private func mergeCategoriesIfNeeded() {
         guard storedCategoryMergeVersion < Self.categoryMergeVersion else { return }
         let merges = CategoryClassifier.mergedCategories
-        let affected = allProjects.filter {
+        let projects = freshProjects()
+        let affected = projects.filter {
             merges[$0.category.trimmingCharacters(in: .whitespaces)] != nil
         }
         if !affected.isEmpty {
-            CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+            CatalogBackupService.writeSnapshot(projects, folders: freshFolders())
             for project in affected {
                 if let merged = merges[project.category.trimmingCharacters(in: .whitespaces)] {
                     project.category = merged
@@ -662,11 +677,12 @@ struct ContentView: View {
 
     private func reclassifyProjectsIfNeeded() {
         let force = storedClassifierVersion < Self.classifierVersion
+        let projects = freshProjects()
         if force {
-            CatalogBackupService.writeSnapshot(allProjects, folders: allFolders)
+            CatalogBackupService.writeSnapshot(projects, folders: freshFolders())
         }
         var changed = false
-        for project in allProjects {
+        for project in projects {
             // Empty / raw-language categories are always re-scored; classifier-
             // produced ones only on a version bump; user-typed labels never.
             guard CategoryClassifier.shouldReclassify(project.category, force: force) else { continue }
