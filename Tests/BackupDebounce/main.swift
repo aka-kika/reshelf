@@ -115,6 +115,20 @@ func run() async throws {
     let newestEdit = files()[0]
     let savedNote = CatalogBackupService.projects(in: newestEdit).contains { $0.notes == "saved from the shelf" }
     check("in-place edit is in the newest snapshot", files().count == beforeEdit + 1 && savedNote)
+
+    // 7. A backup that cannot be written reports failure (4fc5). The caller
+    //    stops the delete or the Yard Sale move instead of saying it was saved.
+    func catalogFiles(in dir: URL) -> Int {
+        ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix("catalog-") }.count
+    }
+    let blocker = backups.appendingPathComponent("not-a-folder")
+    try Data("x".utf8).write(to: blocker)
+    let beforeBlock = catalogFiles(in: backups)
+    CatalogBackupService.backupsDirectoryOverride = blocker
+    let wrote = CatalogBackupService.writeSnapshot(all(ctx), reason: "Before removing one")
+    check("a backup that cannot be written returns false", wrote == false)
+    check("a failed backup writes no file", catalogFiles(in: backups) == beforeBlock)
 }
 
 try await run()

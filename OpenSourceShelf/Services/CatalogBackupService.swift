@@ -38,12 +38,17 @@ enum CatalogBackupService {
     /// so Restore from Backup can show "Before …" for every such action.
     /// Synchronous: the file is on disk when this returns, so a safety backup
     /// is in place before the change it protects.
-    static func writeSnapshot(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil) {
-        guard !projects.isEmpty else { return }
+    /// `false` when the file could not be written (full disk, a folder that
+    /// is not a folder). Callers that are about to delete or move repos stop.
+    /// An empty catalog and a routine snapshot that matches the newest file
+    /// both count as success: there is nothing new to protect.
+    @discardableResult
+    static func writeSnapshot(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil) -> Bool {
+        guard !projects.isEmpty else { return true }
         // Copied on the caller's thread: models must not cross threads.
         let rows = projects.map(CatalogProjectDTO.init)
         let folderRows = folders.map(CatalogFolderDTO.init)
-        writeQueue.sync { write(rows, folders: folderRows, reason: reason) }
+        return writeQueue.sync { write(rows, folders: folderRows, reason: reason) }
     }
 
     // MARK: - Routine snapshots (debounced)
@@ -73,7 +78,7 @@ enum CatalogBackupService {
             let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
             let rows = projects.map(CatalogProjectDTO.init)
             let folderRows = folders.map(CatalogFolderDTO.init)
-            writeQueue.async { write(rows, folders: folderRows, reason: nil) }
+            writeQueue.async { _ = write(rows, folders: folderRows, reason: nil) }
         }
     }
 
@@ -90,9 +95,9 @@ enum CatalogBackupService {
         writeQueue.sync {}
     }
 
-    /// Runs on `writeQueue` only.
-    private static func write(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], reason: String?) {
-        guard let data = try? encode(rows, folders: folders, reason: reason) else { return }
+    /// Runs on `writeQueue` only. `false` when the bytes could not be written.
+    private static func write(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], reason: String?) -> Bool {
+        guard let data = try? encode(rows, folders: folders, reason: reason) else { return false }
 
         // Skip only when the *content* is genuinely unchanged. This used to compare
         // byte lengths, which quietly failed: an edit that swaps one value for
@@ -113,7 +118,7 @@ enum CatalogBackupService {
            // A new, renamed or reordered folder touches no project row.
            folderFingerprint(of: (try? CatalogExportService.decodeFolders(existing)) ?? [])
                == folderFingerprint(of: folders) {
-            return // unchanged since last snapshot
+            return true // unchanged since last snapshot
         }
 
         // Never reuse an existing snapshot's name. Two writes can land in the
@@ -131,10 +136,12 @@ enum CatalogBackupService {
         do {
             try data.write(to: url, options: .atomic)
             prune()
+            return true
         } catch {
             #if DEBUG
             print("[reshelf] Backup write failed: \(error)")
             #endif
+            return false
         }
     }
 
@@ -159,10 +166,11 @@ enum CatalogBackupService {
     /// Snapshot of everything in the store right now — for a destructive action
     /// in a view that doesn't hold the whole catalog (the inspector's Delete).
     @MainActor
-    static func writeSnapshot(from context: ModelContext, reason: String? = nil) {
+    @discardableResult
+    static func writeSnapshot(from context: ModelContext, reason: String? = nil) -> Bool {
         let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
         let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
-        writeSnapshot(projects, folders: folders, reason: reason)
+        return writeSnapshot(projects, folders: folders, reason: reason)
     }
 
     private static func prune() {

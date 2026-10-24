@@ -629,7 +629,15 @@ struct InspectView: View {
     }
 
     private func deleteProject() {
-        CatalogBackupService.writeSnapshot(from: modelContext, reason: "Before removing \(project.name)")
+        guard CatalogBackupService.writeSnapshot(from: modelContext, reason: "Before removing \(project.name)") else {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Couldn't save a backup"
+            alert.informativeText = "Nothing was removed. Check that the disk has free space, then try again."
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
         modelContext.delete(project)
         CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)

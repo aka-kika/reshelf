@@ -263,9 +263,10 @@ struct ProjectListView: View {
             presenting: pendingBatchDelete
         ) { targets in
             Button("Remove \(targets.count) from Catalog", role: .destructive) {
-                deleteProjects(targets)
-                statusNotice = "Removed \(targets.count) projects from the catalog. A backup was saved."
-                clearBatchSelection()
+                if deleteProjects(targets) {
+                    statusNotice = "Removed \(targets.count) projects from the catalog. A backup was saved."
+                    clearBatchSelection()
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: { targets in
@@ -816,8 +817,11 @@ struct ProjectListView: View {
     private func performRemoveDuplicates() {
         let groups = duplicateGroups()
         guard !groups.isEmpty else { return }
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
-                                           reason: "Before Remove Duplicate Repos") // recoverable via Restore from Backup
+        guard CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                                 reason: "Before Remove Duplicate Repos") else {
+            statusNotice = Self.backupFailedNotice
+            return
+        }
         var removed = 0
         for group in groups {
             let ranked = group.sorted { a, b in
@@ -873,8 +877,11 @@ struct ProjectListView: View {
         let ids = Set(gone.ids)
         let targets = allProjects.filter { ids.contains($0.id) && $0.status != .yardSale }
         guard !targets.isEmpty else { return }
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
-                                           reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") GitHub can't find to Yard Sale")
+        guard CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                                 reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") GitHub can't find to Yard Sale") else {
+            statusNotice = Self.backupFailedNotice
+            return
+        }
         for project in targets { project.status = .yardSale }
         CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
@@ -907,8 +914,11 @@ struct ProjectListView: View {
     }
 
     private func performYardSaleUnlicensed(_ targets: [ToolProject]) {
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
-                                           reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") without a license to Yard Sale")
+        guard CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                                 reason: "Before moving \(targets.count) repo\(targets.count == 1 ? "" : "s") without a license to Yard Sale") else {
+            statusNotice = Self.backupFailedNotice
+            return
+        }
         for project in targets { project.status = .yardSale }
         CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
@@ -919,21 +929,30 @@ struct ProjectListView: View {
 
     private func deleteProject(_ project: ToolProject) {
         let name = project.name
-        deleteProjects([project])
+        guard deleteProjects([project]) else { return }
         statusNotice = "Removed “\(name)” from the catalog. A backup was saved."
     }
 
-    /// One backup, then the deletes, then one save.
-    private func deleteProjects(_ projects: [ToolProject]) {
+    /// Shown when the safety backup could not be written. The change does not run.
+    private static let backupFailedNotice =
+        "Couldn't save a backup, so nothing was changed. Check that the disk has free space."
+
+    /// One backup, then the deletes, then one save. `false` leaves the catalog as it was.
+    @discardableResult
+    private func deleteProjects(_ projects: [ToolProject]) -> Bool {
         let what = projects.count == 1 ? projects[0].name : "\(projects.count) repos"
-        CatalogBackupService.writeSnapshot(allProjects, folders: folders,
-                                           reason: "Before removing \(what)") // recoverable via Restore from Backup
+        guard CatalogBackupService.writeSnapshot(allProjects, folders: folders,
+                                                 reason: "Before removing \(what)") else {
+            statusNotice = Self.backupFailedNotice
+            return false
+        }
         for project in projects {
             if listSelection?.projectID == project.id { listSelection = nil }
             modelContext.delete(project)
         }
         CatalogSave.save(modelContext)
         AppRefreshBus.emit(.catalogStateUpdated)
+        return true
     }
 
     private var filteredProjects: [ToolProject] {
