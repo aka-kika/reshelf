@@ -60,8 +60,15 @@ enum CatalogSave {
             Error: \(error.localizedDescription)
             """
             alert.addButton(withTitle: "OK")
-            alert.runModal()
-            alertShowing = false
+            // A sheet on the front window, not runModal: a save can fail from
+            // async code while a SwiftUI sheet is up, and a nested modal loop
+            // there could freeze the window. The front window can be that sheet.
+            if let window = NSApp.keyWindow ?? NSApp.mainWindow, window.isVisible {
+                alert.beginSheetModal(for: window) { _ in alertShowing = false }
+            } else {
+                alert.runModal()
+                alertShowing = false
+            }
         }
     }
 }
