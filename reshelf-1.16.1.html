@@ -1,0 +1,80 @@
+<html><body>
+<p>Fixes from the 24 October review (Grok's pass), its second check, and the seven leftovers on the Runway card.</p>
+<h3>Fixed</h3>
+<ul>
+<li>Clones in a custom clone folder made before 1.16.1 keep their Cloned badge. On the first launch, a clone at the exact folder reshelf would have used for a catalog repo, with that repo as its origin, gets the marker. Clone no longer makes a second copy of it, and Remove Local Clone reaches it. A clone folder set to the default path by hand counts as the default.</li>
+<li>Update checks and Pull follow the checked-out branch. A clone on another branch that upstream has is compared with that branch and stays on it after Pull. Tags are fetched only after the safety checks, and a tag moved onto a local commit still protects it.</li>
+<li>Labelled "Before …" backups stop at the newest 40, told apart by file name, so pruning no longer opens every backup. A labelled backup from 1.16.0 is renamed, not deleted, when it ages out.</li>
+<li>Backups written in the same second keep their order. A new one is numbered above the others instead of into a gap a prune left, where it sorted as older and was pruned at once.</li>
+<li>A timed-out git command no longer closes pipes another thread is reading. The 1.16.0-review change that did is reverted; the readers finish on their own.</li>
+<li>Import GitHub URLs, Import Catalog and Restore use the save result. A repo that could not be saved is not counted, the run stops and keeps the links, and the unsaved rows are taken back out. Edit puts the repo back as it was on a failed save, so Cancel keeps nothing.</li>
+<li>The save-failed alert is a sheet on the front window, not a modal run from async code that could freeze with a sheet open.</li>
+<li>Refresh Info keeps a hand-typed license when GitHub reports none or NOASSERTION. A real license from GitHub still replaces it.</li>
+<li>Coming back to reshelf rescans the clone folder off the main thread. A scan that started before a clone or a removal does not overwrite the newer index.</li>
+<li>Icons fit inside 64 pt (wide ones were larger) and are resized with ImageIO, safe off the main thread.</li>
+<li>An avatar that failed is not asked for again for a day, one entry per owner, so a relaunch or a bulk import does not ask once per repo.</li>
+<li>Quick Capture's second fetch clears the first repo's "Why you're saving this" too, and keeps anything typed while the fetch ran.</li>
+<li>⌘T, ⌘Y and ⌘⇧G move only the batch rows the list shows, clear the batch afterwards, and a batch of one moves that row.</li>
+<li>A clone cut off before any data arrived is replaced by the next Clone. A hidden file beside the target marks a clone reshelf started; a checkout someone made with no commits is still left alone.</li>
+<li>A blank folder rename is ignored instead of saying the name is already used.</li>
+<li>The agent skill reads a clone's identity from the origin remote only, like the app.</li>
+<li>features.md says where a category outside the sidebar set shows (All Projects and search).</li>
+<li>The restore preview reads the backup file off the main thread. Choosing a backup no longer decodes it on the thread that draws the window.</li>
+<li>Clone no longer replaces a checkout that has no commits yet. Only a clone that never wrote its index is moved to the Trash. Anything else is left in place and reported as in the way.</li>
+<li>The metadata lookup no longer has a dead second URL check. It matches the GitHub link, then owner and name. The docs say the same.</li>
+<li>Edit refuses a name that is only spaces. Save stays off, so a row cannot become blank.</li>
+<li>A repo named like a compound topic is categorized from that name. browser-use lands in Computer Use even when GitHub sent no topics.</li>
+<li>Renaming a folder onto an existing name is refused. Capitals do not make it a different folder, same as creating one.</li>
+<li>Move N Clones to Trash lists every failure. An earlier clone that could not be moved is no longer replaced by the last message.</li>
+<li>Send to reshelf stops when the save fails. It no longer fetches an icon or runs Capture Assist for a repo that was not saved. Quick Capture already stopped.</li>
+<li>A failed Send to reshelf link says why. The list status line shows the reason instead of only beeping.</li>
+<li>Why I saved this reports a failed save. Leaving the field saves through the same path as the rest of the catalog, so a full disk shows the alert.</li>
+<li>A failed save no longer finishes the one-time category merge. Clone folders stay put, and the merge runs again next launch.</li>
+<li>Remove Duplicate Repos keeps Local-First and Self-Hosted. A flag set on either copy stays set, and it counts when choosing which copy to keep.</li>
+<li>Emptying the shelf is remembered immediately. A quit in that moment no longer lets the next launch restore every repo.</li>
+<li>Picking a repo in Search shows it, even when a filter was hiding it. The list goes back to All Projects and the search box clears.</li>
+<li>The inspector no longer shows another owner's description when this repo has no metadata row yet. The lookup matches owner and name, not the bare repo name.</li>
+<li>Two quick Send to reshelf links for the same repo save it once. The duplicate check runs again after the GitHub fetch.</li>
+<li>Fetching a second link in Quick Capture clears the first repo's note, use cases and flags.</li>
+<li>Return while Quick Capture is still fetching does not start a second request.</li>
+<li>A catalog restored at launch is classified. The one-time category tidy no longer marks itself done while it is still looking at the empty list from before the restore.</li>
+<li>Import GitHub URLs writes a labelled backup before it adds anything. If that backup cannot be written, nothing is imported and the links stay in the box.</li>
+<li>The agent skill's folder map cannot be pointed outside the clone folder. A category name is cleaned the same way the app cleans one, so "." and ".." and slashes stay inside the clone root.</li>
+<li>Refresh Info no longer says every repo is cloned when some have no GitHub link. It says so.</li>
+<li>A clone is recognized from its origin remote only. Another github.com link in the git config no longer decides which repo the folder is.</li>
+<li>Saving a repo and deleting it in the same moment no longer crashes. The metadata step checks the row is still there before it reads it.</li>
+<li>C, C++ and C# stay three tags. The sidebar no longer folds + and # out of a tag.</li>
+<li>Search finds a repo by its owner or its website. Both links are part of the search.</li>
+<li>A custom category is no longer filed under a shorter one. Client does not show under CLI, and Multimedia does not show under Media. The sidebar matches the whole category name.</li>
+<li>A repo or an owner named tree or blob can be captured. Those words are only skipped when they come after the repo, as in a link to a file or a branch.</li>
+<li>A backup taken before you had any folders can take a repo back out of a folder. The file now records an empty folder list instead of leaving the list out.</li>
+<li>GitHub's second rate limit stops Refresh. A 403 that carries Retry-After is treated as the limit, so Refresh does not keep asking.</li>
+<li>Quick Capture does not fetch a README. The docs no longer say it can.</li>
+<li>A few doc lines now match the app. ⌘K does not keep recent searches. The agent skill installs from Settings → Library, and it is the only skill in extras. The GitHub token is already in Settings → Capture. An emptied shelf is not refilled from a backup.</li>
+<li>Restore no longer brings back a folder you deleted when it has nothing to restore. A folder is created only when a repo coming back from that backup uses it.</li>
+<li>Clone no longer deletes a file that is sitting where the clone would go. An empty leftover folder goes to the Trash. Anything else stops the clone and stays put.</li>
+<li>Quick Capture has a Notes field. The note Capture Assist writes is on the form before you save.</li>
+<li>⌘-click adds to the row you already clicked. The batch count matches the rows that look selected, and ⌘T, ⌘Y and ⌘⇧G move that batch.</li>
+<li>Put back changes restores the shelf, tags, notes and folder only. Name, links, description and category stay as they are. The restore sheet already said this.</li>
+<li>A backup taken before a big change is not deleted when the 30 routine snapshots fill up. Restore from Backup can still find that undo point.</li>
+<li>Import GitHub URLs keeps a link that failed. Offline, or with a bad token, the links that didn't import stay in the box for the next try. Duplicates that were skipped do not.</li>
+<li>The one-time category merge no longer moves folders inside a custom clone folder. That folder can hold your own projects, and the merge does not check that a folder is a clone.</li>
+<li>Moving a batch of repos to a shelf, and deleting a folder, write a labelled backup first. If that backup cannot be written, nothing changes. Restore from Backup can undo either one.</li>
+<li>A backup that cannot be written no longer says it was saved. Delete, Remove Duplicate Repos and the Yard Sale moves stop, and say to check the disk has free space.</li>
+<li>The Website link opens only web pages. A homepage set to `file://` or `smb://` is no longer handed to Finder.</li>
+<li>Shelf moves, tags, notes and folder changes are backed up within 2 seconds, the same as adding or deleting a repo. Before, those waited until you quit.</li>
+<li>Deleting a repo while it is cloning no longer crashes. The status line keeps the repo's name from before the clone started.</li>
+<li>A custom clone folder no longer treats your own projects as clones. Remove Local Clone and Pull only touch clones reshelf made (a marker written when the clone finishes). Clones already in the default folder are marked the first time they're seen. A checkout in a folder you chose is left alone, and the agent skill follows the same rule.</li>
+</ul>
+<h3>Cleanup (2026-10-20, no change in what the app does)</h3>
+<ul>
+<li>Removed dead code left from the old intelligence engine: the unused status</li>
+    pipeline (`CatalogIntelligenceStatus` and the resolver's snapshot path), the
+    AI insight and score record types, unused database, git, folder, bridge and
+    updater helpers, and the unused `extras/afm-harness` script. Database tables
+    stay, so the store does not change.
+<li>Clones: the never-used partial-clone (`blobless`) option is gone; clones are</li>
+    the same full clones as before.
+<li>Fixed outdated code comments and three stale doc lines.</li>
+</ul>
+</body></html>
