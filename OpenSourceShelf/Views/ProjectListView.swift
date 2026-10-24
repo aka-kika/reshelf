@@ -375,25 +375,17 @@ struct ProjectListView: View {
     /// The inspector keeps following `listSelection` throughout, so building a
     /// batch never costs you the detail view of what you last looked at.
     private func selectProject(_ project: ToolProject, modifiers: EventModifiers = []) {
-        if modifiers.contains(.command) {
-            if batchSelection.contains(project.id) {
-                batchSelection.remove(project.id)
-            } else {
-                batchSelection.insert(project.id)
-                if batchAnchor == nil { batchAnchor = project.id }
-            }
-            return
+        let state = CatalogBatchClick.apply(
+            .init(batch: batchSelection, anchor: batchAnchor, selected: listSelection?.projectID),
+            clicked: project.id,
+            command: modifiers.contains(.command),
+            shift: modifiers.contains(.shift),
+            orderedIDs: filteredProjects.map(\.id))
+        batchSelection = state.batch
+        batchAnchor = state.anchor
+        if let id = state.selected {
+            listSelection = .project(id)
         }
-        if modifiers.contains(.shift), let anchor = batchAnchor ?? listSelection?.projectID {
-            let ids = filteredProjects.map(\.id)
-            if let from = ids.firstIndex(of: anchor), let to = ids.firstIndex(of: project.id) {
-                batchSelection.formUnion(ids[min(from, to)...max(from, to)])
-                return
-            }
-        }
-        batchSelection.removeAll()
-        batchAnchor = project.id
-        listSelection = .project(project.id)
     }
 
     private func clearBatchSelection() {
@@ -548,10 +540,28 @@ struct ProjectListView: View {
         CatalogSave.save(modelContext)
     }
 
-    /// ⌘T / ⌘Y / ⌘⇧G — move the currently selected repo to a shelf.
+    /// ⌘T / ⌘Y / ⌘⇧G — move the batch when more than one row is in it,
+    /// otherwise the repo the inspector is showing.
     private func moveSelectedToShelf(_ rawStatus: String?) {
-        guard let rawStatus, let shelf = ProjectStatus(rawValue: rawStatus),
-              let id = listSelection?.projectID,
+        guard let rawStatus, let shelf = ProjectStatus(rawValue: rawStatus) else { return }
+        if batchSelection.count > 1 {
+            let projects = allProjects.filter { batchSelection.contains($0.id) }
+            guard !projects.isEmpty else { return }
+            let moving = projects.filter { $0.status != shelf }
+            guard !moving.isEmpty else { return }
+            let noun = moving.count == 1 ? "repo" : "repos"
+            guard CatalogBackupService.writeSnapshot(
+                allProjects, folders: folders,
+                reason: "Before moving \(moving.count) \(noun) to \(shelf.displayName)") else {
+                statusNotice = Self.backupFailedNotice
+                return
+            }
+            for project in moving { project.status = shelf }
+            CatalogSave.save(modelContext)
+            statusNotice = "Moved \(moving.count) \(noun) to \(shelf.displayName). A backup was saved."
+            return
+        }
+        guard let id = listSelection?.projectID,
               let project = allProjects.first(where: { $0.id == id }) else { return }
         guard project.status != shelf else { return }
         setShelf(shelf, for: project)

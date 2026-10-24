@@ -30,7 +30,7 @@ Stored fields you can view and edit:
 - Category, license, star count (text)
 - Tags and use cases (lists)
 - Personal notes
-- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). In the list, a row shows its shelf as a small icon on the right, next to the clone icon: Top Shelf a **star**, Yard Sale a **tag** (same symbols and soft colors as the sidebar); The Collector, the default, shows none. The inspector header keeps the colored shelf badge. With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / right-click **Move to** — so you can sort straight after capturing without the mouse
+- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). In the list, a row shows its shelf as a small icon on the right, next to the clone icon: Top Shelf a **star**, Yard Sale a **tag** (same symbols and soft colors as the sidebar); The Collector, the default, shows none. The inspector header keeps the colored shelf badge. With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / right-click **Move to** — so you can sort straight after capturing without the mouse. ⌘-click adds to the row you already selected, and those shortcuts move the whole batch
 - **Local-first** and **self-hosted** flags
 - Repo **icon** (fetched and cached)
 - **Added** and **last checked** dates
