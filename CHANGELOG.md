@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A custom category is no longer filed under a shorter one.** Client does not show under CLI, and Multimedia does not show under Media. The sidebar matches the whole category name.
 - **A repo or an owner named tree or blob can be captured.** Those words are only skipped when they come after the repo, as in a link to a file or a branch.
 - **A backup taken before you had any folders can take a repo back out of a folder.** The file now records an empty folder list instead of leaving the list out.
 - **GitHub's second rate limit stops Refresh.** A 403 that carries Retry-After is treated as the limit, so Refresh does not keep asking.

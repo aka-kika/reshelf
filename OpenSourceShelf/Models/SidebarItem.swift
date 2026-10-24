@@ -158,28 +158,34 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     }
 
     /// Whether one category string belongs to this category filter.
+    /// The whole name: a custom category Client is not CLI, and Multimedia is not Media.
     func matchesCategory(_ category: String) -> Bool {
+        guard let title = categoryTitle else { return false }
+        return category.compare(title, options: .caseInsensitive) == .orderedSame
+    }
+
+    private var categoryTitle: String? {
         switch self {
-        case .databaseTools: category.localizedStandardContains("Database")
-        case .backendTools: category.localizedStandardContains("Backend")
-        case .agentTools: category == "AI / Agent"
-        case .computerUseTools: category == "Computer Use"
-        case .mcpTools: category == "MCP"
-        case .internalTools: category.localizedStandardContains("Internal Tools")
-        case .workspaceTools: category.localizedStandardContains("Workspace")
-        case .knowledgeTools: category.localizedStandardContains("Knowledge")
-        case .macOSTools: category.localizedStandardContains("macOS")
-        case .swiftUITools: category == "SwiftUI"
-        case .cliTools: category.localizedStandardContains("CLI")
-        case .editorTools: category.localizedStandardContains("Editor")
-        case .devopsTools: category.localizedStandardContains("DevOps")
-        case .automationTools: category.localizedStandardContains("Automation")
-        case .mediaTools: category.localizedStandardContains("Media")
-        case .securityTools: category.localizedStandardContains("Security")
-        case .utilityTools: category.localizedStandardContains("Utility")
-        case .frontendTools: category.localizedStandardContains("Frontend")
-        case .gamesTools: category.localizedStandardContains("Games")
-        default: false
+        case .databaseTools: "Database"
+        case .backendTools: "Backend"
+        case .agentTools: "AI / Agent"
+        case .computerUseTools: "Computer Use"
+        case .mcpTools: "MCP"
+        case .internalTools: "Internal Tools"
+        case .workspaceTools: "Workspace"
+        case .knowledgeTools: "Knowledge"
+        case .macOSTools: "macOS"
+        case .swiftUITools: "SwiftUI"
+        case .cliTools: "CLI"
+        case .editorTools: "Editor"
+        case .devopsTools: "DevOps"
+        case .automationTools: "Automation"
+        case .mediaTools: "Media"
+        case .securityTools: "Security"
+        case .utilityTools: "Utility"
+        case .frontendTools: "Frontend"
+        case .gamesTools: "Games"
+        default: nil
         }
     }
 
