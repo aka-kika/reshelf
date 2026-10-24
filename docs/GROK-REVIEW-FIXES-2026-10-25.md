@@ -5,10 +5,28 @@ Backup branch `backup/main-2026-10-25` points at that same commit.
 Nothing was pushed, merged, tagged, released, or installed.
 The app was not opened on this Mac. `~/reshelf` was not touched.
 
-34 fix commits. 7 Runway items are still open. Logic tests: `bash Tests/run.sh` passed.
-Build: `xcodebuild -project OpenSourceShelf.xcodeproj -scheme "OpenSource Shelf" -destination 'platform=macOS' build` succeeded (Debug, arm64).
+47 fix commits, in two passes. The second pass is the 13 mcode items added at 01:08. 7 Runway items are still open. Logic tests: `bash Tests/run.sh` passed after the second pass.
+Build: `xcodebuild -project OpenSourceShelf.xcodeproj -scheme "OpenSource Shelf" -destination 'platform=macOS' build` succeeded after the second pass (Debug, arm64).
 
-## Commits (`git log --oneline main..HEAD` before this note)
+## Second pass (mcode, added 01:08)
+
+```
+ca54d2e Decode a restore preview off the main thread
+44fc6f5 Do not replace an unborn checkout when cloning
+62200e1 Close git's pipe readers when a command times out
+e375c35 Remove the dead normalized-URL step in the metadata lookup
+adebc50 Disable Edit Save when the name is only spaces
+dbf2c54 Match a compound topic against the whole repo name
+4bd27cd Refuse a folder rename that clashes with another folder
+546e7a3 Keep every failure when moving several clones to the Trash
+7d6ef5e Stop Send to reshelf when the catalog save fails
+885b37f Show a failed Send to reshelf reason in the list status line
+769ab61 Save Why I saved this through CatalogSave when the field loses focus
+bbd3706 Finish the category merge only after the save works
+efe2f84 Keep Local-First and Self-Hosted when merging duplicate repos
+```
+
+## First pass (`git log --oneline` before the summary note)
 
 ```
 92454db Remember an emptied shelf in the delete itself
@@ -60,6 +78,15 @@ These were not started. They are still on Runway. None of them is a product deci
 - `a48e` The save-failed alert uses `runModal` from async code and can freeze with a sheet open. `CatalogSave.swift`. Showing it as a sheet changes how every save failure looks.
 - `5dbc` Refresh Info and the refresh after Pull overwrite a license typed by hand. `RepoInfoRefreshService.swift`. Needs a rule for what "typed by hand" means next to GitHub's "no license".
 - `e998` An avatar that fails to load is asked for again on every launch and every count change. `IconFetcher.swift`, `ProjectListView.swift`.
+
+Also worth a look in that VM:
+
+- Rename a folder onto another folder's name, including different capitals. It should refuse.
+- Why I saved this: leave the field. A full disk would show the save alert.
+- Edit: a name of only spaces cannot be saved.
+- Send to reshelf for a link that fails: the list status line says why.
+- Move several clones to the Trash when one cannot be moved: every failure is in the status line.
+- Restore from Backup: picking a backup does not freeze the window.
 
 ## What needs a VM check
 
