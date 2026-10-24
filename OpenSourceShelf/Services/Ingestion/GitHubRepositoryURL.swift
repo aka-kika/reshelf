@@ -125,6 +125,19 @@ struct GitHubRepositoryURL: Equatable {
     }
 }
 
+/// GitHub's primary limit is HTTP 429 or `X-RateLimit-Remaining: 0`.
+/// The secondary limit is a 403 with `Retry-After` (remaining is not 0).
+/// A 403 without that header is a permissions failure, not a limit.
+enum GitHubHTTP {
+    static func isRateLimited(status: Int, remaining: String?, retryAfter: String?) -> Bool {
+        if status == 429 || remaining == "0" { return true }
+        if status == 403, let retryAfter, !retryAfter.trimmingCharacters(in: .whitespaces).isEmpty {
+            return true
+        }
+        return false
+    }
+}
+
 /// Web links as typed or pasted ("github.com/owner/repo") have no scheme, and
 /// `NSWorkspace.open` then treats them as file paths (Finder error -50).
 /// Lives here, next to the link reader, so a GitHub SSH link becomes the

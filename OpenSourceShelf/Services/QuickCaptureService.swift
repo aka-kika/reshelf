@@ -97,9 +97,11 @@ enum QuickCaptureService {
         case 401:
             throw CaptureError.unauthorized
         case 403, 429:
-            // Rate limiting: distinguish from a generic 403 via the remaining header.
+            // A 403 is also GitHub's secondary limit (Retry-After set, remaining
+            // not 0). Calling that "forbidden" made Refresh keep asking.
             let remaining = http.value(forHTTPHeaderField: "X-RateLimit-Remaining")
-            if http.statusCode == 429 || remaining == "0" {
+            let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+            if GitHubHTTP.isRateLimited(status: http.statusCode, remaining: remaining, retryAfter: retryAfter) {
                 throw CaptureError.rateLimited(resetText: rateLimitResetText(from: http))
             }
             throw CaptureError.forbidden(context)
@@ -110,6 +112,11 @@ enum QuickCaptureService {
 
     /// Turns the `X-RateLimit-Reset` epoch header into a friendly "in N minutes" string.
     private static func rateLimitResetText(from http: HTTPURLResponse) -> String? {
+        if let retryAfter = http.value(forHTTPHeaderField: "Retry-After"),
+           let seconds = TimeInterval(retryAfter), seconds > 0 {
+            let minutes = Int(ceil(seconds / 60))
+            return minutes <= 1 ? "in about a minute" : "in about \(minutes) minutes"
+        }
         guard let resetValue = http.value(forHTTPHeaderField: "X-RateLimit-Reset"),
               let epoch = TimeInterval(resetValue) else { return nil }
         let resetDate = Date(timeIntervalSince1970: epoch)

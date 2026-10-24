@@ -50,6 +50,13 @@ check("WebLink.url refuses file", WebLink.url("file:///etc/passwd") == nil)
 check("WebLink.url refuses smb", WebLink.url("smb://server/share") == nil)
 check("WebLink.url refuses a bare path", WebLink.url("/tmp/secret") == nil)
 check("WebLink.url refuses an empty link", WebLink.url("   ") == nil)
+check("429 is a rate limit", GitHubHTTP.isRateLimited(status: 429, remaining: "10", retryAfter: nil))
+check("remaining 0 is a rate limit", GitHubHTTP.isRateLimited(status: 403, remaining: "0", retryAfter: nil))
+check("403 with Retry-After is a rate limit", GitHubHTTP.isRateLimited(status: 403, remaining: "30", retryAfter: "60"))
+check("403 without Retry-After is not a rate limit",
+      !GitHubHTTP.isRateLimited(status: 403, remaining: "30", retryAfter: nil))
+check("a blank Retry-After is not a rate limit",
+      !GitHubHTTP.isRateLimited(status: 403, remaining: "30", retryAfter: "  "))
 
 if failures > 0 { print("\(failures) failed"); exit(1) }
 print("SSHLinks: all passed")
