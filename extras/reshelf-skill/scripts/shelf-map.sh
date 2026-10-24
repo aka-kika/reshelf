@@ -11,11 +11,28 @@
 # and must not abort the map.
 set -uo pipefail
 
-# Resolve the clone root. Honor the app's custom Repository Storage setting if the
-# user changed it; otherwise fall back to the default.
-ROOT="$(defaults read com.kika.opensourceshelf reshelf.cloneRootPath 2>/dev/null || true)"
-ROOT="${ROOT:-$HOME/reshelf/repos}"
+# Resolve the clone root. RESHELF_CLONE_ROOT is for tests. Otherwise honor the
+# app's custom Repository Storage setting, then the default.
+if [ -n "${RESHELF_CLONE_ROOT:-}" ]; then
+  ROOT="$RESHELF_CLONE_ROOT"
+else
+  ROOT="$(defaults read com.kika.opensourceshelf reshelf.cloneRootPath 2>/dev/null || true)"
+  ROOT="${ROOT:-$HOME/reshelf/repos}"
+fi
 ROOT="${ROOT/#\~/$HOME}"
+
+# Same rule as the app: "/" ":" and "\" become spaces, and "." or ".." cannot
+# be a folder name. An imported category must not walk outside the clone root.
+clean_category() {
+  local cleaned
+  cleaned="$(printf '%s' "$1" | tr '/:\\' ' ' | tr -s '[:space:]' ' ')"
+  cleaned="${cleaned#"${cleaned%%[![:space:]]*}"}"
+  cleaned="${cleaned%"${cleaned##*[![:space:]]}"}"
+  case "$cleaned" in
+    ""|.|..) printf '%s\n' "Uncategorized" ;;
+    *) printf '%s\n' "$cleaned" ;;
+  esac
+}
 
 if [ ! -d "$ROOT" ]; then
   echo "No reshelf clone folder found at: $ROOT"
@@ -78,8 +95,13 @@ list_categories() {
 }
 
 detail_category() {
-  local cat="$1"
-  local dir="$ROOT/$cat"
+  local cat dir
+  cat="$(clean_category "$1")"
+  dir="$ROOT/$cat"
+  case "$dir" in
+    "$ROOT"/*) ;;
+    *) echo "Refusing to look outside $ROOT."; return ;;
+  esac
   if [ ! -d "$dir" ]; then
     echo "No category folder named '$cat' under $ROOT."
     echo ""
