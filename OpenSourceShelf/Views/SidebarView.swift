@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SwiftData
 
@@ -173,7 +174,14 @@ struct SidebarView: View {
                         if selection == .folder(folder.id) {
                             selection = .builtin(.allProjects)
                         }
-                        CatalogFolderService.delete(folder, in: modelContext)
+                        if CatalogFolderService.delete(folder, in: modelContext) == nil {
+                            let alert = NSAlert()
+                            alert.alertStyle = .warning
+                            alert.messageText = "Couldn't save a backup"
+                            alert.informativeText = "The folder was not deleted. Check that the disk has free space, then try again."
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                        }
                     }
                     deleteTarget = nil
                 }

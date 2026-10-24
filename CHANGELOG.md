@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Moving a batch of repos to a shelf, and deleting a folder, write a labelled backup first.** If that backup cannot be written, nothing changes. Restore from Backup can undo either one.
 - **A backup that cannot be written no longer says it was saved.** Delete, Remove Duplicate Repos and the Yard Sale moves stop, and say to check the disk has free space.
 - **The Website link opens only web pages.** A homepage set to `file://` or `smb://` is no longer handed to Finder.
 - **Shelf moves, tags, notes and folder changes are backed up within 2 seconds,** the same as adding or deleting a repo. Before, those waited until you quit.

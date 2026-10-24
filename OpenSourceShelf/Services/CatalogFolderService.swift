@@ -44,10 +44,15 @@ enum CatalogFolderService {
     }
 
     /// Removes the folder and clears membership. Returns how many projects were
-    /// ungrouped, so the caller can say so before and after.
+    /// ungrouped. `nil` means the safety backup could not be written and nothing
+    /// changed, so the caller can say so instead of claiming the folder is gone.
     @discardableResult
-    static func delete(_ folder: CatalogFolder, in context: ModelContext) -> Int {
-        let members = projects(in: folder, context: context)
+    static func delete(_ folder: CatalogFolder, in context: ModelContext) -> Int? {
+        let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+        guard CatalogBackupService.writeSnapshot(
+            projects, folders: folders(in: context),
+            reason: "Before deleting folder \(folder.name)") else { return nil }
+        let members = self.projects(in: folder, context: context)
         for project in members {
             project.folderID = nil          // and nothing else
         }

@@ -115,7 +115,7 @@ A **folder** is a grouping you make: "everything I cloned for project X". Delibe
 - **Pull Repos** — right-click a folder → **Pull Repos** checks only that folder's clones against GitHub and updates the ones behind (clones with local edits are skipped).
 - **Assign** — right-click a project → **Add to Folder ▸** lists your folders, marks the one it's in, and offers **New Folder…** and **Remove from Folder**.
 - **Sidebar** — folders get their own section between Library and Categories, shown only once one exists. Each row has a folder icon, a live count, and filters the list exactly like a category row.
-- **Rename / Delete** — right-click a folder row. **Deleting a folder only ungroups**: its projects keep their shelf, their clone, their notes and everything else. The confirmation says how many will be ungrouped and that nothing else changes.
+- **Rename / Delete** — right-click a folder row. **Deleting a folder only ungroups**: its projects keep their shelf, their clone, their notes and everything else. A labelled backup is written first (the same for moving a batch of repos to a shelf). If that backup cannot be written, nothing changes. The confirmation says how many will be ungrouped and that nothing else changes.
 - **Inspector** — a **Folder** row appears next to Added / Updated when a project is in one.
 - **Travels with the catalog** — folders are written into JSON exports *and* automatic backups. On import they're matched by **name**, case-insensitively, so two Macs that each made a "Photos app" converge on one folder instead of two. A file that carries no folder for a project leaves that project's folder alone.
 

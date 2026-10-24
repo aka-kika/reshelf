@@ -116,7 +116,20 @@ func run() async throws {
     let savedNote = CatalogBackupService.projects(in: newestEdit).contains { $0.notes == "saved from the shelf" }
     check("in-place edit is in the newest snapshot", files().count == beforeEdit + 1 && savedNote)
 
-    // 7. A backup that cannot be written reports failure (4fc5). The caller
+    // 7. Deleting a folder writes a labelled backup first, then ungroups (8504).
+    let grouped = all(ctx).first!
+    let box = CatalogFolder(name: "Batch", sortIndex: 0)
+    ctx.insert(box)
+    grouped.folderID = box.id
+    try ctx.save()
+    let ungrouped = CatalogFolderService.delete(box, in: ctx)
+    check("folder delete writes a labelled backup", ungrouped == 1
+          && CatalogBackupService.reason(in: files()[0]) == "Before deleting folder Batch")
+    check("folder delete clears membership", grouped.folderID == nil)
+    let left = CatalogFolderService.folders(in: ctx).map(\.name)
+    check("folder delete removes the folder", !left.contains("Batch"))
+
+    // 8. A backup that cannot be written reports failure (4fc5). The caller
     //    stops the delete or the Yard Sale move instead of saying it was saved.
     func catalogFiles(in dir: URL) -> Int {
         ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])

@@ -408,11 +408,21 @@ struct ProjectListView: View {
         Menu("Move \(projects.count) to") {
             ForEach(ProjectStatus.allCases, id: \.self) { shelf in
                 Button {
-                    for project in projects where project.status != shelf {
-                        project.status = shelf
+                    let moving = projects.filter { $0.status != shelf }
+                    guard !moving.isEmpty else {
+                        clearBatchSelection()
+                        return
                     }
+                    let noun = moving.count == 1 ? "repo" : "repos"
+                    guard CatalogBackupService.writeSnapshot(
+                        allProjects, folders: folders,
+                        reason: "Before moving \(moving.count) \(noun) to \(shelf.displayName)") else {
+                        statusNotice = Self.backupFailedNotice
+                        return
+                    }
+                    for project in moving { project.status = shelf }
                     CatalogSave.save(modelContext)
-                    statusNotice = "Moved \(projects.count) project\(projects.count == 1 ? "" : "s") to \(shelf.displayName)."
+                    statusNotice = "Moved \(moving.count) \(noun) to \(shelf.displayName). A backup was saved."
                     clearBatchSelection()
                 } label: {
                     Label(shelf.displayName, systemImage: shelf.sfSymbol)
