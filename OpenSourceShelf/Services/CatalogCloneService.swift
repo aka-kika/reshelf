@@ -15,10 +15,22 @@ enum CloneLocation {
             .appendingPathComponent("repos", isDirectory: true)
     }
 
-    /// `true` when the user has chosen a custom folder (a non-empty stored path).
+    /// `true` when the user has chosen a folder other than the default. The
+    /// default picked by hand in Settings is still the default.
     static var isCustom: Bool {
-        guard let stored = UserDefaults.standard.string(forKey: storageKey) else { return false }
-        return !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !isDefault(storedPath: UserDefaults.standard.string(forKey: storageKey))
+    }
+
+    /// Whether a stored path (blank, or the default folder chosen by hand)
+    /// stands for the default clone folder.
+    static func isDefault(storedPath stored: String?) -> Bool {
+        sameFolder(rootURL(forStoredPath: stored), defaultRootURL)
+    }
+
+    /// Same folder, ignoring a trailing slash, `..` and symlinks like /var.
+    static func sameFolder(_ a: URL, _ b: URL) -> Bool {
+        a.standardizedFileURL.resolvingSymlinksInPath().path
+            == b.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
     static var rootURL: URL {
@@ -117,7 +129,7 @@ enum CatalogCloneService {
     /// the marker existed. Stamp those once. A custom folder is never stamped.
     private static func stampsLegacyMarkers(in root: URL) -> Bool {
         guard !CloneLocation.isCustom else { return false }
-        return root.standardizedFileURL.path == CloneLocation.defaultRootURL.standardizedFileURL.path
+        return CloneLocation.sameFolder(root, CloneLocation.defaultRootURL)
     }
 
     /// Marks finished layout clones in `root` that predate the marker.
@@ -142,6 +154,57 @@ enum CatalogCloneService {
             }
         }
         return stamped
+    }
+
+    /// Set once the custom-folder adopt step below has run.
+    static let legacyAdoptDoneKey = "reshelf.legacyCloneAdoptDone"
+
+    /// One time, on the first launch of a build with the marker: a custom clone
+    /// folder can hold clones an older build made, which have no marker and
+    /// would lose their Cloned badge (and Clone would download a second copy).
+    /// Only runs for the folder that was already set then; a folder chosen
+    /// later was never written to by an older build.
+    @discardableResult
+    static func adoptLegacyClonesIfNeeded(_ projects: [ToolProject]) -> Int {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: legacyAdoptDoneKey) else { return 0 }
+        guard CloneLocation.isCustom else {
+            defaults.set(true, forKey: legacyAdoptDoneKey)
+            return 0
+        }
+        let root = CloneLocation.rootURL
+        // A network drive that isn't mounted yet: try again next launch.
+        guard FileManager.default.fileExists(atPath: root.path) else { return 0 }
+        defaults.set(true, forKey: legacyAdoptDoneKey)
+        let adopted = adoptLegacyClones(projects, root: root)
+        if adopted > 0 { invalidateCloneIndex() }
+        return adopted
+    }
+
+    /// Marks an unmarked checkout only at the exact folder reshelf would have
+    /// cloned a catalog row into (`<root>/<its category>/<repo>` or
+    /// `<owner>-<repo>`), finished, with that repo as its origin. Anything
+    /// else in a custom folder may be the user's own project and stays unmarked.
+    @discardableResult
+    static func adoptLegacyClones(_ projects: [ToolProject], root: URL) -> Int {
+        var adopted = 0
+        let fm = FileManager.default
+        for project in projects {
+            guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else { continue }
+            let dir = root.appendingPathComponent(categoryFolderName(for: project), isDirectory: true)
+            for name in [repo, "\(owner)-\(repo)"] {
+                let path = dir.appendingPathComponent(name, isDirectory: true)
+                var isDirectory: ObjCBool = false
+                guard !hasCloneMarker(path),
+                      fm.fileExists(atPath: path.appendingPathComponent(".git").path, isDirectory: &isDirectory),
+                      isDirectory.boolValue,
+                      originMatches(path, owner: owner, repo: repo),
+                      isFinishedCheckout(path) else { continue }
+                writeCloneMarker(at: path)
+                if hasCloneMarker(path) { adopted += 1 }
+            }
+        }
+        return adopted
     }
 
     /// `owner/repo` → clone folder for every finished checkout reshelf made

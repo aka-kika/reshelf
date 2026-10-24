@@ -252,6 +252,54 @@ await check("deec: an unborn branch is not trashed as a half-written clone") {
                "the unborn checkout was trashed")
 }
 
+await check("b009: the default folder chosen by hand is not a custom folder") {
+    let defaultPath = CloneLocation.defaultRootURL.path
+    try expect(CloneLocation.isDefault(storedPath: nil), "nil")
+    try expect(CloneLocation.isDefault(storedPath: "  "), "blank")
+    try expect(CloneLocation.isDefault(storedPath: defaultPath), "default path")
+    try expect(CloneLocation.isDefault(storedPath: defaultPath + "/"), "trailing slash")
+    try expect(!CloneLocation.isDefault(storedPath: root.path), "custom root counts as default")
+    UserDefaults.standard.setVolatileDomain([CloneLocation.storageKey: defaultPath],
+                                            forName: UserDefaults.argumentDomain)
+    defer {
+        UserDefaults.standard.setVolatileDomain([CloneLocation.storageKey: root.path],
+                                                forName: UserDefaults.argumentDomain)
+    }
+    try expect(!CloneLocation.isCustom, "default picked by hand counts as custom")
+}
+
+await check("b009: old clones in a custom folder are adopted only at a row's exact layout path") {
+    let oldRoot = base.appendingPathComponent("old-custom-root")
+    func oldClone(_ path: String, slug: String) throws -> URL {
+        let dir = oldRoot.appendingPathComponent(path)
+        try fm.createDirectory(at: dir.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try git(["clone", "-q", upstream.path, dir.path], in: base)
+        try git(["remote", "set-url", "origin", "https://github.com/\(slug).git"], in: dir)
+        return dir
+    }
+    let exact = try oldClone("AI Agent/alpha", slug: "kika/alpha")
+    let fallbackName = try oldClone("CLI/kika-beta", slug: "kika/beta")
+    let otherCategory = try oldClone("Media/gamma", slug: "kika/gamma")
+    let notInCatalog = try oldClone("CLI/delta", slug: "kika/delta")
+    let wrongOrigin = try oldClone("CLI/epsilon", slug: "someone/else")
+    let rows = [
+        try project("https://github.com/kika/alpha", category: "AI / Agent"),
+        try project("https://github.com/kika/beta", category: "CLI"),
+        try project("https://github.com/kika/gamma", category: "CLI"),
+        try project("https://github.com/kika/epsilon", category: "CLI"),
+    ]
+    try expect(CatalogCloneService.adoptLegacyClones(rows, root: oldRoot) == 2, "adopt count")
+    try expect(CatalogCloneService.hasCloneMarker(exact), "exact layout clone not adopted")
+    try expect(CatalogCloneService.hasCloneMarker(fallbackName), "owner-repo clone not adopted")
+    try expect(!CatalogCloneService.hasCloneMarker(otherCategory), "clone in another category adopted")
+    try expect(!CatalogCloneService.hasCloneMarker(notInCatalog), "checkout of no row adopted")
+    try expect(!CatalogCloneService.hasCloneMarker(wrongOrigin), "checkout of another repo adopted")
+    let index = CatalogCloneService.scanCloneIndex(root: oldRoot)
+    try expect(same(index["kika/alpha"], exact) && same(index["kika/beta"], fallbackName),
+               "adopted clones not in the index")
+    try expect(CatalogCloneService.adoptLegacyClones(rows, root: oldRoot) == 0, "second run adopted again")
+}
+
 await check("layout names") {
     try expect(CatalogCloneService.isLayoutFolderName("Tool", forSlug: "kika/tool"), "repo, other case")
     try expect(CatalogCloneService.isLayoutFolderName("kika-tool", forSlug: "kika/tool"), "owner-repo")

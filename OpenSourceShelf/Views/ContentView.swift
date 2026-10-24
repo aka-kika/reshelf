@@ -424,6 +424,8 @@ struct ContentView: View {
         repairSchemelessLinks()
         let projects = freshProjects()
         let folders = freshFolders()
+        // Clones an older build made in a custom folder get their marker.
+        CatalogCloneService.adoptLegacyClonesIfNeeded(projects)
         // Tidy any legacy flat clones into their category subfolders.
         CatalogCloneService.migrateClonesIntoCategoryFolders(projects)
         CatalogBackupService.writeSnapshot(projects, folders: folders)
