@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A backup taken before you had any folders can take a repo back out of a folder.** The file now records an empty folder list instead of leaving the list out.
 - **GitHub's second rate limit stops Refresh.** A 403 that carries Retry-After is treated as the limit, so Refresh does not keep asking.
 - **Quick Capture does not fetch a README.** The docs no longer say it can.
 - **A few doc lines now match the app.** ⌘K does not keep recent searches. The agent skill installs from Settings → Library, and it is the only skill in extras. The GitHub token is already in Settings → Capture. An emptied shelf is not refilled from a backup.

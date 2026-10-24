@@ -186,6 +186,27 @@ func run() throws {
     let quiet = CatalogBackupService.restore(from: snapGone, puttingBackChanges: false,
                                              into: ctx5, snapshotDate: "gone")
     check("nothing to restore when the repo is still there", quiet.added == 0 && quiet.updated == 0)
+    // 9. A backup taken with no folders can take a repo back out of one (f358).
+    let ctx6 = try makeContext()
+    let zeta = project("zeta", .collector)
+    ctx6.insert(zeta)
+    try ctx6.save()
+    CatalogBackupService.writeSnapshot(all(ctx6), reason: "Before any folder")
+    guard let snapNone = CatalogBackupService.snapshotURLs().first(where: {
+        CatalogBackupService.reason(in: $0) == "Before any folder"
+    }) else {
+        check("no-folder backup written", false)
+        return
+    }
+    let raw = try String(contentsOf: snapNone, encoding: .utf8)
+    check("a backup with no folders still writes the folders list", raw.contains("\"folders\""))
+    let box = CatalogFolderService.create(name: "Later", in: ctx6)!
+    zeta.folderID = box.id
+    try ctx6.save()
+    let out = CatalogBackupService.restore(from: snapNone, puttingBackChanges: true,
+                                           into: ctx6, snapshotDate: "nofolder")
+    check("put-back takes the repo out of the later folder", out.updated == 1 && zeta.folderID == nil)
+
     check("a deleted folder stays deleted",
           !CatalogFolderService.folders(in: ctx5).contains { $0.name == "Gone" })
 

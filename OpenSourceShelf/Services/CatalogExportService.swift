@@ -202,12 +202,56 @@ struct CatalogSnapshotDTO: Codable {
     var version: Int
     var projectCount: Int
     var projects: [CatalogProjectDTO]
-    /// Optional so exports written before folders existed still decode.
+    /// Nil only for a file written before folders existed. An empty list means
+    /// this backup recorded folders and none of its repos were in one.
     var folders: [CatalogFolderDTO]?
+    /// True when the file has a `folders` key, including an empty list.
+    var recordedFolders: Bool = false
     /// What a backup was taken before ("Before moving 12 repos to Yard Sale"),
     /// shown in Restore from Backup so the right one is easy to pick. Nil for
     /// routine snapshots and manual exports.
     var reason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case exportedAt, app, version, projectCount, projects, folders, reason
+    }
+
+    init(exportedAt: Date, app: String, version: Int, projectCount: Int,
+         projects: [CatalogProjectDTO], folders: [CatalogFolderDTO]?, reason: String?) {
+        self.exportedAt = exportedAt
+        self.app = app
+        self.version = version
+        self.projectCount = projectCount
+        self.projects = projects
+        self.folders = folders
+        self.recordedFolders = true
+        self.reason = reason
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        exportedAt = try container.decode(Date.self, forKey: .exportedAt)
+        app = try container.decode(String.self, forKey: .app)
+        version = try container.decode(Int.self, forKey: .version)
+        projectCount = try container.decode(Int.self, forKey: .projectCount)
+        projects = try container.decode([CatalogProjectDTO].self, forKey: .projects)
+        recordedFolders = container.contains(.folders)
+        folders = try container.decodeIfPresent([CatalogFolderDTO].self, forKey: .folders)
+        reason = try container.decodeIfPresent(String.self, forKey: .reason)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(exportedAt, forKey: .exportedAt)
+        try container.encode(app, forKey: .app)
+        try container.encode(version, forKey: .version)
+        try container.encode(projectCount, forKey: .projectCount)
+        try container.encode(projects, forKey: .projects)
+        // A missing key is an old file. Put-back must not read that as
+        // "these repos were in no folder".
+        try container.encode(folders ?? [], forKey: .folders)
+        try container.encodeIfPresent(reason, forKey: .reason)
+    }
 }
 
 /// Exports the catalog (`ToolProject`s) to a portable JSON file the user picks
@@ -236,7 +280,7 @@ enum CatalogExportService {
             version: 1,
             projectCount: projects.count,
             projects: projects.map(CatalogProjectDTO.init),
-            folders: folders.isEmpty ? nil : folders.map(CatalogFolderDTO.init),
+            folders: folders.map(CatalogFolderDTO.init),
             reason: reason
         )
         return try makeEncoder().encode(payload)
@@ -256,6 +300,11 @@ enum CatalogExportService {
     /// existed.
     static func decodeFolders(_ data: Data) throws -> [CatalogFolderDTO] {
         try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).folders ?? []
+    }
+
+    /// False for a backup written before the catalog had folders.
+    static func didRecordFolders(_ data: Data) throws -> Bool {
+        try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).recordedFolders
     }
 
     /// Presents a save panel and writes the catalog JSON. Shows an alert on failure.

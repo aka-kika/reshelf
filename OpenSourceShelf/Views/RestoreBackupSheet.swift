@@ -141,8 +141,12 @@ struct RestoreBackupSheet: View {
 
     private func updatePreview() {
         guard let selected else { preview = nil; return }
+        let recorded = ((try? Data(contentsOf: selected)).flatMap {
+            try? CatalogExportService.didRecordFolders($0)
+        }) ?? false
         let plan = CatalogImportService.plan(rows: CatalogBackupService.projects(in: selected),
                                              folders: CatalogBackupService.folders(in: selected),
+                                             recordedFolders: recorded,
                                              sourceURL: selected, context: modelContext)
         preview = (plan.additions.count,
                    CatalogImportService.changedMatches(in: plan, context: modelContext).count)

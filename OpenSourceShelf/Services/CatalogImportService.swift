@@ -25,6 +25,9 @@ enum CatalogImportService {
         let matches: [(row: CatalogProjectDTO, existing: ToolProject)]
         /// Folders named in the file. Empty for pre-folders exports.
         let folders: [CatalogFolderDTO]
+        /// The file has a `folders` key, even when the list is empty.
+        /// An old file without the key must not clear folder membership.
+        let recordedFolders: Bool
 
         var isEmpty: Bool { additions.isEmpty && matches.isEmpty }
     }
@@ -73,7 +76,8 @@ enum CatalogImportService {
     // MARK: - Planning
 
     @MainActor
-    static func plan(rows: [CatalogProjectDTO], folders: [CatalogFolderDTO] = [], sourceURL: URL, context: ModelContext) -> Plan {
+    static func plan(rows: [CatalogProjectDTO], folders: [CatalogFolderDTO] = [],
+                     recordedFolders: Bool? = nil, sourceURL: URL, context: ModelContext) -> Plan {
         let existing = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
         var byKey: [String: ToolProject] = [:]
         for project in existing {
@@ -98,7 +102,8 @@ enum CatalogImportService {
                 additions.append(row)
             }
         }
-        return Plan(sourceURL: sourceURL, additions: additions, matches: matches, folders: folders)
+        return Plan(sourceURL: sourceURL, additions: additions, matches: matches, folders: folders,
+                    recordedFolders: recordedFolders ?? !folders.isEmpty)
     }
 
     // MARK: - Applying
@@ -174,8 +179,10 @@ enum CatalogImportService {
                         folders: [CatalogFolderDTO],
                         puttingBackChanges: Bool,
                         into context: ModelContext,
-                        backupReason: String) -> Result {
-        let full = plan(rows: rows, folders: folders, sourceURL: URL(fileURLWithPath: "/"), context: context)
+                        backupReason: String,
+                        foldersWereRecorded: Bool = false) -> Result {
+        let full = plan(rows: rows, folders: folders, recordedFolders: foldersWereRecorded,
+                        sourceURL: URL(fileURLWithPath: "/"), context: context)
         let changed = changedMatches(in: full, context: context)
         // Only folders a restored repo actually uses. Creating every folder in
         // the file brought back folders she had deleted, even when the sheet
@@ -188,7 +195,7 @@ enum CatalogImportService {
         // Additions only. Put-back is not a full overwrite: name, links,
         // description and category stay. `apply` still writes the safety backup.
         let additions = Plan(sourceURL: full.sourceURL, additions: full.additions,
-                             matches: [], folders: usedFolders)
+                             matches: [], folders: usedFolders, recordedFolders: full.recordedFolders)
         let result = apply(additions, updatingExisting: false, into: context, backupReason: backupReason)
         var updated = 0
         if puttingBackChanges && !changed.isEmpty {
@@ -202,7 +209,7 @@ enum CatalogImportService {
                 row.applyPutBack(to: existing)
                 // An older backup with no folder list leaves membership alone.
                 // One that records folders can also take a repo back out.
-                if !folders.isEmpty {
+                if full.recordedFolders {
                     if let name = row.folderID.flatMap({ fileFolderNames[$0] }),
                        let local = localFolderIDs[name] {
                         existing.folderID = local
@@ -230,7 +237,7 @@ enum CatalogImportService {
             uniquingKeysWith: { first, _ in first })
         return plan.matches.filter { row, existing in
             if row.putBackDiffers(from: existing) { return true }
-            guard !plan.folders.isEmpty else { return false }
+            guard plan.recordedFolders else { return false }
             let fileFolder = row.folderID.flatMap { fileFolderNames[$0] }
             let localFolder = existing.folderID.flatMap { localFolderNames[$0] }
             return fileFolder != localFolder

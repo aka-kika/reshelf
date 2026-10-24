@@ -155,7 +155,7 @@ enum CatalogBackupService {
             version: 1,
             projectCount: rows.count,
             projects: rows,
-            folders: folders.isEmpty ? nil : folders,
+            folders: folders,
             reason: reason
         )
         let encoder = JSONEncoder()
@@ -299,9 +299,12 @@ enum CatalogBackupService {
                         snapshotDate: String) -> CatalogImportService.Result {
         let incoming = projects(in: url)
         guard !incoming.isEmpty else { return .init(added: 0, updated: 0, skipped: 0) }
+        let data = (try? Data(contentsOf: url)) ?? Data()
+        let recorded = (try? CatalogExportService.didRecordFolders(data)) ?? false
         return CatalogImportService.restore(incoming, folders: folders(in: url),
                                             puttingBackChanges: puttingBackChanges, into: context,
-                                            backupReason: "Before restoring the backup from \(snapshotDate)")
+                                            backupReason: "Before restoring the backup from \(snapshotDate)",
+                                            foldersWereRecorded: recorded)
     }
 
     // MARK: - Helpers
