@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A git command that runs out of time closes its pipes.** The readers are not left waiting on a child that is still holding them.
 - **The metadata lookup no longer has a dead second URL check.** It matches the GitHub link, then owner and name. The docs say the same.
 - **Edit refuses a name that is only spaces.** Save stays off, so a row cannot become blank.
 - **A repo named like a compound topic is categorized from that name.** browser-use lands in Computer Use even when GitHub sent no topics.

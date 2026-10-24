@@ -436,6 +436,12 @@ struct GitClient {
         watchdog.disarm()
 
         if terminationStatus != 0, watchdog.didFire, let timeout {
+            // A child can keep the write ends open after git is killed. Close
+            // the read ends so the drain tasks are not stuck on them.
+            try? outputPipe.fileHandleForReading.close()
+            try? errorPipe.fileHandleForReading.close()
+            outputData.cancel()
+            errorData.cancel()
             throw GitClientError.timedOut(arguments: arguments, seconds: Int(timeout))
         }
 
