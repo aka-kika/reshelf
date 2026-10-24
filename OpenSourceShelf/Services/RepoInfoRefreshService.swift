@@ -136,9 +136,7 @@ enum RepoInfoRefreshService {
                 result.starsChanged += 1
             }
         }
-        // GitHub omits the license object when there is none; that is a real
-        // answer ("no license"), so it clears a stale value too.
-        let license = info.licenseText
+        let license = GitHubRepoInfo.licenseToStore(current: project.license, fetched: info.licenseText)
         if license != project.license {
             project.license = license
             result.licensesChanged += 1

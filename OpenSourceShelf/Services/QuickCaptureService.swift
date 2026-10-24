@@ -37,6 +37,16 @@ struct GitHubRepoInfo: Codable {
         license?.spdxId ?? license?.name ?? ""
     }
 
+    /// What a refresh stores in the license field. A real GitHub license wins;
+    /// "no license" or NOASSERTION (GitHub could not tell) never replaces text
+    /// that is already there, because the user may have typed it by hand.
+    static func licenseToStore(current: String, fetched: String) -> String {
+        let hasReal = !fetched.isEmpty && fetched.uppercased() != "NOASSERTION"
+        if hasReal { return fetched }
+        let hasCurrent = !current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasCurrent ? current : fetched
+    }
+
     enum CodingKeys: String, CodingKey {
         case fullName = "full_name"
         case description, homepage
