@@ -46,6 +46,13 @@
 			path = "OpenSourceShelf/Models/ToolProject.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		CLO1REF01234567890ABCDEF01 /* CaptureLeftovers.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CaptureLeftovers.swift";
+			path = "OpenSourceShelf/Models/CaptureLeftovers.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -488,6 +495,7 @@
 				868BD8CBD1E0AA395EAD3A6F /* SidebarItem.swift */,
 				37F255F7393A8F75EB2F40DD /* ToolProject.swift */,
 				LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */,
+				CLO1REF01234567890ABCDEF01 /* CaptureLeftovers.swift */,
 				CLS1REF01234567890ABCDEF01 /* CatalogListSelection.swift */,
 				01DD0CEBD5343C0C44787E9D /* CloneStateRecord.swift */,
 				5F59F9A622EF5A00C6DC42B2 /* IngestionJobRecord.swift */,
@@ -675,6 +683,10 @@
 		C1A2F311234567890ABCDEF01 /* CatalogInspectorPane.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = C1A2F301234567890ABCDEF01;
+		};
+		CLO1BUILD1234567890ABCDEF01 /* CaptureLeftovers.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = CLO1REF01234567890ABCDEF01;
 		};
 		LAB1BUILD1234567890ABCDEF01 /* CaptureAssist.swift in Sources */ = {
 			isa = PBXBuildFile;
@@ -907,6 +919,7 @@
 				14B9BE48C6D6F35A68789D9B,
 				C1A2F311234567890ABCDEF01,
 				LAB1BUILD1234567890ABCDEF01,
+				CLO1BUILD1234567890ABCDEF01,
 				CLS1BUILD1234567890ABCDEF01,
 				RD01B011234567890ABCDEF09,
 				CP01B011234567890ABCDEF10,

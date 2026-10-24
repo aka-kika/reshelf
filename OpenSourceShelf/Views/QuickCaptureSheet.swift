@@ -472,6 +472,9 @@ struct QuickCaptureSheet: View {
         let trimmed = urlText.trimmingCharacters(in: .whitespaces)
         guard !isFetching, !trimmed.isEmpty, duplicateProject == nil else { return }
         isFetching = true; errorMessage = nil
+        // A form already filled from another repo: what it holds now is that
+        // repo's. The first fetch keeps whatever was typed before it.
+        let leftovers = fetchedURL.isEmpty ? nil : currentCarryFields
 
         Task {
             do {
@@ -483,7 +486,7 @@ struct QuickCaptureSheet: View {
                     guard urlText.trimmingCharacters(in: .whitespaces) == trimmed else { return }
                     fetchedInfo = info
                     fetchedURL = trimmed
-                    populateFields(from: info, url: trimmed)
+                    populateFields(from: info, url: trimmed, leftovers: leftovers)
                 }
             } catch {
                 await MainActor.run {
@@ -495,7 +498,12 @@ struct QuickCaptureSheet: View {
         }
     }
 
-    private func populateFields(from info: GitHubRepoInfo, url: String) {
+    private var currentCarryFields: CaptureLeftovers {
+        CaptureLeftovers(useCases: useCasesText, notes: notes, personalNote: personalNote,
+                         isSelfHosted: isSelfHosted, isLocalFirst: isLocalFirst)
+    }
+
+    private func populateFields(from info: GitHubRepoInfo, url: String, leftovers: CaptureLeftovers?) {
         aiSuggestion = ""
         hasGeneratedAISuggestion = false
         lastAIUseCases = ""
@@ -508,11 +516,16 @@ struct QuickCaptureSheet: View {
         license = info.licenseText
         lastUpdatedDate = info.pushedAt.flatMap(GitHubDate.parse)
         tagsText = info.topics?.joined(separator: ", ") ?? ""
-        // A second link must not keep the first repo's note, use cases or flags.
-        useCasesText = ""
-        notes = ""
-        isSelfHosted = false
-        isLocalFirst = false
+        // A second link must not keep the first repo's note, use cases, "why"
+        // or flags. Anything typed while this fetch ran stays.
+        if let leftovers {
+            let kept = leftovers.cleared(from: currentCarryFields)
+            useCasesText = kept.useCases
+            notes = kept.notes
+            personalNote = kept.personalNote
+            isSelfHosted = kept.isSelfHosted
+            isLocalFirst = kept.isLocalFirst
+        }
 
         // Auto-classify category from language, topics, and description
         category = CategoryClassifier.classify(
