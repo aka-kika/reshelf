@@ -127,6 +127,26 @@ struct CatalogProjectDTO: Codable {
         project.isSelfHosted = isSelfHosted
     }
 
+    /// Restore from Backup's "put back changes": only the shelf, the tags,
+    /// the notes (including why I saved this) and, separately, the folder.
+    /// Name, links, description and category stay as they are now.
+    func applyPutBack(to project: ToolProject) {
+        if let shelf = ProjectStatus(rawValue: status) { project.status = shelf }
+        project.tags = tags
+        project.notes = notes
+        if let personalNote { project.personalNote = personalNote }
+    }
+
+    /// Whether put-back would change the shelf, tags or notes. Folder membership
+    /// is compared by the caller, because it lives on another record.
+    func putBackDiffers(from project: ToolProject) -> Bool {
+        let shelf = ProjectStatus(rawValue: status) ?? project.status
+        return shelf != project.status
+            || tags != project.tags
+            || notes != project.notes
+            || (personalNote.map { $0 != project.personalNote } ?? false)
+    }
+
     /// True when `apply(to:)` would change something the user can see, so a
     /// restore can count (and touch) only the repos that really differ. Dates
     /// compare to the whole second: the file stores no finer.

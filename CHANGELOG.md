@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Put back changes restores the shelf, tags, notes and folder only.** Name, links, description and category stay as they are. The restore sheet already said this.
 - **A backup taken before a big change is not deleted when the 30 routine snapshots fill up.** Restore from Backup can still find that undo point.
 - **Import GitHub URLs keeps a link that failed.** Offline, or with a bad token, the links that didn't import stay in the box for the next try. Duplicates that were skipped do not.
 - **The one-time category merge no longer moves folders inside a custom clone folder.** That folder can hold your own projects, and the merge does not check that a folder is a clone.

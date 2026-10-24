@@ -177,20 +177,37 @@ enum CatalogImportService {
                         backupReason: String) -> Result {
         let full = plan(rows: rows, folders: folders, sourceURL: URL(fileURLWithPath: "/"), context: context)
         let changed = changedMatches(in: full, context: context)
-        let plan = Plan(sourceURL: full.sourceURL, additions: full.additions,
-                        matches: puttingBackChanges ? changed : [], folders: folders)
-        let result = apply(plan, updatingExisting: puttingBackChanges, into: context, backupReason: backupReason)
-        // `apply` never takes a repo out of a folder (an import from an older
-        // file has no folder key). A backup that records folders does say
-        // which repos were in none, so a put-back honors that.
-        if puttingBackChanges, !folders.isEmpty {
-            for (row, existing) in changed where row.folderID == nil && existing.folderID != nil {
-                existing.folderID = nil
+        // Additions only. Put-back is not a full overwrite: name, links,
+        // description and category stay. `apply` still writes the safety backup.
+        let additions = Plan(sourceURL: full.sourceURL, additions: full.additions,
+                             matches: [], folders: folders)
+        let result = apply(additions, updatingExisting: false, into: context, backupReason: backupReason)
+        var updated = 0
+        if puttingBackChanges && !changed.isEmpty {
+            let localFolderIDs = Dictionary(
+                CatalogFolderService.folders(in: context).map { ($0.name.lowercased(), $0.id) },
+                uniquingKeysWith: { first, _ in first })
+            let fileFolderNames = Dictionary(
+                folders.map { ($0.id, $0.name.lowercased()) },
+                uniquingKeysWith: { first, _ in first })
+            for (row, existing) in changed {
+                row.applyPutBack(to: existing)
+                // An older backup with no folder list leaves membership alone.
+                // One that records folders can also take a repo back out.
+                if !folders.isEmpty {
+                    if let name = row.folderID.flatMap({ fileFolderNames[$0] }),
+                       let local = localFolderIDs[name] {
+                        existing.folderID = local
+                    } else {
+                        existing.folderID = nil
+                    }
+                }
+                updated += 1
             }
             CatalogSave.save(context)
         }
-        return Result(added: result.added, updated: result.updated,
-                      skipped: full.matches.count - result.updated)
+        return Result(added: result.added, updated: updated,
+                      skipped: full.matches.count - updated)
     }
 
     /// Matched rows whose backup version differs from the catalog's, folder
@@ -204,7 +221,7 @@ enum CatalogImportService {
             plan.folders.map { ($0.id, $0.name.lowercased()) },
             uniquingKeysWith: { first, _ in first })
         return plan.matches.filter { row, existing in
-            if row.differs(from: existing) { return true }
+            if row.putBackDiffers(from: existing) { return true }
             guard !plan.folders.isEmpty else { return false }
             let fileFolder = row.folderID.flatMap { fileFolderNames[$0] }
             let localFolder = existing.folderID.flatMap { localFolderNames[$0] }

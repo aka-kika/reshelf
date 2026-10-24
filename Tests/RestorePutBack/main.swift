@@ -137,6 +137,39 @@ func run() throws {
     check("empty fields filled", keeper.personalNote == "saved for the menu bar" && keeper.websiteURL == "https://example.com")
     check("contained note not repeated", DuplicateMerge.joined("one two three", "two") == "one two three")
     check("shelf of kept copy unchanged", keeper.status == .topShelf)
+
+    // 7. Put-back restores shelf, tags and notes, and leaves name, link,
+    //    description and category alone (76e9).
+    let ctx4 = try makeContext()
+    let row = project("delta", .topShelf, tags: ["swift"], notes: "n")
+    row.category = "CLI"
+    row.shortDescription = "original"
+    row.personalNote = "why"
+    ctx4.insert(row)
+    try ctx4.save()
+    CatalogBackupService.writeSnapshot(all(ctx4), reason: "Before the rename")
+    guard let snapName = CatalogBackupService.snapshotURLs().first(where: {
+        CatalogBackupService.reason(in: $0) == "Before the rename"
+    }) else {
+        check("rename backup written", false)
+        return
+    }
+    row.name = "delta renamed"
+    row.category = "Games"
+    row.shortDescription = "changed"
+    row.status = .yardSale
+    row.tags = []
+    row.notes = "edited"
+    row.personalNote = ""
+    try ctx4.save()
+    let back = CatalogBackupService.restore(from: snapName, puttingBackChanges: true,
+                                            into: ctx4, snapshotDate: "rename")
+    check("put-back counts the shelf and note change", back.updated == 1)
+    check("shelf, tags and notes are back",
+          row.status == .topShelf && row.tags == ["swift"] && row.notes == "n" && row.personalNote == "why")
+    check("name, link, description and category stay",
+          row.name == "delta renamed" && row.category == "Games"
+          && row.githubURL == "https://github.com/test/delta" && row.shortDescription == "changed")
 }
 
 MainActor.assumeIsolated {
