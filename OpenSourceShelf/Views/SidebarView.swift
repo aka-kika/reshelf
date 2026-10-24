@@ -153,8 +153,14 @@ struct SidebarView: View {
             .alert("Rename Folder", isPresented: presenting($renameTarget)) {
                 TextField("Name", text: $draftName)
                 Button("Rename") {
-                    if let folder = renameTarget {
-                        CatalogFolderService.rename(folder, to: draftName, in: modelContext)
+                    if let folder = renameTarget,
+                       !CatalogFolderService.rename(folder, to: draftName, in: modelContext) {
+                        let alert = NSAlert()
+                        alert.alertStyle = .warning
+                        alert.messageText = "That folder name is already used"
+                        alert.informativeText = "Another folder already has this name, ignoring capitals. Nothing was renamed."
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
                     }
                     renameTarget = nil
                 }

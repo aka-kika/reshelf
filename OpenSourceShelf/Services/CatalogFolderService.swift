@@ -36,11 +36,20 @@ enum CatalogFolderService {
         return folder
     }
 
-    static func rename(_ folder: CatalogFolder, to name: String, in context: ModelContext) {
+    /// `false` when the name is blank or another folder already has it,
+    /// ignoring case, same as create. The folder is left unchanged.
+    @discardableResult
+    static func rename(_ folder: CatalogFolder, to name: String, in context: ModelContext) -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return false }
+        if folders(in: context).contains(where: {
+            $0.id != folder.id && $0.name.compare(trimmed, options: .caseInsensitive) == .orderedSame
+        }) {
+            return false
+        }
         folder.name = trimmed
         CatalogSave.save(context)
+        return true
     }
 
     /// Removes the folder and clears membership. Returns how many projects were

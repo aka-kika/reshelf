@@ -129,6 +129,15 @@ func run() async throws {
     let left = CatalogFolderService.folders(in: ctx).map(\.name)
     check("folder delete removes the folder", !left.contains("Batch"))
 
+    // Renaming onto another folder's name, ignoring case, is refused (1817).
+    let photos = CatalogFolderService.create(name: "Photos", in: ctx)!
+    let other = CatalogFolderService.create(name: "Notes", in: ctx)!
+    check("rename refuses a case-insensitive clash",
+          !CatalogFolderService.rename(other, to: "photos", in: ctx) && other.name == "Notes")
+    check("rename still accepts a free name",
+          CatalogFolderService.rename(other, to: "Field notes", in: ctx) && other.name == "Field notes")
+    _ = photos
+
     // 8. Labelled backups are not pruned with the 30 routine ones (7aa7).
     check("labelled backup is kept",
           CatalogBackupService.writeSnapshot(all(ctx), reason: "Before removing keep-me"))
