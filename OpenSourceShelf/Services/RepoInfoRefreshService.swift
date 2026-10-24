@@ -25,6 +25,23 @@ enum RepoInfoRefreshService {
 
     /// Repos on `shelf` that have a GitHub link and no local clone. Cloned
     /// repos refresh when they are pulled.
+    /// What to say when nothing on the shelf can be refreshed. A repo with no
+    /// GitHub link is not "cloned".
+    static func noCandidateNotice(shelf: ProjectStatus, in projects: [ToolProject]) -> String {
+        let onShelf = projects.filter { $0.status == shelf }
+        let withLink = onShelf.filter { !$0.githubURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if onShelf.isEmpty { return "Nothing on \(shelf.displayName)." }
+        if withLink.isEmpty { return "No \(shelf.displayName) repo has a GitHub link to refresh." }
+        let missing = onShelf.count - withLink.count
+        var text = "Every \(shelf.displayName) repo with a GitHub link is cloned. Clones refresh when you pull them."
+        if missing > 0 {
+            text += missing == 1
+                ? " 1 has no GitHub link."
+                : " \(missing) have no GitHub link."
+        }
+        return text
+    }
+
     static func candidates(on shelf: ProjectStatus, in projects: [ToolProject]) -> [ToolProject] {
         projects.filter {
             $0.status == shelf

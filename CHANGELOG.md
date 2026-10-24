@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Refresh Info no longer says every repo is cloned when some have no GitHub link.** It says so.
 - **A clone is recognized from its origin remote only.** Another github.com link in the git config no longer decides which repo the folder is.
 - **Saving a repo and deleting it in the same moment no longer crashes.** The metadata step checks the row is still there before it reads it.
 - **C, C++ and C# stay three tags.** The sidebar no longer folds + and # out of a tag.

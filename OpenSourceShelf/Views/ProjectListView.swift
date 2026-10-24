@@ -869,7 +869,7 @@ struct ProjectListView: View {
               let shelf = shelfRaw.flatMap(ProjectStatus.init(rawValue:)) else { return }
         let targets = RepoInfoRefreshService.candidates(on: shelf, in: allProjects)
         guard !targets.isEmpty else {
-            statusNotice = "Every \(shelf.displayName) repo is cloned. Clones refresh when you pull them."
+            statusNotice = RepoInfoRefreshService.noCandidateNotice(shelf: shelf, in: allProjects)
             return
         }
         isRefreshingInfo = true
