@@ -6,7 +6,7 @@ What **reshelf** does today. Plain-language map of the app — see [README.md](R
 
 - **Three columns** — sidebar (owl app-icon branding), project list (title + controls header), inspector pane. The sidebar and inspector are **user-resizable** by dragging their dividers; the project list flexes between them.
 - **Merged title bar** — the header row doubles as the window title bar (no separate empty toolbar band). The controls live in the project-list header: a **sidebar toggle** on the left, **search** (⌘K) and **inspector toggle** on the right. Toggles stay visible even when their panel is collapsed, so you can always reopen it. The three column header dividers line up as one clean line, and the sidebar edge is a thin hairline (not a heavy macOS shadow).
-- **Command palette** (⌘K) — floating sheet with search field, recent searches, live project filtering. Paste a GitHub URL → "Capture this repository" row appears → click or press Enter → Quick Capture opens with repo info auto-fetched. Escape dismisses.
+- **Command palette** (⌘K) — floating sheet with a search field and live project filtering. Paste a GitHub URL → "Capture this repository" row appears → click or press Enter → Quick Capture opens with repo info auto-fetched. Escape dismisses.
 - **What's new** — a sheet with the release notes (`docs/release-notes/<version>.md`) once after each update, and from **Help → What's New in reshelf**.
 - **Menu bar** — File (Quick Capture ⌘N / Search / Export / Import / Restore / **Check Clones for Updates** ⌘⇧U), View (column toggles + navigation), and the app menu (Settings, About, Check for Updates). No status-bar menu extra.
 - **No sign-in** — local app only.
@@ -67,7 +67,7 @@ Stored fields you can view and edit:
 - **⌘N** — sheet to paste a GitHub URL (the old manual "New Project" form was removed in 1.14.0)
 - **⌘V** — with a GitHub repo link on the clipboard and no text field focused, opens Quick Capture with it
 - **Already shelved** — no fetch; an "Already on your shelf" card, and **Return** jumps to the repo in the list
-- Fetches repo info from the **GitHub API** (and can pull README for context)
+- Fetches repo info from the **GitHub API** (name, description, topics, license, stars)
 - **Auto-categorizes** the repo into a meaningful category (Database, AI / Agent, macOS, Workspace, Media, etc.) from its GitHub topics, description, and language — not just the raw language name
 - Edit fields, then save into the SwiftData catalog
 - **No-mouse flow** — from the command palette (⌘K): paste a URL → **Enter** fetches → **Enter** again saves (Save is the sheet's default button)

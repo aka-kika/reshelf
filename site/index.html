@@ -1297,7 +1297,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 0}
     </div>
     <div class="faq-item">
       <button class="faq-q">Can my coding agent use my shelf?<span class="plus">+</span></button>
-      <div class="faq-a"><div class="faq-a-in">Yes — that's the point of the predictable layout. The bundled <code>/reshelf</code> skill maps your clones, reads their real source, and recommends whether to <b>learn</b> the approach or <b>use</b> the code — always citing the files it referenced and flagging copyleft before anything gets copied. Settings → General → Agent Skill installs it straight to <code>~/.claude/skills/reshelf</code>, read-only on your clones. Two more skills ship in <code>extras/</code>: an index over the whole catalog, and one that resurfaces forgotten Collector picks.</div></div>
+      <div class="faq-a"><div class="faq-a-in">Yes — that's the point of the predictable layout. The bundled <code>/reshelf</code> skill maps your clones, reads their real source, and recommends whether to <b>learn</b> the approach or <b>use</b> the code — always citing the files it referenced and flagging copyleft before anything gets copied. Settings → Library → Agent Skill installs it straight to <code>~/.claude/skills/reshelf</code>. It does not change the files in a clone. The skill is the one bundle in <code>extras/reshelf-skill</code> (<code>shelf.py</code> to find and clone, <code>shelf-map.sh</code> to list what is on disk).</div></div>
     </div>
     <div class="faq-item">
       <button class="faq-q">How does it update itself?<span class="plus">+</span></button>

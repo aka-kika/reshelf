@@ -21,7 +21,7 @@ the marker, and this script never adds one there.
 
 ## Install or update
 
-In the app: **Settings → General → Agent Skill → Install reshelf Skill…**. Click it
+In the app: **Settings → Library → Agent Skill → Install reshelf Skill…**. Click it
 again after every reshelf update that changes the skill; the old copy goes to the
 Trash.
 

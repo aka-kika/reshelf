@@ -230,15 +230,16 @@ configure at all.
 
 Yes — clones land in a predictable `~/reshelf/repos/<Category>/<repo>` layout, the
 catalog exports as plain JSON, and reshelf ships
-[Claude Code skills](#extending-reshelf-with-skills-) that let an agent search the
+[a Claude Code skill](#extending-reshelf-with-skills-) that lets an agent search the
 real source you curated instead of guessing from stale docs.
 
 ### Where does my data live, and can I lose it?
 
 Everything sits under `~/reshelf/` in open formats (SwiftData store, SQLite, plain
 git clones, JSON backups) — see [Where data lives](#where-data-lives). reshelf keeps
-the last 30 automatic JSON backups and restores from them if the catalog ever comes
-up empty.
+the last 30 routine JSON backups, plus the labelled backups taken before a big
+change, and restores from them if the catalog ever comes up empty. Not when you
+emptied the shelf yourself: that stays empty.
 
 ## Stack
 
@@ -249,8 +250,9 @@ up empty.
 
 ## Roadmap
 
-v1 is **the Catalog**. Next up is **GitHub login inside the app** (read-only, token in
-Keychain) to power better recommendations — full spec in
+v1 is **the Catalog**. An optional GitHub token already lives in **Settings → Capture**
+(Keychain only; it raises the rate limit and can see private repos). Next up is
+**GitHub login inside the app** (read-only) to power better recommendations — full spec in
 [v2.0-roadmap.md](v2.0-roadmap.md). Broader ideas live in
 [future-features.md](future-features.md).
 
