@@ -96,6 +96,23 @@ r = run("find", "--top")
 if r.returncode != 0 or "11 match(es)" not in r.stdout:
     fail(f"find --top: {r.stdout}{r.stderr}")
 
+# A layout checkout with no marker is not a clone. RESHELF_CLONE_ROOT is set,
+# so the script must not stamp it. The marker makes it count.
+foreign = os.path.join(root, "Work", "one")
+os.makedirs(os.path.join(foreign, ".git"))
+with open(os.path.join(foreign, ".git", "config"), "w") as f:
+    f.write('[remote "origin"]\n\turl = https://github.com/acme/one.git\n')
+r = run("find", "--top")
+if r.returncode != 0 or "CLONED" in r.stdout:
+    fail(f"unmarked checkout counted as cloned: {r.stdout}{r.stderr}")
+if os.path.exists(os.path.join(foreign, ".git", "reshelf-clone")):
+    fail("custom clone folder was stamped")
+with open(os.path.join(foreign, ".git", "reshelf-clone"), "w") as f:
+    f.write("reshelf\n")
+r = run("find", "dotdot-cat")
+if r.returncode != 0 or "CLONED" not in r.stdout or foreign not in r.stdout:
+    fail(f"marked checkout not cloned: {r.stdout}{r.stderr}")
+
 if failures:
     print(f"ShelfScriptNames: {failures} failed")
     sys.exit(1)

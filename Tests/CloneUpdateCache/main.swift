@@ -82,6 +82,7 @@ try fm.createDirectory(at: clone.deletingLastPathComponent(), withIntermediateDi
 try git(["clone", "-q", upstream.path, clone.path], in: base)
 try git(["remote", "set-url", "origin", "https://github.com/kika/tool.git"], in: clone)
 try git(["config", "url.\(upstream.path).insteadOf", "https://github.com/kika/tool.git"], in: clone)
+try "reshelf\n".write(to: CatalogCloneService.cloneMarkerURL(for: clone), atomically: true, encoding: .utf8)
 
 await check("7514: a check is remembered and reused; Check and Pull replace it") {
     let tool = try project("https://github.com/kika/tool", category: "Utility")

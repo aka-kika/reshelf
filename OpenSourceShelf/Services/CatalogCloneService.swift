@@ -87,14 +87,71 @@ enum CatalogCloneService {
         return index
     }
 
-    /// `owner/repo` → clone folder for every finished checkout at reshelf's own
-    /// layout, `<root>/<Category>/<repo>` or `<root>/<Category>/<owner>-<repo>`,
-    /// where the folder name matches the checkout's own origin. Anything else
-    /// under the root is not ours: with the clone folder pointed at a dev
-    /// folder, a working copy at `<root>/<project>` or `<root>/work/<other name>`
-    /// must not count as a clone (Remove Local Clone would trash it, Pull would
-    /// reset it). Half-written clones are skipped too (`isFinishedCheckout`).
+    /// File inside `.git` that says reshelf made this clone. A checkout without
+    /// it is not ours, even at `<root>/<folder>/<repo>` inside a custom clone
+    /// folder — Remove Local Clone would trash it and Pull would reset it.
+    static let cloneMarkerFileName = "reshelf-clone"
+
+    static func cloneMarkerURL(for dir: URL) -> URL {
+        dir.appendingPathComponent(".git", isDirectory: true)
+            .appendingPathComponent(cloneMarkerFileName)
+    }
+
+    static func hasCloneMarker(_ dir: URL) -> Bool {
+        FileManager.default.fileExists(atPath: cloneMarkerURL(for: dir).path)
+    }
+
+    /// Writes the marker. No-op when `.git` is missing or is a file (a worktree
+    /// or submodule), so we never create a fake `.git` directory.
+    static func writeCloneMarker(at dir: URL) {
+        let gitDir = dir.appendingPathComponent(".git")
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: gitDir.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else { return }
+        let url = cloneMarkerURL(for: dir)
+        guard !FileManager.default.fileExists(atPath: url.path) else { return }
+        try? "reshelf\n".write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    /// The default clone folder only ever held clones reshelf made, from before
+    /// the marker existed. Stamp those once. A custom folder is never stamped.
+    private static func stampsLegacyMarkers(in root: URL) -> Bool {
+        guard !CloneLocation.isCustom else { return false }
+        return root.standardizedFileURL.path == CloneLocation.defaultRootURL.standardizedFileURL.path
+    }
+
+    /// Marks finished layout clones in `root` that predate the marker.
+    /// Only call this for the default clone folder.
+    @discardableResult
+    static func stampLegacyCloneMarkers(root: URL) -> Int {
+        var stamped = 0
+        let fm = FileManager.default
+        guard let categoryDirs = try? fm.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else { return 0 }
+        for dir in categoryDirs where (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+            guard let entries = try? fm.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { continue }
+            for entry in entries {
+                guard !hasCloneMarker(entry),
+                      fm.fileExists(atPath: entry.appendingPathComponent(".git").path),
+                      let slug = originSlug(fromConfigAt: entry),
+                      isLayoutFolderName(entry.lastPathComponent, forSlug: slug),
+                      isFinishedCheckout(entry) else { continue }
+                writeCloneMarker(at: entry)
+                if hasCloneMarker(entry) { stamped += 1 }
+            }
+        }
+        return stamped
+    }
+
+    /// `owner/repo` → clone folder for every finished checkout reshelf made
+    /// (the marker), at `<root>/<Category>/<repo>` or `<owner>-<repo>`, named
+    /// after its own origin. Anything else under the root is not ours.
+    /// Half-written clones are skipped too (`isFinishedCheckout`).
     static func scanCloneIndex(root: URL) -> [String: URL] {
+        if stampsLegacyMarkers(in: root) {
+            _ = stampLegacyCloneMarkers(root: root)
+        }
         var index: [String: URL] = [:]
         let fm = FileManager.default
         guard let categoryDirs = try? fm.contentsOfDirectory(
@@ -103,7 +160,8 @@ enum CatalogCloneService {
             guard let entries = try? fm.contentsOfDirectory(
                 at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { continue }
             for entry in entries {
-                guard fm.fileExists(atPath: entry.appendingPathComponent(".git").path),
+                guard hasCloneMarker(entry),
+                      fm.fileExists(atPath: entry.appendingPathComponent(".git").path),
                       let slug = originSlug(fromConfigAt: entry),
                       isLayoutFolderName(entry.lastPathComponent, forSlug: slug),
                       isFinishedCheckout(entry) else { continue }
@@ -228,12 +286,16 @@ enum CatalogCloneService {
         if let existing = existingClone(for: project) { return existing }
         guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: project.githubURL) else { return nil }
         let candidates = candidatePaths(owner: owner, repo: repo, category: categoryFolderName(for: project))
+        let fm = FileManager.default
         for path in candidates {
-            // A candidate that already holds THIS repo's checkout (index missed
-            // it — e.g. restored from Trash or cloned outside the app) IS the
-            // destination; anything else occupying it means try the next name.
-            if originMatches(path, owner: owner, repo: repo) { return path }
-            if !FileManager.default.fileExists(atPath: path.path) { return path }
+            if originMatches(path, owner: owner, repo: repo) {
+                // Ours (marked), or a clone of ours that died midway (no
+                // finished checkout yet, so the marker was never written).
+                // A finished checkout without the marker is someone else's.
+                if hasCloneMarker(path) || !isFinishedCheckout(path) { return path }
+                continue
+            }
+            if !fm.fileExists(atPath: path.path) { return path }
         }
         return candidates.last
     }
@@ -338,16 +400,20 @@ enum CatalogCloneService {
 
         if fm.fileExists(atPath: dest.path) {
             if originMatches(dest, owner: owner, repo: repo) {
-                // Adopt a finished checkout of this exact repo that the index
-                // missed rather than failing on it.
-                if isFinishedCheckout(dest), await GitClient().headResolves(repositoryURL: dest) {
+                // Adopt only a clone reshelf made. A finished checkout without
+                // the marker is the user's own project: leave it untouched.
+                if hasCloneMarker(dest),
+                   isFinishedCheckout(dest),
+                   await GitClient().headResolves(repositoryURL: dest) {
                     invalidateCloneIndex()
                     AppRefreshBus.emit(.catalogStateUpdated)
                     return dest
                 }
                 // A clone of this repo that died midway: origin is set but the
                 // checkout never finished. Trash it (recoverable) and clone again.
-                try fm.trashItem(at: dest, resultingItemURL: nil)
+                if !isFinishedCheckout(dest) {
+                    try fm.trashItem(at: dest, resultingItemURL: nil)
+                }
             }
         }
 
@@ -363,6 +429,7 @@ enum CatalogCloneService {
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         let url = "https://github.com/\(owner)/\(repo)"
         try await GitClient().clone(repositoryURL: url, destinationURL: dest)
+        writeCloneMarker(at: dest)
         invalidateCloneIndex()
         forgetUpdateStatus(for: projectID)
         // Clones live on disk, not in SwiftData, so no @Query sees this one:

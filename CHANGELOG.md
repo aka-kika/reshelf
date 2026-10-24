@@ -5,6 +5,9 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Fixed
+- **A custom clone folder no longer treats your own projects as clones.** Remove Local Clone and Pull only touch clones reshelf made (a marker written when the clone finishes). Clones already in the default folder are marked the first time they're seen. A checkout in a folder you chose is left alone, and the agent skill follows the same rule.
+
 ### Cleanup (2026-10-20, no change in what the app does)
 - Removed dead code left from the old intelligence engine: the unused status
   pipeline (`CatalogIntelligenceStatus` and the resolver's snapshot path), the

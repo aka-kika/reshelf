@@ -13,8 +13,11 @@ something you saved, it:
    `~/reshelf/repos/<Category>/<repo>`, and clones **only after you say yes**,
 5. helps you **learn** the approach or **use**/borrow the code.
 
-It never changes your clones. The one thing it can write is a new clone of a repo
-that is already on your shelf, after you approve it.
+It never changes the files in a clone. The one thing it can write is a new clone of a repo
+that is already on your shelf, after you approve it, plus a marker inside `.git` so the
+app knows reshelf made it. In the default clone folder it adds that marker to clones
+that predate it. A checkout in a custom clone folder counts only when it already has
+the marker, and this script never adds one there.
 
 ## Install or update
 

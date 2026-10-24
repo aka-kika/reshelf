@@ -50,6 +50,10 @@ try "hello\n".write(to: upstream.appendingPathComponent("README"), atomically: t
 try git(["add", "."], in: upstream)
 try git(["commit", "-q", "-m", "first"], in: upstream)
 
+func markClone(_ dir: URL) throws {
+    try "reshelf\n".write(to: CatalogCloneService.cloneMarkerURL(for: dir), atomically: true, encoding: .utf8)
+}
+
 /// A finished clone at `path` whose origin says github.com/<slug>.
 @discardableResult
 func finishedClone(_ path: String, slug: String) throws -> URL {
@@ -110,6 +114,8 @@ let packed = try finishedClone("CLI/packed", slug: "kika/packed")
 try git(["pack-refs", "--all"], in: packed)
 let detached = try finishedClone("CLI/detached", slug: "kika/detached")
 try git(["checkout", "-q", "--detach", "HEAD"], in: detached)
+for made in [aiTool, fallback, packed, detached] { try markClone(made) }
+let unmarked = try finishedClone("Projects/mine", slug: "kika/mine")
 let flat = try finishedClone("myproject", slug: "kika/myproject")
 let renamed = try finishedClone("work/my-copy", slug: "kika/third")
 let deep = try finishedClone("work/deep/fourth", slug: "kika/fourth")
@@ -130,6 +136,45 @@ await check("c31e: checkouts elsewhere under the root are not adopted") {
     try expect(index["kika/myproject"] == nil, "root-level working copy adopted: \(flat.path)")
     try expect(index["kika/third"] == nil, "folder named differently from its repo adopted: \(renamed.path)")
     try expect(index["kika/fourth"] == nil, "deeper checkout adopted: \(deep.path)")
+}
+
+await check("9ca4: a finished checkout without the marker is not a clone") {
+    try expect(CloneLocation.isCustom, "test root is not a custom folder")
+    let index = CatalogCloneService.scanCloneIndex(root: root)
+    try expect(index["kika/mine"] == nil, "unmarked checkout adopted")
+    try expect(!CatalogCloneService.hasCloneMarker(unmarked), "scan stamped a custom folder")
+    let mine = try project("https://github.com/kika/mine", category: "Projects")
+    try expect(!CatalogCloneService.isCloned(mine), "unmarked checkout shows Cloned")
+    let fallbackName = root.appendingPathComponent("Projects/kika-mine")
+    try expect(same(CatalogCloneService.destination(for: mine), fallbackName),
+               "destination is the user's own checkout")
+    do {
+        try CatalogCloneService.removeClone(mine)
+        throw TestFailure(description: "removeClone returned quietly")
+    } catch let error as CatalogCloneService.CloneError {
+        guard case .notCloned = error else { throw TestFailure(description: "got \(error)") }
+    }
+    try expect(fm.fileExists(atPath: unmarked.appendingPathComponent(".git").path),
+               "Remove Local Clone touched the unmarked checkout")
+}
+
+await check("9ca4: the default-folder stamp marks layout clones only") {
+    let legacyRoot = base.appendingPathComponent("legacy-root")
+    let old = legacyRoot.appendingPathComponent("Utility/oldtool")
+    try fm.createDirectory(at: old.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try git(["clone", "-q", upstream.path, old.path], in: base)
+    try git(["remote", "set-url", "origin", "https://github.com/kika/oldtool.git"], in: old)
+    let otherName = legacyRoot.appendingPathComponent("work/my-copy")
+    try fm.createDirectory(at: otherName.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try git(["clone", "-q", upstream.path, otherName.path], in: base)
+    try git(["remote", "set-url", "origin", "https://github.com/kika/third.git"], in: otherName)
+    try expect(CatalogCloneService.scanCloneIndex(root: legacyRoot)["kika/oldtool"] == nil,
+               "unstamped legacy clone adopted before the stamp")
+    try expect(CatalogCloneService.stampLegacyCloneMarkers(root: legacyRoot) == 1, "stamp count")
+    try expect(CatalogCloneService.hasCloneMarker(old), "layout clone not marked")
+    try expect(!CatalogCloneService.hasCloneMarker(otherName), "other name was marked")
+    try expect(same(CatalogCloneService.scanCloneIndex(root: legacyRoot)["kika/oldtool"], old),
+               "stamped clone not adopted")
 }
 
 await check("a578: a clone that died midway is not counted as cloned") {

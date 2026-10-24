@@ -10,8 +10,10 @@
 Reads the reshelf app's catalog (live store, or the newest JSON backup) read-only.
 Yard Sale is always left out: those repos are on their way out.
 Clones exactly like the app does: <clone root>/<Category>/<repo>, falling back to
-<owner>-<repo> on a name clash, full clone, git-lfs filters bypassed. The app picks
-the new clone up the next time its window becomes active.
+<owner>-<repo> on a name clash, full clone, git-lfs filters bypassed. A checkout
+counts as cloned only with the reshelf marker (.git/reshelf-clone), written when
+this script clones. A custom clone folder is never stamped. The app picks the new
+clone up the next time its window becomes active.
 """
 import glob
 import json
@@ -118,17 +120,63 @@ def owner_repo(url):
     return owner, repo
 
 
+MARKER_NAME = "reshelf-clone"
+
+
+def marker_path(clone_dir):
+    return os.path.join(clone_dir, ".git", MARKER_NAME)
+
+
+def has_marker(clone_dir):
+    return os.path.isfile(marker_path(clone_dir))
+
+
+def write_marker(clone_dir):
+    """Marks a clone this script just made. No-op when .git is not a directory."""
+    git_dir = os.path.join(clone_dir, ".git")
+    if not os.path.isdir(git_dir) or os.path.exists(marker_path(clone_dir)):
+        return
+    with open(marker_path(clone_dir), "w") as handle:
+        handle.write("reshelf\n")
+
+
+def _layout_name(folder_name, owner, repo):
+    name = folder_name.lower()
+    return name == repo.lower() or name == f"{owner}-{repo}".lower()
+
+
+def _stamps_legacy(root):
+    """The default clone folder predates the marker. A custom folder, and the
+    RESHELF_CLONE_ROOT test override, must never be stamped."""
+    if os.environ.get("RESHELF_CLONE_ROOT"):
+        return False
+    default = os.path.normpath(os.path.join(RESHELF_HOME, "repos"))
+    return os.path.normpath(root) == default
+
+
 def clone_index(root):
-    """owner/repo (lowercased) -> clone folder, read from each checkout's origin."""
+    """owner/repo (lowercased) -> clone folder, only for clones reshelf marked."""
     index = {}
+    stamp = _stamps_legacy(root)
     for cfg in glob.glob(os.path.join(root, "*", "*", ".git", "config")):
         try:
             text = open(cfg, errors="ignore").read()
         except OSError:
             continue
         m = re.search(r"url\s*=\s*\S*github\.com[/:]([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$", text, re.M)
-        if m:
-            index[f"{m.group(1)}/{m.group(2)}".lower()] = os.path.dirname(os.path.dirname(cfg))
+        if not m:
+            continue
+        owner, repo = m.group(1), m.group(2)
+        clone_dir = os.path.dirname(os.path.dirname(cfg))
+        if not has_marker(clone_dir):
+            if not (stamp and _layout_name(os.path.basename(clone_dir), owner, repo)):
+                continue
+            write_marker(clone_dir)
+            if not has_marker(clone_dir):
+                continue
+        slug = f"{owner}/{repo}".lower()
+        if slug not in index:
+            index[slug] = clone_dir
     return index
 
 
@@ -283,6 +331,7 @@ def cmd_clone(args):
     result = subprocess.run(["git", *lfs, "clone", f"https://github.com/{o[0]}/{o[1]}", dest])
     if result.returncode != 0:
         sys.exit("git clone failed (see above).")
+    write_marker(dest)
     print(f"\nCloned. The reshelf app shows it as cloned next time its window is active.")
 
 
