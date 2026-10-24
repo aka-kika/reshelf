@@ -436,7 +436,9 @@ struct ContentView: View {
             get: { listSelection?.projectID },
             set: { newValue in
                 if let newValue {
-                    listSelection = .project(newValue)
+                    // A sidebar filter or a search can hide the row. Reveal
+                    // clears both, the same way Show in List does.
+                    revealProject(newValue)
                 }
             }
         )
