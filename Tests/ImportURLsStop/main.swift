@@ -108,11 +108,38 @@ func run() async throws {
             ["https://github.com/test/fresh"], existing: [], into: ctx,
             fetch: { url in info(for: url) },
             pause: 0, shouldStop: { false }, onProgress: { _ in })
-        check("import writes a labelled backup first",
-              outcome.counts.imported == 1
-              && CatalogBackupService.snapshotURLs().contains {
-                  CatalogBackupService.reason(in: $0) == "Before importing GitHub URLs"
-              })
+        let labelled = CatalogBackupService.snapshotURLs().filter {
+            CatalogBackupService.reason(in: $0) == "Before importing GitHub URLs"
+        }
+        let names = labelled.first.map { CatalogBackupService.projects(in: $0).map(\.name) } ?? []
+        check("import writes one labelled backup", outcome.counts.imported == 1 && labelled.count == 1)
+        // Written before the first insert: it holds the old row, not the new one.
+        check("labelled backup holds the catalog as it was before the import",
+              names == ["already"])
+        check("the import itself still landed after the backup", count(ctx) == 2)
+    }
+
+    // 5b. The safety backup cannot be written: nothing is imported, every link comes back.
+    do {
+        let ctx = try makeContext()
+        ctx.insert(ToolProject(name: "kept", githubURL: "https://github.com/test/kept", status: .collector))
+        try ctx.save()
+        CatalogBackupService.waitForWrites()
+        let blocker = backups.appendingPathComponent("not-a-folder")
+        try Data("x".utf8).write(to: blocker)
+        let saved = CatalogBackupService.backupsDirectoryOverride
+        CatalogBackupService.backupsDirectoryOverride = blocker
+        var fetches = 0
+        let outcome = await BulkURLImport.run(
+            links, existing: [], into: ctx,
+            fetch: { url in fetches += 1; return info(for: url) },
+            pause: 0, shouldStop: { false }, onProgress: { _ in })
+        CatalogBackupService.backupsDirectoryOverride = saved
+        check("backup failure: the run stops with backupFailed", outcome.stop == .backupFailed)
+        check("backup failure: no link is fetched", fetches == 0)
+        check("backup failure: nothing is imported", outcome.counts.imported == 0 && count(ctx) == 1)
+        check("backup failure: every link is handed back", outcome.remaining == links)
+        check("backup failure: override is restored", CatalogBackupService.backupsDirectoryOverride == saved)
     }
 
     // 6. A save that fails stops the run; that repo is not counted (599e).
