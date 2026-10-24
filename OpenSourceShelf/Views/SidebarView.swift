@@ -153,7 +153,9 @@ struct SidebarView: View {
             .alert("Rename Folder", isPresented: presenting($renameTarget)) {
                 TextField("Name", text: $draftName)
                 Button("Rename") {
-                    if let folder = renameTarget,
+                    // A blank name keeps the old one: nothing to warn about.
+                    let blank = draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    if !blank, let folder = renameTarget,
                        !CatalogFolderService.rename(folder, to: draftName, in: modelContext) {
                         let alert = NSAlert()
                         alert.alertStyle = .warning
@@ -164,6 +166,7 @@ struct SidebarView: View {
                     }
                     renameTarget = nil
                 }
+                .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel", role: .cancel) { renameTarget = nil }
             }
             .onChange(of: renameTarget) { _, folder in
