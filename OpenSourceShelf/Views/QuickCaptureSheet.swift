@@ -508,6 +508,11 @@ struct QuickCaptureSheet: View {
         license = info.licenseText
         lastUpdatedDate = info.pushedAt.flatMap(GitHubDate.parse)
         tagsText = info.topics?.joined(separator: ", ") ?? ""
+        // A second link must not keep the first repo's note, use cases or flags.
+        useCasesText = ""
+        notes = ""
+        isSelfHosted = false
+        isLocalFirst = false
 
         // Auto-classify category from language, topics, and description
         category = CategoryClassifier.classify(
