@@ -19,11 +19,6 @@ enum IntelligenceRepositoryBridge {
                 if let match = try? database.fetchRepository(fullName: parsed.fullName) {
                     return match
                 }
-                let normalized = GitHubRepositoryURL.parse(githubURL)?.canonicalURL ?? githubURL
-                if normalized != parsed.canonicalURL,
-                   let match = try? database.fetchRepository(githubURL: normalized) {
-                    return match
-                }
             }
         }
 

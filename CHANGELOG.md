@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **The metadata lookup no longer has a dead second URL check.** It matches the GitHub link, then owner and name. The docs say the same.
 - **Edit refuses a name that is only spaces.** Save stays off, so a row cannot become blank.
 - **A repo named like a compound topic is categorized from that name.** browser-use lands in Computer Use even when GitHub sent no topics.
 - **Renaming a folder onto an existing name is refused.** Capitals do not make it a different folder, same as creating one.
