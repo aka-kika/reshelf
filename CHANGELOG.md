@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Send to reshelf stops when the save fails.** It no longer fetches an icon or runs Capture Assist for a repo that was not saved. Quick Capture already stopped.
 - **A failed Send to reshelf link says why.** The list status line shows the reason instead of only beeping.
 - **Why I saved this reports a failed save.** Leaving the field saves through the same path as the rest of the catalog, so a full disk shows the alert.
 - **A failed save no longer finishes the one-time category merge.** Clone folders stay put, and the merge runs again next launch.

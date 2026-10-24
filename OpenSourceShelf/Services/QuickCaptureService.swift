@@ -305,7 +305,12 @@ enum LinkCaptureService {
             isSelfHosted: topics.contains("self-hosted")
         )
         context.insert(project)
-        CatalogSave.save(context)
+        // A failed save must not go on to metadata, the icon, or Capture Assist.
+        // Quick Capture's sheet already stops the same way.
+        guard CatalogSave.save(context, name) else {
+            context.delete(project)
+            return .failed("Couldn't save \(name). Check that the disk has free space.")
+        }
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: info)
         IconFetcher.fetch(for: project, in: context)
 
