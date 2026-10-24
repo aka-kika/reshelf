@@ -233,6 +233,25 @@ await check("5689: the origin remote decides the clone, not the first github.com
     try expect(CatalogCloneService.originSlug(fromConfig: noOrigin) == nil, "a non-origin remote was used")
 }
 
+await check("deec: an unborn branch is not trashed as a half-written clone") {
+    let unborn = root.appendingPathComponent("Utility/unborn")
+    try fm.createDirectory(at: unborn, withIntermediateDirectories: true)
+    try git(["init", "-q", "-b", "main"], in: unborn)
+    try git(["remote", "add", "origin", "https://github.com/kika/unborn.git"], in: unborn)
+    try expect(!CatalogCloneService.isFinishedCheckout(unborn), "unborn counted as finished")
+    try expect(!CatalogCloneService.isAbortedClone(unborn), "unborn counted as aborted")
+    try expect(CatalogCloneService.isAbortedClone(noIndex), "a clone with no index is not aborted")
+    let row = try project("https://github.com/kika/unborn", category: "Utility")
+    do {
+        _ = try await CatalogCloneService.clone(row)
+        throw TestFailure(description: "clone replaced the unborn checkout")
+    } catch let error as CatalogCloneService.CloneError {
+        guard case .folderInUse = error else { throw TestFailure(description: "got \(error)") }
+    }
+    try expect(fm.fileExists(atPath: unborn.appendingPathComponent(".git").path),
+               "the unborn checkout was trashed")
+}
+
 await check("layout names") {
     try expect(CatalogCloneService.isLayoutFolderName("Tool", forSlug: "kika/tool"), "repo, other case")
     try expect(CatalogCloneService.isLayoutFolderName("kika-tool", forSlug: "kika/tool"), "owner-repo")

@@ -210,6 +210,27 @@ enum CatalogCloneService {
         return packed.split(whereSeparator: \.isNewline).contains { $0.hasSuffix(" \(ref)") }
     }
 
+    /// A clone whose download started and whose checkout never wrote the index.
+    /// An unborn or orphan branch has no commit objects yet (or it has an
+    /// index), so it is not this and must not be thrown away.
+    static func isAbortedClone(_ dir: URL) -> Bool {
+        let gitDir = dir.appendingPathComponent(".git", isDirectory: true)
+        let fm = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard fm.fileExists(atPath: gitDir.path, isDirectory: &isDirectory),
+              isDirectory.boolValue,
+              !fm.fileExists(atPath: gitDir.appendingPathComponent("index").path) else { return false }
+        let objects = gitDir.appendingPathComponent("objects")
+        if let packs = try? fm.contentsOfDirectory(atPath: objects.appendingPathComponent("pack").path),
+           packs.contains(where: { $0.hasSuffix(".pack") }) {
+            return true
+        }
+        guard let top = try? fm.contentsOfDirectory(atPath: objects.path) else { return false }
+        return top.contains { name in
+            name.count == 2 && name.allSatisfy(\.isHexDigit)
+        }
+    }
+
     /// Extract `owner/repo` (lowercased) from a checkout's `.git/config` origin URL,
     /// handling https and ssh forms (`github.com/owner/repo[.git]`, `github.com:owner/repo`).
     static func originSlug(fromConfigAt dir: URL) -> String? {
@@ -432,9 +453,11 @@ enum CatalogCloneService {
                     AppRefreshBus.emit(.catalogStateUpdated)
                     return dest
                 }
-                // A clone of this repo that died midway: origin is set but the
-                // checkout never finished. Trash it (recoverable) and clone again.
-                if !isFinishedCheckout(dest) {
+                // Trash only a clone that never wrote its index (killed midway).
+                // An orphan or unborn branch has an index and a HEAD ref that
+                // does not exist yet. That is a real checkout: leave it and
+                // report the folder in use.
+                if isAbortedClone(dest) {
                     try fm.trashItem(at: dest, resultingItemURL: nil)
                 }
             }
