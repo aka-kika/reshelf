@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Why I saved this reports a failed save.** Leaving the field saves through the same path as the rest of the catalog, so a full disk shows the alert.
 - **A failed save no longer finishes the one-time category merge.** Clone folders stay put, and the merge runs again next launch.
 - **Remove Duplicate Repos keeps Local-First and Self-Hosted.** A flag set on either copy stays set, and it counts when choosing which copy to keep.
 - **Emptying the shelf is remembered immediately.** A quit in that moment no longer lets the next launch restore every repo.

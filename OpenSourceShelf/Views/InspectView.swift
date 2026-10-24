@@ -697,11 +697,13 @@ struct EmptyInspectorView: View {
     }
 }
 
-/// Collapsed "Why I saved this" note with inline editing. Edits write straight
-/// to the model; SwiftData autosave persists them without an explicit save.
+/// Collapsed "Why I saved this" note with inline editing. The text is on the
+/// model as you type; leaving the field saves through CatalogSave, so a full
+/// disk shows the same alert as every other save.
 private struct PersonalNoteSection: View {
     @Bindable var project: ToolProject
     @State private var isExpanded = false
+    @FocusState private var noteFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -726,6 +728,11 @@ private struct PersonalNoteSection: View {
 
             if isExpanded {
                 TextEditor(text: $project.personalNote)
+                    .focused($noteFocused)
+                    .onChange(of: noteFocused) { _, focused in
+                        guard !focused, let context = project.modelContext else { return }
+                        CatalogSave.save(context, "why you saved \(project.name)")
+                    }
                     .font(.system(size: 12))
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 54)
