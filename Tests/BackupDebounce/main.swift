@@ -129,7 +129,19 @@ func run() async throws {
     let left = CatalogFolderService.folders(in: ctx).map(\.name)
     check("folder delete removes the folder", !left.contains("Batch"))
 
-    // 8. A backup that cannot be written reports failure (4fc5). The caller
+    // 8. Labelled backups are not pruned with the 30 routine ones (7aa7).
+    check("labelled backup is kept",
+          CatalogBackupService.writeSnapshot(all(ctx), reason: "Before removing keep-me"))
+    for i in 0..<35 {
+        all(ctx)[0].notes = "wave \(i)"
+        _ = CatalogBackupService.writeSnapshot(all(ctx))
+    }
+    let labelledKept = files().contains { CatalogBackupService.reason(in: $0) == "Before removing keep-me" }
+    let routineCount = files().filter { CatalogBackupService.reason(in: $0) == nil }.count
+    check("a labelled backup survives the routine prune", labelledKept)
+    check("routine backups stay at 30", routineCount == 30)
+
+    // 9. A backup that cannot be written reports failure (4fc5). The caller
     //    stops the delete or the Yard Sale move instead of saying it was saved.
     func catalogFiles(in dir: URL) -> Int {
         ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])

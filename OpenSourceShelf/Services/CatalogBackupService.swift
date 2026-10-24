@@ -9,7 +9,8 @@ import SwiftData
 /// Snapshots use the same schema as manual JSON export, so any backup is a valid
 /// export and any export is a valid restore source.
 enum CatalogBackupService {
-    /// How many snapshots to retain. Old ones are pruned oldest-first.
+    /// How many routine snapshots to retain. Old ones are pruned oldest-first.
+    /// Labelled backups (a reason like "Before removing …") are kept besides these.
     static let maxSnapshots = 30
 
     /// Tests point backups at a temp folder; the app never sets this.
@@ -173,10 +174,12 @@ enum CatalogBackupService {
         return writeSnapshot(projects, folders: folders, reason: reason)
     }
 
+    /// Routine snapshots stop at `maxSnapshots`. A labelled "Before …" backup
+    /// is the undo point for a delete or a move, so it is not one of the 30.
     private static func prune() {
-        let urls = snapshotURLs() // newest first
-        guard urls.count > maxSnapshots else { return }
-        for url in urls.dropFirst(maxSnapshots) {
+        let routine = snapshotURLs().filter { reason(in: $0) == nil } // newest first
+        guard routine.count > maxSnapshots else { return }
+        for url in routine.dropFirst(maxSnapshots) {
             try? FileManager.default.removeItem(at: url)
         }
     }
