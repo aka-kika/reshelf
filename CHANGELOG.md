@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A clone is recognized from its origin remote only.** Another github.com link in the git config no longer decides which repo the folder is.
 - **Saving a repo and deleting it in the same moment no longer crashes.** The metadata step checks the row is still there before it reads it.
 - **C, C++ and C# stay three tags.** The sidebar no longer folds + and # out of a tag.
 - **Search finds a repo by its owner or its website.** Both links are part of the search.

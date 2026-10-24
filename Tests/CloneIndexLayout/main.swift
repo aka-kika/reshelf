@@ -215,6 +215,24 @@ await check("a578: a clone that died midway is not counted as cloned") {
     try expect(await GitClient().headResolves(repositoryURL: aiTool), "finished HEAD does not resolve")
 }
 
+await check("5689: the origin remote decides the clone, not the first github.com") {
+    let config = """
+    [core]
+        comment = see github.com/other/decoy
+    [remote "upstream"]
+        url = https://github.com/decoy/repo.git
+    [remote "origin"]
+        url = git@github.com:Kika/Real.git
+    """
+    try expect(CatalogCloneService.originSlug(fromConfig: config) == "kika/real",
+               "got \(CatalogCloneService.originSlug(fromConfig: config) ?? "nil")")
+    let noOrigin = """
+    [remote "upstream"]
+        url = https://github.com/decoy/repo.git
+    """
+    try expect(CatalogCloneService.originSlug(fromConfig: noOrigin) == nil, "a non-origin remote was used")
+}
+
 await check("layout names") {
     try expect(CatalogCloneService.isLayoutFolderName("Tool", forSlug: "kika/tool"), "repo, other case")
     try expect(CatalogCloneService.isLayoutFolderName("kika-tool", forSlug: "kika/tool"), "owner-repo")

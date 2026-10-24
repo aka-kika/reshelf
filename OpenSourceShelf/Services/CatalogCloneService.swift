@@ -213,14 +213,34 @@ enum CatalogCloneService {
     /// Extract `owner/repo` (lowercased) from a checkout's `.git/config` origin URL,
     /// handling https and ssh forms (`github.com/owner/repo[.git]`, `github.com:owner/repo`).
     static func originSlug(fromConfigAt dir: URL) -> String? {
-        guard let config = try? String(contentsOf: dir.appendingPathComponent(".git/config"), encoding: .utf8),
-              let hostRange = config.range(of: "github.com", options: .caseInsensitive) else { return nil }
-        var rest = config[hostRange.upperBound...]
-        guard let sep = rest.first, sep == ":" || sep == "/" else { return nil }
-        rest = rest.dropFirst()
-        let path = rest.prefix { !$0.isWhitespace }
-        guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: "github.com/\(path)") else { return nil }
-        return "\(owner)/\(repo)".lowercased()
+        guard let config = try? String(contentsOf: dir.appendingPathComponent(".git/config"), encoding: .utf8)
+        else { return nil }
+        return originSlug(fromConfig: config)
+    }
+
+    /// The origin remote's GitHub slug. The first `github.com` in the file can
+    /// be another remote, or a comment, and must not decide the identity.
+    static func originSlug(fromConfig config: String) -> String? {
+        var inOrigin = false
+        for raw in config.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("[") {
+                inOrigin = line.lowercased() == "[remote \"origin\"]"
+                continue
+            }
+            guard inOrigin else { continue }
+            guard line.lowercased().hasPrefix("url") else { continue }
+            guard let equals = line.firstIndex(of: "=") else { continue }
+            let url = line[line.index(after: equals)...].trimmingCharacters(in: .whitespaces)
+            guard let hostRange = url.range(of: "github.com", options: .caseInsensitive) else { return nil }
+            var rest = url[hostRange.upperBound...]
+            guard let sep = rest.first, sep == ":" || sep == "/" else { return nil }
+            rest = rest.dropFirst()
+            let path = rest.prefix { !$0.isWhitespace }
+            guard let (owner, repo) = GitHubRepositoryURL.ownerAndRepo(from: "github.com/\(path)") else { return nil }
+            return "\(owner)/\(repo)".lowercased()
+        }
+        return nil
     }
 
     /// Sanitized, human-readable folder name for a project's category, so clones
