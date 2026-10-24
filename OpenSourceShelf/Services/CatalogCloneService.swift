@@ -294,6 +294,22 @@ enum CatalogCloneService {
         }
     }
 
+    /// Hidden file beside a clone reshelf has started (`<Category>/.<repo>.reshelf-cloning`),
+    /// removed when git returns. A clone killed before any objects arrived
+    /// looks exactly like a fresh `git init` with origin set; this file is how
+    /// reshelf knows that folder is its own leftover. The scans skip hidden files.
+    static func cloneInProgressURL(for dest: URL) -> URL {
+        dest.deletingLastPathComponent()
+            .appendingPathComponent(".\(dest.lastPathComponent).reshelf-cloning")
+    }
+
+    /// A folder at `dest` that reshelf may replace: a clone that never wrote
+    /// its index, or one reshelf started and never finished.
+    static func isLeftoverClone(_ dest: URL) -> Bool {
+        guard !isFinishedCheckout(dest) else { return false }
+        return isAbortedClone(dest) || FileManager.default.fileExists(atPath: cloneInProgressURL(for: dest).path)
+    }
+
     /// Extract `owner/repo` (lowercased) from a checkout's `.git/config` origin URL,
     /// handling https and ssh forms (`github.com/owner/repo[.git]`, `github.com:owner/repo`).
     static func originSlug(fromConfigAt dir: URL) -> String? {
@@ -516,11 +532,10 @@ enum CatalogCloneService {
                     AppRefreshBus.emit(.catalogStateUpdated)
                     return dest
                 }
-                // Trash only a clone that never wrote its index (killed midway).
-                // An orphan or unborn branch has an index and a HEAD ref that
-                // does not exist yet. That is a real checkout: leave it and
-                // report the folder in use.
-                if isAbortedClone(dest) {
+                // Trash only a clone that never wrote its index (killed midway),
+                // or one reshelf started and never finished. An unborn branch
+                // someone made has neither: leave it and report the folder in use.
+                if isLeftoverClone(dest) {
                     try fm.trashItem(at: dest, resultingItemURL: nil)
                 }
             }
@@ -543,8 +558,18 @@ enum CatalogCloneService {
 
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         let url = "https://github.com/\(owner)/\(repo)"
-        try await GitClient().clone(repositoryURL: url, destinationURL: dest)
+        let inProgress = cloneInProgressURL(for: dest)
+        try? Data().write(to: inProgress)
+        do {
+            try await GitClient().clone(repositoryURL: url, destinationURL: dest)
+        } catch {
+            // git removes its folder on a normal failure. If one is left, the
+            // file stays so the next Clone can replace it.
+            if !fm.fileExists(atPath: dest.path) { try? fm.removeItem(at: inProgress) }
+            throw error
+        }
         writeCloneMarker(at: dest)
+        try? fm.removeItem(at: inProgress)
         invalidateCloneIndex()
         forgetUpdateStatus(for: projectID)
         // Clones live on disk, not in SwiftData, so no @Query sees this one:

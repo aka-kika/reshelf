@@ -300,6 +300,21 @@ await check("b009: old clones in a custom folder are adopted only at a row's exa
     try expect(CatalogCloneService.adoptLegacyClones(rows, root: oldRoot) == 0, "second run adopted again")
 }
 
+await check("44fc: a clone reshelf started and that died before any objects is replaceable") {
+    let started = root.appendingPathComponent("Utility/started")
+    try fm.createDirectory(at: started, withIntermediateDirectories: true)
+    try git(["init", "-q", "-b", "main"], in: started)
+    try git(["remote", "add", "origin", "https://github.com/kika/started.git"], in: started)
+    try expect(!CatalogCloneService.isLeftoverClone(started), "an unborn checkout counts as a leftover")
+    let note = CatalogCloneService.cloneInProgressURL(for: started)
+    try Data().write(to: note)
+    try expect(CatalogCloneService.isLeftoverClone(started), "a started clone is not a leftover")
+    try expect(CatalogCloneService.scanCloneIndex(root: root)["kika/started"] == nil, "a started clone is indexed")
+    try expect(CatalogCloneService.isLeftoverClone(noIndex), "a clone with objects and no index is not a leftover")
+    try expect(!CatalogCloneService.isLeftoverClone(aiTool), "a finished clone counts as a leftover")
+    try fm.removeItem(at: note)
+}
+
 await check("layout names") {
     try expect(CatalogCloneService.isLayoutFolderName("Tool", forSlug: "kika/tool"), "repo, other case")
     try expect(CatalogCloneService.isLayoutFolderName("kika-tool", forSlug: "kika/tool"), "owner-repo")
