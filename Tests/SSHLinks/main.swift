@@ -44,6 +44,12 @@ check("a stored SSH link reads back after normalizing",
       GitHubRepositoryURL.parse(WebLink.normalized("git@github.com:o/r"))?.fullName == "o/r")
 check("WebLink.url opens an https URL for an SSH paste",
       WebLink.url("git@github.com:o/r")?.absoluteString == "https://github.com/o/r")
+check("WebLink.url opens http",
+      WebLink.url("http://example.org/docs")?.scheme == "http")
+check("WebLink.url refuses file", WebLink.url("file:///etc/passwd") == nil)
+check("WebLink.url refuses smb", WebLink.url("smb://server/share") == nil)
+check("WebLink.url refuses a bare path", WebLink.url("/tmp/secret") == nil)
+check("WebLink.url refuses an empty link", WebLink.url("   ") == nil)
 
 if failures > 0 { print("\(failures) failed"); exit(1) }
 print("SSHLinks: all passed")

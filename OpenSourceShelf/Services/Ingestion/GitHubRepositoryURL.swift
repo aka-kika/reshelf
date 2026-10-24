@@ -142,8 +142,13 @@ enum WebLink {
         return "https://" + trimmed
     }
 
+    /// A link the app may open. Only http and https: a repo homepage can be
+    /// `file://` or `smb://`, and `NSWorkspace.open` would hand that to Finder.
     static func url(_ raw: String) -> URL? {
         let link = normalized(raw)
-        return link.isEmpty ? nil : URL(string: link)
+        guard let url = URL(string: link),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else { return nil }
+        return url
     }
 }
