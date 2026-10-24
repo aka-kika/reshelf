@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Deleting a repo while it is cloning no longer crashes.** The status line keeps the repo's name from before the clone started.
 - **A custom clone folder no longer treats your own projects as clones.** Remove Local Clone and Pull only touch clones reshelf made (a marker written when the clone finishes). Clones already in the default folder are marked the first time they're seen. A checkout in a folder you chose is left alone, and the agent skill follows the same rule.
 
 ### Cleanup (2026-10-20, no change in what the app does)

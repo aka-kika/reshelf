@@ -548,18 +548,22 @@ struct ProjectListView: View {
     }
 
     private func cloneProject(_ project: ToolProject) {
-        cloningProjectIDs.insert(project.id)
-        statusNotice = "Cloning \(project.name)…"
+        // The row can be deleted while git runs. Reading it after the await
+        // is a fatal SwiftData error, so the status line keeps these copies.
+        let id = project.id
+        let name = project.name
+        cloningProjectIDs.insert(id)
+        statusNotice = "Cloning \(name)…"
         Task {
             do {
                 let dest = try await CatalogCloneService.clone(project)
                 await MainActor.run {
-                    cloningProjectIDs.remove(project.id)
-                    statusNotice = "Cloned \(project.name) to \(dest.path)."
+                    cloningProjectIDs.remove(id)
+                    statusNotice = "Cloned \(name) to \(dest.path)."
                 }
             } catch {
                 await MainActor.run {
-                    cloningProjectIDs.remove(project.id)
+                    cloningProjectIDs.remove(id)
                     statusNotice = "Clone failed: \(error.localizedDescription)"
                 }
             }

@@ -114,6 +114,26 @@ func runAll() async throws {
         let live = ids.compactMap { LiveProject.fetch($0, in: context) }
         check("result list holds only live rows", live.map(\.name) == ["repo 0", "repo 2"])
     }
+
+    // 6. Clone completion (ProjectListView.cloneProject): id and name are
+    // copied before the await. After the row is deleted, those copies are
+    // what the status line uses. Reading the model here would trap.
+    do {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let project = ToolProject(name: "while-cloning", githubURL: "https://github.com/acme/one")
+        context.insert(project)
+        try context.save()
+        let id = project.id
+        let name = project.name
+        let wrote = await writeAfterAwait(id, context: context) {
+            context.delete(project)
+            try? context.save()
+        }
+        check("18f0: clone completion does not write a deleted row", !wrote)
+        check("18f0: captured name is the one from before the clone", name == "while-cloning")
+        check("18f0: captured id no longer fetches a row", LiveProject.fetch(id, in: context) == nil)
+    }
 }
 
 try await runAll()
