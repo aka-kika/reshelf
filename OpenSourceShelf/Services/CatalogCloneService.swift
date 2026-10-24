@@ -421,9 +421,15 @@ enum CatalogCloneService {
         }
 
         if fm.fileExists(atPath: dest.path) {
-            let contents = (try? fm.contentsOfDirectory(atPath: dest.path)) ?? []
-            if contents.isEmpty || contents.allSatisfy({ $0 == ".DS_Store" }) {
-                try? fm.removeItem(at: dest)
+            // A plain file, or a folder we cannot read, is not an empty
+            // leftover. contentsOfDirectory fails on a file, and treating that
+            // as "empty" used to delete the file for good.
+            var isDirectory: ObjCBool = false
+            let exists = fm.fileExists(atPath: dest.path, isDirectory: &isDirectory)
+            let contents = exists && isDirectory.boolValue
+                ? (try? fm.contentsOfDirectory(atPath: dest.path)) : nil
+            if let contents, contents.isEmpty || contents.allSatisfy({ $0 == ".DS_Store" }) {
+                try fm.trashItem(at: dest, resultingItemURL: nil)
             } else {
                 throw CloneError.folderInUse(dest.path)
             }

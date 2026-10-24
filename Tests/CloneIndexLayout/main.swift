@@ -177,6 +177,25 @@ await check("9ca4: the default-folder stamp marks layout clones only") {
                "stamped clone not adopted")
 }
 
+await check("90ef: a file where the clone would go is not deleted") {
+    let blocked = try project("https://github.com/kika/plainfile", category: "Utility")
+    let first = root.appendingPathComponent("Utility/plainfile")
+    let file = root.appendingPathComponent("Utility/kika-plainfile")
+    try fm.createDirectory(at: first, withIntermediateDirectories: true)
+    try "occupied\n".write(to: first.appendingPathComponent("readme"), atomically: true, encoding: .utf8)
+    try "not a repo\n".write(to: file, atomically: true, encoding: .utf8)
+    try expect(same(CatalogCloneService.destination(for: blocked), file),
+               "destination is not the file in the way")
+    do {
+        _ = try await CatalogCloneService.clone(blocked)
+        throw TestFailure(description: "clone replaced the file")
+    } catch let error as CatalogCloneService.CloneError {
+        guard case .folderInUse = error else { throw TestFailure(description: "got \(error)") }
+    }
+    let text = try String(contentsOf: file, encoding: .utf8)
+    try expect(text == "not a repo\n", "the file was deleted or changed: \(text)")
+}
+
 await check("3393: a custom clone folder is not rearranged by the category merge") {
     let kept = root.appendingPathComponent("Coding Agents/my-work/note.txt")
     try fm.createDirectory(at: kept.deletingLastPathComponent(), withIntermediateDirectories: true)
