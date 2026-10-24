@@ -141,6 +141,8 @@ struct ImportURLsSheet: View {
             case .rateLimit(let resetText):
                 stopMessage = BulkURLImport.rateLimitMessage(at: outcome.stoppedAt ?? 0, of: list.count,
                                                              resetText: resetText, hasToken: GitHubAuth.hasToken)
+            case .backupFailed:
+                stopMessage = "Couldn't save a backup, so nothing was imported. Check that the disk has free space."
             }
             isImporting = false
             done = true
@@ -163,6 +165,8 @@ enum BulkURLImport {
         case byUser
         /// GitHub said no more requests; every later repo would fail too.
         case rateLimit(resetText: String?)
+        /// The safety backup could not be written. Nothing was imported.
+        case backupFailed
     }
 
     struct Outcome {
@@ -185,6 +189,12 @@ enum BulkURLImport {
                     shouldStop: () -> Bool,
                     onProgress: (Counts) -> Void) async -> Outcome {
         var counts = Counts()
+        let before = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+        guard CatalogBackupService.writeSnapshot(
+            before, folders: CatalogFolderService.folders(in: context),
+            reason: "Before importing GitHub URLs") else {
+            return Outcome(counts: counts, stop: .backupFailed, stoppedAt: 0, remaining: list)
+        }
         // Links whose fetch failed. They go back in the box: an offline run
         // or a bad token used to wipe the whole pasted list.
         var failedURLs: [String] = []

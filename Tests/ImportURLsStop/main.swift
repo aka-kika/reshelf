@@ -99,6 +99,22 @@ func run() async throws {
     check("message: repo 61 of 200, reset time, token advice",
           noToken.hasPrefix("GitHub's limit was reached at repo 61 of 200; it resets in about 42 minutes.")
           && noToken.contains("Add a token in Settings → Capture, then import the rest"))
+    // 5. A labelled backup is written before the first insert (b638).
+    do {
+        let ctx = try makeContext()
+        ctx.insert(ToolProject(name: "already", githubURL: "https://github.com/test/already", status: .collector))
+        try ctx.save()
+        let outcome = await BulkURLImport.run(
+            ["https://github.com/test/fresh"], existing: [], into: ctx,
+            fetch: { url in info(for: url) },
+            pause: 0, shouldStop: { false }, onProgress: { _ in })
+        check("import writes a labelled backup first",
+              outcome.counts.imported == 1
+              && CatalogBackupService.snapshotURLs().contains {
+                  CatalogBackupService.reason(in: $0) == "Before importing GitHub URLs"
+              })
+    }
+
     let withToken = BulkURLImport.rateLimitMessage(at: 0, of: 5, resetText: nil, hasToken: true)
     check("message: with a token, no token advice", !withToken.contains("Add a token") && withToken.contains("repo 1 of 5"))
 }

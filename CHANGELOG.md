@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Import GitHub URLs writes a labelled backup before it adds anything.** If that backup cannot be written, nothing is imported and the links stay in the box.
 - **The agent skill's folder map cannot be pointed outside the clone folder.** A category name is cleaned the same way the app cleans one, so "." and ".." and slashes stay inside the clone root.
 - **Refresh Info no longer says every repo is cloned when some have no GitHub link.** It says so.
 - **A clone is recognized from its origin remote only.** Another github.com link in the git config no longer decides which repo the folder is.
