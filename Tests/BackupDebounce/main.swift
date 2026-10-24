@@ -102,6 +102,19 @@ func run() async throws {
         $0.count == CatalogBackupService.projects(in: $0.url).count })
     check("labels match", summaries.0.map(\.reason) == files().map { CatalogBackupService.reason(in: $0) })
     check("an unreadable file lists as 0", summaries.0.last?.count == 0)
+
+    // 6. A shelf move or a note does not change the project count. Saving
+    //    through CatalogSave still schedules the snapshot (8206).
+    let edited = all(ctx).first!
+    edited.notes = "saved from the shelf"
+    edited.status = .topShelf
+    let beforeEdit = files().count
+    check("in-place save reports success", CatalogSave.save(ctx, "the note"))
+    check("in-place edit waits out the debounce", files().count == beforeEdit)
+    await settle()
+    let newestEdit = files()[0]
+    let savedNote = CatalogBackupService.projects(in: newestEdit).contains { $0.notes == "saved from the shelf" }
+    check("in-place edit is in the newest snapshot", files().count == beforeEdit + 1 && savedNote)
 }
 
 try await run()

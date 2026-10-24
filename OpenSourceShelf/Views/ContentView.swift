@@ -327,10 +327,10 @@ struct ContentView: View {
                     )
                 )
             }
-            // Auto-backup: snapshot whenever the project count changes (add/remove)
-            // and when the app goes to the background (catches in-place edits).
-            // Written 2 seconds after the last change, so a bulk import is one
-            // snapshot, not one per repo.
+            // Auto-backup also watches the count (adds and deletes that somehow
+            // skipped CatalogSave) and when the app leaves the foreground.
+            // In-place edits are covered by CatalogSave.save, which schedules
+            // the same 2-second snapshot. A bulk import stays one snapshot.
             .onChange(of: allProjects.count) { oldCount, newCount in
                 CatalogBackupService.scheduleSnapshot(from: modelContext)
                 CatalogBackupService.noteProjectCount(old: oldCount, new: newCount)

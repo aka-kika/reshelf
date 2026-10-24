@@ -11,10 +11,29 @@ enum CatalogSave {
     static func save(_ context: ModelContext, _ what: String = "your latest change") -> Bool {
         do {
             try context.save()
+            // Shelf moves, tags, notes and folder edits do not change the
+            // project count, so the list's count observer never saw them.
+            // Every successful save schedules the same 2-second snapshot.
+            scheduleBackup(from: context)
             return true
         } catch {
             report(error, what: what)
             return false
+        }
+    }
+
+    /// `scheduleSnapshot` is main-actor. Saves from the UI are already there;
+    /// a save from a background queue hops across before touching the context.
+    private static func scheduleBackup(from context: ModelContext) {
+        let hop = {
+            MainActor.assumeIsolated {
+                CatalogBackupService.scheduleSnapshot(from: context)
+            }
+        }
+        if Thread.isMainThread {
+            hop()
+        } else {
+            DispatchQueue.main.async(execute: hop)
         }
     }
 
