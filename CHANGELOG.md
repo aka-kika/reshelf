@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Saving a repo and deleting it in the same moment no longer crashes.** The metadata step checks the row is still there before it reads it.
 - **C, C++ and C# stay three tags.** The sidebar no longer folds + and # out of a tag.
 - **Search finds a repo by its owner or its website.** Both links are part of the search.
 - **A custom category is no longer filed under a shorter one.** Client does not show under CLI, and Multimedia does not show under Media. The sidebar matches the whole category name.
