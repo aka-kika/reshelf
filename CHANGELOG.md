@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **The one-time category merge no longer moves folders inside a custom clone folder.** That folder can hold your own projects, and the merge does not check that a folder is a clone.
 - **Moving a batch of repos to a shelf, and deleting a folder, write a labelled backup first.** If that backup cannot be written, nothing changes. Restore from Backup can undo either one.
 - **A backup that cannot be written no longer says it was saved.** Delete, Remove Duplicate Repos and the Yard Sale moves stop, and say to check the disk has free space.
 - **The Website link opens only web pages.** A homepage set to `file://` or `smb://` is no longer handed to Finder.

@@ -336,8 +336,11 @@ enum CatalogCloneService {
     /// `<root>/AI Agent/x`). A name already taken in the target stays where it
     /// is — clone lookup scans every category folder, so it is still found. An
     /// old folder left with nothing but .DS_Store is tidied away.
+    /// A custom clone folder is left completely alone: it may be a dev folder,
+    /// and this move does not check that an entry is a clone.
     @discardableResult
     static func mergeCategoryFolders(_ merges: [String: String]) -> Int {
+        guard !CloneLocation.isCustom else { return 0 }
         let fm = FileManager.default
         let root = CloneLocation.rootURL
         var moved = 0

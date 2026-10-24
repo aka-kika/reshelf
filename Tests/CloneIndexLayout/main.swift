@@ -177,6 +177,15 @@ await check("9ca4: the default-folder stamp marks layout clones only") {
                "stamped clone not adopted")
 }
 
+await check("3393: a custom clone folder is not rearranged by the category merge") {
+    let kept = root.appendingPathComponent("Coding Agents/my-work/note.txt")
+    try fm.createDirectory(at: kept.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try "keep\n".write(to: kept, atomically: true, encoding: .utf8)
+    let moved = CatalogCloneService.mergeCategoryFolders(["Coding Agents": "AI / Agent"])
+    try expect(moved == 0, "custom folder moved \(moved) entries")
+    try expect(fm.fileExists(atPath: kept.path), "a non-clone folder was moved")
+}
+
 await check("a578: a clone that died midway is not counted as cloned") {
     let index = CatalogCloneService.scanCloneIndex(root: root)
     try expect(index["kika/partial"] == nil, "origin-only folder adopted")
