@@ -55,7 +55,7 @@ struct EditProjectSheet: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .font(.system(size: 13))
-                    .disabled(name.isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -182,7 +182,9 @@ struct EditProjectSheet: View {
     }
 
     private func saveChanges() {
-        project.name = name.trimmingCharacters(in: .whitespaces)
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        project.name = trimmedName
         project.githubURL = WebLink.normalized(githubURL)
         project.websiteURL = WebLink.normalized(websiteURL)
         project.category = category.trimmingCharacters(in: .whitespaces)
