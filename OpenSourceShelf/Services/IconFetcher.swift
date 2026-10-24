@@ -1,5 +1,4 @@
 import Foundation
-import AppKit
 import SwiftData
 
 enum IconFetcher {
@@ -29,11 +28,9 @@ enum IconFetcher {
             guard let data = data,
                   let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200,
-                  NSImage(data: data) != nil else {
+                  let resized = IconRules.resizedPNG(data, maxSide: 64) else {
                 return
             }
-
-            let resized = resizeIfNeeded(data, maxSize: 64) ?? data
 
             DispatchQueue.main.async {
                 // Re-fetch by id instead of touching the captured model: the
@@ -62,24 +59,5 @@ enum IconFetcher {
         for project in projects where project.iconData == nil {
             fetch(for: project, in: context)
         }
-    }
-
-    // MARK: - Helpers
-
-    private static func resizeIfNeeded(_ data: Data, maxSize: CGFloat) -> Data? {
-        guard let image = NSImage(data: data) else { return data }
-        let size = image.size
-        guard size.width > maxSize || size.height > maxSize else { return data }
-
-        let ratio = max(maxSize / size.width, maxSize / size.height)
-        let newSize = NSSize(width: size.width * ratio, height: size.height * ratio)
-
-        let resized = NSImage(size: newSize)
-        resized.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: newSize),
-                   from: .zero, operation: .copy, fraction: 1.0)
-        resized.unlockFocus()
-
-        return resized.tiffRepresentation(using: .lzw, factor: 1.0)
     }
 }

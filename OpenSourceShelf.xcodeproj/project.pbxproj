@@ -53,6 +53,13 @@
 			path = "OpenSourceShelf/Models/CaptureLeftovers.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		ICR1REF01234567890ABCDEF01 /* IconRules.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "IconRules.swift";
+			path = "OpenSourceShelf/Services/IconRules.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		LAB1REF01234567890ABCDEF01 /* CaptureAssist.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -529,6 +536,7 @@
 				WNEW1F001234567890ABCDE01 /* WhatsNew.swift */,
 				SOC1F001234567890ABCDE01 /* SocialIcons */,
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
+				ICR1REF01234567890ABCDEF01 /* IconRules.swift */,
 				LIVE1F001234567890ABCDE01 /* LiveProject.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
@@ -687,6 +695,10 @@
 		CLO1BUILD1234567890ABCDEF01 /* CaptureLeftovers.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = CLO1REF01234567890ABCDEF01;
+		};
+		ICR1BUILD1234567890ABCDEF01 /* IconRules.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = ICR1REF01234567890ABCDEF01;
 		};
 		LAB1BUILD1234567890ABCDEF01 /* CaptureAssist.swift in Sources */ = {
 			isa = PBXBuildFile;
@@ -920,6 +932,7 @@
 				C1A2F311234567890ABCDEF01,
 				LAB1BUILD1234567890ABCDEF01,
 				CLO1BUILD1234567890ABCDEF01,
+				ICR1BUILD1234567890ABCDEF01,
 				CLS1BUILD1234567890ABCDEF01,
 				RD01B011234567890ABCDEF09,
 				CP01B011234567890ABCDEF10,
