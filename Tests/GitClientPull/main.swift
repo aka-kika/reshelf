@@ -136,6 +136,46 @@ await check("e: upstream force-push with a plain reference clone still syncs") {
     try expect(try git(["rev-parse", "HEAD"], in: clone) == tip, "HEAD is not the rewritten tip")
 }
 
+await check("e1c5: a clone on another upstream branch syncs that branch and stays on it") {
+    let (upstream, clone) = try makePair("f")
+    try git(["checkout", "-q", "-b", "feature"], in: upstream)
+    try commit(upstream, "feature one")
+    try git(["checkout", "-q", "main"], in: upstream)
+    try git(["fetch", "-q", "origin"], in: clone)
+    try git(["checkout", "-q", "-b", "feature", "--track", "origin/feature"], in: clone)
+    try git(["checkout", "-q", "feature"], in: upstream)
+    let featureTip = try commit(upstream, "feature two")
+    try git(["checkout", "-q", "main"], in: upstream)
+    let mainTip = try commit(upstream, "main three")
+    let remote = try await GitClient().remoteTipForCheckout(repositoryURL: clone)
+    try expect(remote == featureTip, "update check compares with \(remote ?? "nil"), not the feature tip")
+    try await GitClient().syncToUpstream(repositoryURL: clone)
+    try expect(try git(["symbolic-ref", "--short", "HEAD"], in: clone) == "feature", "Pull switched branch")
+    try expect(try git(["rev-parse", "HEAD"], in: clone) == featureTip, "HEAD is not the feature tip")
+    let after = try await GitClient().remoteTipForCheckout(repositoryURL: clone)
+    try expect(after == (try git(["rev-parse", "HEAD"], in: clone)), "still shows updates after Pull")
+    try expect(mainTip != featureTip, "setup")
+}
+
+await check("e1c5: a detached clone still compares with the default branch") {
+    let (upstream, clone) = try makePair("g")
+    try git(["checkout", "-q", "--detach", "HEAD"], in: clone)
+    let tip = try commit(upstream, "third")
+    let remote = try await GitClient().remoteTipForCheckout(repositoryURL: clone)
+    try expect(remote == tip, "detached clone not compared with main")
+}
+
+await check("e1c5: a refused sync does not re-point a tag the user moved") {
+    let (upstream, clone) = try makePair("h")
+    try git(["tag", "v1", "HEAD~1"], in: upstream)
+    try git(["fetch", "-q", "--tags", "origin"], in: clone)
+    let local = try commit(clone, "local work")
+    try git(["tag", "-f", "v1", local], in: clone)
+    try commit(upstream, "third")
+    try await expectRefused(clone)
+    try expect(try git(["rev-parse", "refs/tags/v1"], in: clone) == local, "the user's tag was re-pointed")
+}
+
 if failures > 0 {
     print("\(failures) case(s) failed")
     exit(1)

@@ -222,14 +222,21 @@ struct GitClient {
                         workingDirectory: repositoryURL)) != nil
     }
 
-    /// Sync a read-only reference clone to its upstream default branch. Fetches,
-    /// then resets the clone to the remote default tip — a no-op fast-forward when
+    /// Sync a read-only reference clone to its upstream. Fetches, then resets
+    /// the checked-out branch to its upstream tip (a clone on another branch
+    /// that upstream has stays on it; a detached clone, or a branch upstream
+    /// doesn't have, goes to the remote default) — a no-op fast-forward when
     /// already current, and the fix when upstream rewrote history (force-push /
     /// rebase) so a plain `pull --ff-only` would abort with "Not possible to
     /// fast-forward". Refuses (throws `.localChangesPresent`) if the working tree
-    /// has *tracked* edits, so a hand-modified clone is never clobbered. Untracked
-    /// files are left in place. LFS-bypassed like clone.
+    /// has *tracked* edits or the clone has commits of its own, so a
+    /// hand-modified clone is never clobbered. Tags are only fetched after those
+    /// checks pass. Untracked files are left in place. LFS-bypassed like clone.
     func syncToUpstream(repositoryURL: URL, cancellationID: String? = nil) async throws {
+        guard try await workingTreeIsClean(repositoryURL: repositoryURL) else {
+            throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
+        }
+
         // Remember every commit the clone already knew from upstream *before* the
         // fetch: after a force-push, `--prune` drops the old upstream tip from
         // origin/*, and without this list a plain reference clone would look like
@@ -241,38 +248,61 @@ struct GitClient {
             workingDirectory: repositoryURL)
             .split(whereSeparator: \.isNewline).map(String.init)
 
-        // `--force`: upstream sometimes re-points a release tag (re-tagged v2.0.1).
-        // Without it git refuses to "clobber" the local tag and the whole sync
-        // fails; a reference clone should simply mirror upstream's tags.
-        _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--prune", "--tags", "--force"],
+        // Branches only for now: a forced tag fetch before the checks below
+        // would re-point a tag the user moved, even when the sync then stops.
+        _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--prune", "--no-tags"],
                           workingDirectory: repositoryURL,
                           cancellationID: cancellationID,
                           timeout: Self.fetchTimeout)
 
-        guard try await workingTreeIsClean(repositoryURL: repositoryURL) else {
-            throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
-        }
-
-        guard let branch = try await remoteDefaultBranch(repositoryURL: repositoryURL) else {
+        guard let branch = try await syncBranch(repositoryURL: repositoryURL, cancellationID: cancellationID) else {
             throw GitClientError.outputDecodingFailed
         }
 
-        // Commits made in the clone itself (on HEAD or on the local default
-        // branch) that upstream never had. `checkout -B` below would drop them,
-        // so a clone like that is skipped, the same way as one with edits.
+        // Commits made in the clone itself (on HEAD or on the local branch)
+        // that upstream never had. `checkout -B` below would drop them, so a
+        // clone like that is skipped, the same way as one with edits.
         guard try await !hasLocalOnlyCommits(repositoryURL: repositoryURL, branch: branch,
                                              knownUpstream: knownUpstream,
                                              cancellationID: cancellationID) else {
             throw GitClientError.localChangesPresent(repository: repositoryURL.lastPathComponent)
         }
 
-        // `checkout -B` lands HEAD on the default branch and points it at the
-        // upstream tip in one step — covers an already-on-branch fast-forward, a
-        // diverged reset, and a detached/other-branch checkout. Safe because the
-        // tracked tree is clean.
+        // `--force`: upstream sometimes re-points a release tag (re-tagged v2.0.1).
+        // Without it git refuses to "clobber" the local tag and the whole sync
+        // fails; a reference clone should simply mirror upstream's tags. No
+        // `--prune` here: a tag made in the clone stays.
+        _ = try await run(arguments: Self.lfsBypass + ["fetch", "origin", "--tags", "--force"],
+                          workingDirectory: repositoryURL,
+                          cancellationID: cancellationID,
+                          timeout: Self.fetchTimeout)
+
+        // `checkout -B` lands HEAD on the branch and points it at the upstream
+        // tip in one step — covers an already-on-branch fast-forward, a
+        // diverged reset, and a detached checkout. Safe because the tracked
+        // tree is clean.
         _ = try await run(arguments: Self.lfsBypass + ["checkout", "-B", branch, "origin/\(branch)"],
                           workingDirectory: repositoryURL,
                           cancellationID: cancellationID)
+    }
+
+    /// The branch HEAD is on, when it has one (nil when detached).
+    func checkedOutBranch(repositoryURL: URL) async -> String? {
+        guard let name = try? await trimmedOutput(arguments: ["symbolic-ref", "--quiet", "--short", "HEAD"],
+                                                  workingDirectory: repositoryURL),
+              !name.isEmpty else { return nil }
+        return name
+    }
+
+    /// The branch Pull syncs: the checked-out one when upstream has it
+    /// (after the fetch, `origin/<branch>` exists), else the remote default.
+    func syncBranch(repositoryURL: URL, cancellationID: String? = nil) async throws -> String? {
+        if let current = await checkedOutBranch(repositoryURL: repositoryURL),
+           (try? await run(arguments: ["rev-parse", "--verify", "--quiet", "refs/remotes/origin/\(current)"],
+                           workingDirectory: repositoryURL)) != nil {
+            return current
+        }
+        return try await remoteDefaultBranch(repositoryURL: repositoryURL, cancellationID: cancellationID)
     }
 
     /// True when HEAD (or the local `branch`, if it exists) reaches a commit that
@@ -289,20 +319,26 @@ struct GitClient {
         // `--tags` covers a clone detached on an upstream release tag whose commit
         // is on no upstream branch. Tags made in the clone itself must not count
         // as upstream, or a tagged local commit would be dropped by the reset.
-        let upstreamTags = try await run(arguments: ["ls-remote", "--tags", "--refs", "origin"],
-                                         workingDirectory: repositoryURL,
-                                         cancellationID: cancellationID,
-                                         timeout: Self.lsRemoteTimeout)
+        // A tag counts as upstream only when it names the same object there:
+        // a tag the user moved onto a local commit is local, even though
+        // upstream has a tag with that name (tags are fetched after this check).
+        let upstreamTags = Set(try await run(arguments: ["ls-remote", "--tags", "--refs", "origin"],
+                                             workingDirectory: repositoryURL,
+                                             cancellationID: cancellationID,
+                                             timeout: Self.lsRemoteTimeout)
             .standardOutput.split(whereSeparator: \.isNewline)
             .compactMap { line -> String? in
-                guard let ref = line.split(separator: "\t").last else { return nil }
-                return ref.hasPrefix("refs/tags/") ? String(ref.dropFirst("refs/tags/".count)) : nil
-            }
+                let parts = line.split(separator: "\t")
+                guard parts.count == 2, parts[1].hasPrefix("refs/tags/") else { return nil }
+                return "\(parts[0]) \(parts[1].dropFirst("refs/tags/".count))"
+            })
         let localTags = try await trimmedOutput(
-            arguments: ["for-each-ref", "--format=%(refname:strip=2)", "refs/tags"],
+            arguments: ["for-each-ref", "--format=%(objectname) %(refname:strip=2)", "refs/tags"],
             workingDirectory: repositoryURL)
             .split(whereSeparator: \.isNewline).map(String.init)
-        let localOnlyTags = Set(localTags).subtracting(upstreamTags)
+        let localOnlyTags = Set(localTags.filter { !upstreamTags.contains($0) }.compactMap { line in
+            line.split(separator: " ", maxSplits: 1).last.map(String.init)
+        })
         // `--exclude` takes a glob; git forbids these characters in ref names,
         // so seeing one means something odd is going on.
         if localOnlyTags.contains(where: { tag in tag.contains(where: { "*?[\\".contains($0) }) }) {
@@ -357,6 +393,27 @@ struct GitClient {
 
     func currentHead(repositoryURL: URL) async throws -> String? {
         try await trimmedOutput(arguments: ["rev-parse", "HEAD"], workingDirectory: repositoryURL)
+    }
+
+    /// The upstream tip to compare HEAD with — the checked-out branch's on
+    /// the remote when it has one there, else the remote default branch's.
+    /// One `ls-remote` round trip, no objects fetched.
+    func remoteTipForCheckout(repositoryURL: URL, cancellationID: String? = nil) async throws -> String? {
+        guard let branch = await checkedOutBranch(repositoryURL: repositoryURL) else {
+            return try await remoteDefaultHead(repositoryURL: repositoryURL, cancellationID: cancellationID)
+        }
+        let output = try await run(arguments: ["ls-remote", "origin", "HEAD", "refs/heads/\(branch)"],
+                                   workingDirectory: repositoryURL,
+                                   cancellationID: cancellationID,
+                                   timeout: Self.lsRemoteTimeout).standardOutput
+        var head: String?
+        for line in output.split(whereSeparator: \.isNewline) {
+            let parts = line.split(separator: "\t").map(String.init)
+            guard parts.count == 2 else { continue }
+            if parts[1] == "refs/heads/\(branch)" { return parts[0] }
+            if parts[1] == "HEAD" { head = parts[0] }
+        }
+        return head
     }
 
     /// The remote default branch's tip SHA — a cheap, read-only `ls-remote`

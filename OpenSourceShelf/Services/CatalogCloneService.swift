@@ -609,8 +609,9 @@ enum CatalogCloneService {
         case error(String)
     }
 
-    /// Compares the local clone's commit to the remote default branch's tip via a
-    /// cheap `ls-remote` (no fetch). Different SHA → upstream has updates.
+    /// Compares the local clone's commit to its upstream tip (the checked-out
+    /// branch on the remote, else the default branch) via a cheap `ls-remote`
+    /// (no fetch). Different SHA → upstream has updates.
     /// Every answer is kept for the session (`knownUpdateStatus`).
     @MainActor
     static func updateStatus(for project: ToolProject) async -> UpdateStatus {
@@ -626,7 +627,7 @@ enum CatalogCloneService {
         let git = GitClient()
         do {
             async let localTask = git.currentHead(repositoryURL: dir)
-            async let remoteTask = git.remoteDefaultHead(repositoryURL: dir)
+            async let remoteTask = git.remoteTipForCheckout(repositoryURL: dir)
             let (local, remote) = try await (localTask, remoteTask)
             guard let local, let remote else { return .error("Couldn't read commits.") }
             if local == remote { return .upToDate }
@@ -658,7 +659,8 @@ enum CatalogCloneService {
         knownUpdateStatus[id] = nil
     }
 
-    /// Sync the clone to its upstream default branch (LFS-bypassed, like clone).
+    /// Sync the clone to its upstream: the checked-out branch when upstream has
+    /// it, else the default branch (LFS-bypassed, like clone).
     /// Fast-forwards when possible; resets to upstream when the clone has diverged
     /// (e.g. the project force-pushed/rebased its default branch) so updates don't
     /// get stuck. Throws `GitClientError.localChangesPresent` — leaving the clone
