@@ -23,11 +23,7 @@ enum CatalogIntelligenceStatusResolver {
             return match
         }
 
-        if !trimmedName.isEmpty, !trimmedName.contains("/"),
-           let match = try? database.fetchRepository(uniquelyByName: trimmedName) {
-            return match
-        }
-
+        // A bare name ("tool") can be another owner's repo. Only owner/name matches.
         return nil
     }
 

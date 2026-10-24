@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **The inspector no longer shows another owner's description when this repo has no metadata row yet.** The lookup matches owner and name, not the bare repo name.
 - **Two quick Send to reshelf links for the same repo save it once.** The duplicate check runs again after the GitHub fetch.
 - **Fetching a second link in Quick Capture clears the first repo's note, use cases and flags.**
 - **Return while Quick Capture is still fetching does not start a second request.**

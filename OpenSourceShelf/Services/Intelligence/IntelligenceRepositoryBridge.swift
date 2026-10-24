@@ -34,11 +34,7 @@ enum IntelligenceRepositoryBridge {
             return match
         }
 
-        if !name.isEmpty, !name.contains("/"),
-           let match = try? database.fetchRepository(uniquelyByName: name) {
-            return match
-        }
-
+        // A bare name ("tool") can belong to another owner. Do not use it.
         return nil
     }
 
