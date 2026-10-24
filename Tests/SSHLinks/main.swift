@@ -55,6 +55,13 @@ check("remaining 0 is a rate limit", GitHubHTTP.isRateLimited(status: 403, remai
 check("403 with Retry-After is a rate limit", GitHubHTTP.isRateLimited(status: 403, remaining: "30", retryAfter: "60"))
 check("403 without Retry-After is not a rate limit",
       !GitHubHTTP.isRateLimited(status: 403, remaining: "30", retryAfter: nil))
+check("owner named tree is a repo",
+      GitHubRepositoryURL.ownerAndRepo(from: "https://github.com/tree/tool")?.owner == "tree"
+      && GitHubRepositoryURL.ownerAndRepo(from: "https://github.com/tree/tool")?.repo == "tool")
+check("repo named blob is a repo",
+      GitHubRepositoryURL.ownerAndRepo(from: "https://github.com/acme/blob")?.repo == "blob")
+check("a tree path is still just the repo",
+      GitHubRepositoryURL.dedupKey(for: "https://github.com/acme/tool/tree/main") == "acme/tool")
 check("a blank Retry-After is not a rate limit",
       !GitHubHTTP.isRateLimited(status: 403, remaining: "30", retryAfter: "  "))
 

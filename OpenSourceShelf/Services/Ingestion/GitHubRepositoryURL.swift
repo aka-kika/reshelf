@@ -38,9 +38,13 @@ struct GitHubRepositoryURL: Equatable {
         }
         guard cleaned.lowercased().hasPrefix("github.com/") else { return nil }
 
+        // The first two pieces are the owner and the repo, even when one of
+        // them is named tree or blob. Those words are only a branch path
+        // after the repo (`/owner/repo/tree/main`), and the first two pieces
+        // already ignore that.
         let parts = cleaned.dropFirst("github.com/".count)
             .split(separator: "/")
-            .filter { !$0.isEmpty && $0 != "tree" && $0 != "blob" }
+            .filter { !$0.isEmpty }
         guard parts.count >= 2 else { return nil }
 
         var repo = String(parts[1])
