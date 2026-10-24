@@ -286,8 +286,9 @@ enum SidebarTagRanking {
     static let recentWindow = 40
 
     /// "menu-bar" and "menubar" are the same tag: grouped under one key.
+    /// "+" and "#" stay, so C, C++ and C# are three tags.
     static func key(for tag: String) -> String {
-        String(tag.lowercased().filter { $0.isLetter || $0.isNumber })
+        SidebarTagKey.key(for: tag)
     }
 
     static func tags(in projects: [ToolProject], mode: Mode) -> [(key: String, name: String, count: Int)] {

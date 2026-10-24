@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **C, C++ and C# stay three tags.** The sidebar no longer folds + and # out of a tag.
 - **Search finds a repo by its owner or its website.** Both links are part of the search.
 - **A custom category is no longer filed under a shorter one.** Client does not show under CLI, and Multimedia does not show under Media. The sidebar matches the whole category name.
 - **A repo or an owner named tree or blob can be captured.** Those words are only skipped when they come after the repo, as in a link to a file or a branch.

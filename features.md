@@ -48,7 +48,7 @@ Stored fields you can view and edit:
 
 **Collapsible sections** — click the **Folders**, **Categories** or **Tags** heading to fold it away; the choice is remembered.
 
-**Tags** — the last sidebar section: 15 GitHub topics, the cross-cutting view — a repo has one category but many tags, so **swift** finds every Swift repo whatever its category. **Settings → General → Sidebar Tags** picks *Most used* (whole shelf) or *Recently added* (most common among the ~40 newest repos). Noise like open-source/awesome is left out, and spelling twins are merged (menu-bar / menubar). Counts always cover the whole shelf, so a row's number matches what clicking it shows.
+**Tags** — the last sidebar section: 15 GitHub topics, the cross-cutting view — a repo has one category but many tags, so **swift** finds every Swift repo whatever its category. **Settings → General → Sidebar Tags** picks *Most used* (whole shelf) or *Recently added* (most common among the ~40 newest repos). Noise like open-source/awesome is left out, and spelling twins are merged (menu-bar / menubar). C, C++ and C# stay three tags. Counts always cover the whole shelf, so a row's number matches what clicking it shows.
 
 **Folders** — a third section between Library and Categories, present only once you have a folder. See [Folders](#folders) below.
 

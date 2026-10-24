@@ -196,6 +196,14 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     }
 }
 
+/// The sidebar's tag identity. "menu-bar" and "menubar" share a key.
+/// "+" and "#" stay, so C, C++ and C# stay three tags.
+enum SidebarTagKey {
+    static func key(for tag: String) -> String {
+        String(tag.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "+" || $0 == "#" })
+    }
+}
+
 enum SidebarSection: String {
     case library = "Library"
     case folders = "Folders"
