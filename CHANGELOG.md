@@ -5,7 +5,32 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.16.1] — 2026-10-25
+
+Fixes from the 24 October review (Grok's pass), its second check, and the seven leftovers on the Runway card.
+
 ### Fixed
+- **Clones in a custom clone folder made before 1.16.1 keep their Cloned badge.** On the first launch, a clone at the exact folder reshelf would have used for a catalog repo, with that repo as its origin, gets the marker. Clone no longer makes a second copy of it, and Remove Local Clone reaches it. A clone folder set to the default path by hand counts as the default.
+- **Update checks and Pull follow the checked-out branch.** A clone on another branch that upstream has is compared with that branch and stays on it after Pull. Tags are fetched only after the safety checks, and a tag moved onto a local commit still protects it.
+- **Labelled "Before …" backups stop at the newest 40,** told apart by file name, so pruning no longer opens every backup. A labelled backup from 1.16.0 is renamed, not deleted, when it ages out.
+- **Backups written in the same second keep their order.** A new one is numbered above the others instead of into a gap a prune left, where it sorted as older and was pruned at once.
+- **A timed-out git command no longer closes pipes another thread is reading.** The 1.16.0-review change that did is reverted; the readers finish on their own.
+- **Import GitHub URLs, Import Catalog and Restore use the save result.** A repo that could not be saved is not counted, the run stops and keeps the links, and the unsaved rows are taken back out. Edit puts the repo back as it was on a failed save, so Cancel keeps nothing.
+- **The save-failed alert is a sheet on the front window,** not a modal run from async code that could freeze with a sheet open.
+- **Refresh Info keeps a hand-typed license** when GitHub reports none or NOASSERTION. A real license from GitHub still replaces it.
+- **Coming back to reshelf rescans the clone folder off the main thread.** A scan that started before a clone or a removal does not overwrite the newer index.
+- **Icons fit inside 64 pt** (wide ones were larger) and are resized with ImageIO, safe off the main thread.
+- **An avatar that failed is not asked for again for a day,** one entry per owner, so a relaunch or a bulk import does not ask once per repo.
+- **Quick Capture's second fetch clears the first repo's "Why you're saving this" too,** and keeps anything typed while the fetch ran.
+- **⌘T, ⌘Y and ⌘⇧G move only the batch rows the list shows,** clear the batch afterwards, and a batch of one moves that row.
+- **A clone cut off before any data arrived is replaced by the next Clone.** A hidden file beside the target marks a clone reshelf started; a checkout someone made with no commits is still left alone.
+- **A blank folder rename is ignored** instead of saying the name is already used.
+- **The agent skill reads a clone's identity from the origin remote only,** like the app.
+- **features.md says where a category outside the sidebar set shows** (All Projects and search).
 - **The restore preview reads the backup file off the main thread.** Choosing a backup no longer decodes it on the thread that draws the window.
 - **Clone no longer replaces a checkout that has no commits yet.** Only a clone that never wrote its index is moved to the Trash. Anything else is left in place and reported as in the way.
 - **The metadata lookup no longer has a dead second URL check.** It matches the GitHub link, then owner and name. The docs say the same.
@@ -62,10 +87,6 @@ All notable changes to **reshelf** are documented here. This project follows
 - Clones: the never-used partial-clone (`blobless`) option is gone; clones are
   the same full clones as before.
 - Fixed outdated code comments and three stale doc lines.
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.16.0] — 2026-10-20
 
