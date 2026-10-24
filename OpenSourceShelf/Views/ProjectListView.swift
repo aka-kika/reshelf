@@ -246,12 +246,22 @@ struct ProjectListView: View {
             presenting: pendingBatchRemoveClones
         ) { targets in
             Button("Move \(targets.count) Clones to Trash", role: .destructive) {
-                let moved = targets.filter { removeClone(for: $0) }.count
-                // A failure already put its reason in the status line.
-                if moved == targets.count {
-                    statusNotice = "Moved \(moved) clones to the Trash."
-                } else if moved > 0 {
-                    statusNotice = "Moved \(moved) of \(targets.count) clones to the Trash. " + (statusNotice ?? "")
+                var moved = 0
+                var reasons: [String] = []
+                for project in targets {
+                    if removeClone(for: project) {
+                        moved += 1
+                    } else if let reason = statusNotice {
+                        reasons.append(reason)
+                    }
+                }
+                if reasons.isEmpty {
+                    statusNotice = "Moved \(moved) clone\(moved == 1 ? "" : "s") to the Trash."
+                } else {
+                    let head = moved == 0
+                        ? "Couldn't move \(reasons.count) clone\(reasons.count == 1 ? "" : "s") to the Trash."
+                        : "Moved \(moved) of \(targets.count) clones to the Trash."
+                    statusNotice = head + " " + reasons.joined(separator: " ")
                 }
                 clearBatchSelection()
             }
@@ -604,7 +614,7 @@ struct ProjectListView: View {
             statusNotice = "Moved the \(project.name) clone to the Trash."
             return true
         } catch {
-            statusNotice = "Couldn't remove clone: \(error.localizedDescription)"
+            statusNotice = "Couldn't remove \(project.name): \(error.localizedDescription)"
             return false
         }
     }
