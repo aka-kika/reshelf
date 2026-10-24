@@ -93,6 +93,8 @@ final class ToolProject {
             || shortDescription.lowercased().contains(q)
             || longDescription.lowercased().contains(q)
             || category.lowercased().contains(q)
+            || githubURL.lowercased().contains(q)
+            || websiteURL.lowercased().contains(q)
             || tags.contains(where: { $0.lowercased().contains(q) })
             || notes.lowercased().contains(q)
             || personalNote.lowercased().contains(q)

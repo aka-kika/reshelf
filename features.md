@@ -58,7 +58,7 @@ Stored fields you can view and edit:
 
 - **Sort** the list from the header's sort menu (⬆⬇ icon): **Recently Added** (default), **Name (A–Z)**, or **Most Stars** (star strings like `18.2k`/`1.5M` are parsed; ties fall back to name). The choice persists. List header shows the active sidebar filter title
 - Active search term shows as a dismissible chip in the header (set from command palette)
-- Search: name, descriptions, category, tags, notes, use cases
+- Search: name, descriptions, category, GitHub link, website, tags, notes, use cases
 - **⌘K** — open command palette to search or capture
 - Edit from inspector
 
