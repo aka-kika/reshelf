@@ -343,6 +343,20 @@ await check("through the app paths: isCloned / destination / clone() adopt only 
                "destination is not the partial folder")
 }
 
+await check("53d5: the async refresh fills the index and a newer invalidation wins") {
+    CatalogCloneService.invalidateCloneIndex()
+    await CatalogCloneService.refreshCloneIndex()
+    let tool = try project("https://github.com/kika/tool", category: "AI Agent")
+    try expect(CatalogCloneService.isCloned(tool), "refreshed index lacks the marked clone")
+    let mine = try project("https://github.com/kika/myproject", category: "")
+    try expect(!CatalogCloneService.isCloned(mine), "refreshed index lists an unmarked checkout")
+    // A scan that began before an invalidation must not store its older result.
+    async let slow: Void = CatalogCloneService.refreshCloneIndex()
+    CatalogCloneService.invalidateCloneIndex()
+    await slow
+    try expect(CatalogCloneService.isCloned(tool), "lookup after a raced refresh finds nothing")
+}
+
 if failures > 0 {
     print("\(failures) case(s) failed")
     exit(1)

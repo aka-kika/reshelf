@@ -286,8 +286,10 @@ struct ContentView: View {
             // the app is when out-of-app changes (Finder moves, Trash restores,
             // CLI clones) can have happened — rescan so badges don't go stale.
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                CatalogCloneService.invalidateCloneIndex()
-                appRefreshStore.handle(.catalogStateUpdated)
+                Task {
+                    await CatalogCloneService.refreshCloneIndex()
+                    appRefreshStore.handle(.catalogStateUpdated)
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .importURLs)) { _ in
                 presentSheetAfterEndingTextEditing { showingImportURLs = true }

@@ -81,12 +81,39 @@ enum CatalogCloneService {
     /// clicking sluggish — this cache fixes that. Invalidated on clone/migrate.
     private static var cloneIndexCache: [String: URL]?
     private static let cloneIndexLock = NSLock()
+    /// Bumped by every invalidation, so a background scan that started before
+    /// one does not store its older result.
+    private static var cloneIndexGeneration = 0
+
+    /// Rescans the clone folder off the main thread (it can be a slow network
+    /// drive), then swaps the result in. Badges keep using the old index until
+    /// the swap.
+    static func refreshCloneIndex() async {
+        let root = CloneLocation.rootURL
+        let generation = currentCloneIndexGeneration()
+        let index = await Task.detached(priority: .utility) { scanCloneIndex(root: root) }.value
+        storeCloneIndex(index, ifGeneration: generation)
+    }
+
+    // Plain functions, because a lock cannot be held across an await.
+    private static func currentCloneIndexGeneration() -> Int {
+        cloneIndexLock.lock()
+        defer { cloneIndexLock.unlock() }
+        return cloneIndexGeneration
+    }
+
+    private static func storeCloneIndex(_ index: [String: URL], ifGeneration generation: Int) {
+        cloneIndexLock.lock()
+        defer { cloneIndexLock.unlock() }
+        if cloneIndexGeneration == generation { cloneIndexCache = index }
+    }
 
     /// Drop the cached clone index so the next lookup rescans (after a new clone,
     /// a migration, or any change to what's on disk).
     static func invalidateCloneIndex() {
         cloneIndexLock.lock()
         cloneIndexCache = nil
+        cloneIndexGeneration += 1
         cloneIndexLock.unlock()
     }
 
