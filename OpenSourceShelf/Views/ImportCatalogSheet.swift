@@ -108,19 +108,29 @@ struct ImportCatalogSheet: View {
 
     @ViewBuilder
     private func resultSummary(_ result: CatalogImportService.Result) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        if result.saveFailed {
             HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Import complete")
-                    .font(.system(size: 13, weight: .medium))
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Nothing was imported: the catalog couldn't be saved. Check that the disk has free space, then try again.")
+                    .font(.system(size: 13))
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            row(count: result.added, label: "added", symbol: "plus.circle")
-            if result.updated > 0 {
-                row(count: result.updated, label: "updated", symbol: "arrow.triangle.2.circlepath")
-            }
-            if result.skipped > 0 {
-                row(count: result.skipped, label: "left unchanged (already in your catalog)", symbol: "equal.circle")
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Import complete")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                row(count: result.added, label: "added", symbol: "plus.circle")
+                if result.updated > 0 {
+                    row(count: result.updated, label: "updated", symbol: "arrow.triangle.2.circlepath")
+                }
+                if result.skipped > 0 {
+                    row(count: result.skipped, label: "left unchanged (already in your catalog)", symbol: "equal.circle")
+                }
             }
         }
     }

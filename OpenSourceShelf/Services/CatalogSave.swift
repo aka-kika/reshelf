@@ -7,9 +7,14 @@ import SwiftData
 /// alert saying what wasn't saved; callers that can retry (the sheets) also
 /// stay open.
 enum CatalogSave {
+    /// Tests set this to make every save fail with it, without an alert.
+    /// The app never sets it.
+    static var failureForTesting: Error?
+
     @discardableResult
     static func save(_ context: ModelContext, _ what: String = "your latest change") -> Bool {
         do {
+            if let failureForTesting { throw failureForTesting }
             try context.save()
             // Shelf moves, tags, notes and folder edits do not change the
             // project count, so the list's count observer never saw them.
@@ -41,6 +46,7 @@ enum CatalogSave {
     private static var alertShowing = false
 
     static func report(_ error: Error, what: String) {
+        guard failureForTesting == nil else { return }
         DispatchQueue.main.async {
             guard !alertShowing else { return }
             alertShowing = true

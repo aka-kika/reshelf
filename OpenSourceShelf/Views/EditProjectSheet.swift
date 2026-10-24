@@ -199,8 +199,13 @@ struct EditProjectSheet: View {
         project.license = license.trimmingCharacters(in: .whitespaces)
         project.isLocalFirst = isLocalFirst
         project.isSelfHosted = isSelfHosted
-        // Stay open on a failed save: the edits are still here to retry.
-        guard CatalogSave.save(modelContext, "your changes to \(project.name)") else { return }
+        // Stay open on a failed save: the edits are still in the form to
+        // retry. The model goes back to what is on disk, so Cancel after a
+        // failed save doesn't leave the edit showing until the next launch.
+        guard CatalogSave.save(modelContext, "your changes to \(trimmedName)") else {
+            modelContext.rollback()
+            return
+        }
         isPresented = false
     }
 }

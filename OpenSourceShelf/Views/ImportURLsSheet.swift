@@ -143,6 +143,8 @@ struct ImportURLsSheet: View {
                                                              resetText: resetText, hasToken: GitHubAuth.hasToken)
             case .backupFailed:
                 stopMessage = "Couldn't save a backup, so nothing was imported. Check that the disk has free space."
+            case .saveFailed:
+                stopMessage = "The catalog couldn't be saved, so the import stopped. The links not imported are still in the box. Check that the disk has free space."
             }
             isImporting = false
             done = true
@@ -167,6 +169,8 @@ enum BulkURLImport {
         case rateLimit(resetText: String?)
         /// The safety backup could not be written. Nothing was imported.
         case backupFailed
+        /// A repo could not be saved to the catalog; the next ones would fail too.
+        case saveFailed
     }
 
     struct Outcome {
@@ -216,7 +220,10 @@ enum BulkURLImport {
             }
             do {
                 let info = try await fetch(url)
-                insert(info, url: url, into: context)
+                guard insert(info, url: url, into: context) else {
+                    return Outcome(counts: counts, stop: .saveFailed, stoppedAt: index,
+                                   remaining: failedURLs + Array(list[index...]))
+                }
                 seen.insert(key)
                 counts.imported += 1
             } catch CaptureError.rateLimited(let resetText) {
@@ -244,7 +251,9 @@ enum BulkURLImport {
                : "Add a token in Settings → Capture, then import the rest: the links not imported yet are still in the box.")
     }
 
-    private static func insert(_ info: GitHubRepoInfo, url: String, into context: ModelContext) {
+    /// `false` when the save failed: the row is taken back out, so it is
+    /// neither counted nor shown.
+    private static func insert(_ info: GitHubRepoInfo, url: String, into context: ModelContext) -> Bool {
         let name = info.fullName?.components(separatedBy: "/").last ?? url
         let project = ToolProject(
             name: name,
@@ -267,8 +276,12 @@ enum BulkURLImport {
             isSelfHosted: (info.topics ?? []).contains("self-hosted")
         )
         context.insert(project)
-        CatalogSave.save(context)
+        guard CatalogSave.save(context, "the imported repo \(name)") else {
+            context.rollback()
+            return false
+        }
         CatalogCaptureIntelligenceService.upsertFromCatalogSave(project, prefetched: info)
         IconFetcher.fetch(for: project, in: context)
+        return true
     }
 }

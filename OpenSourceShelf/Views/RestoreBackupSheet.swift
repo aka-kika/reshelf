@@ -186,7 +186,9 @@ struct RestoreBackupSheet: View {
         let date = displayDate(snapshots.first { $0.url == selected }?.date)
         let result = CatalogBackupService.restore(from: selected, puttingBackChanges: puttingBackChanges,
                                                   into: modelContext, snapshotDate: date)
-        if result.added == 0 && result.updated == 0 {
+        if result.saveFailed {
+            resultMessage = "Nothing was restored: the catalog couldn't be saved. Check that the disk has free space."
+        } else if result.added == 0 && result.updated == 0 {
             resultMessage = "Nothing to restore: your catalog already matches this backup."
         } else {
             var parts: [String] = []

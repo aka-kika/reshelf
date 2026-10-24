@@ -115,6 +115,41 @@ func run() async throws {
               })
     }
 
+    // 6. A save that fails stops the run; that repo is not counted (599e).
+    do {
+        struct DiskFull: Error {}
+        let ctx = try makeContext()
+        var calls = 0
+        let outcome = await BulkURLImport.run(
+            Array(links[0..<4]), existing: [], into: ctx,
+            fetch: { url in
+                calls += 1
+                if calls == 2 { CatalogSave.failureForTesting = DiskFull() }
+                return info(for: url)
+            },
+            pause: 0, shouldStop: { false }, onProgress: { _ in })
+        CatalogSave.failureForTesting = nil
+        check("failed save: the run stops", outcome.stop == .saveFailed && calls == 2)
+        check("failed save: only the saved repo counts", outcome.counts.imported == 1)
+        check("failed save: the unsaved row is not in the catalog", count(ctx) == 1)
+        check("failed save: that link and the rest go back in the box", outcome.remaining == Array(links[1..<4]))
+    }
+
+    // 7. Import Catalog says nothing was added when its save fails (599e).
+    do {
+        struct DiskFull: Error {}
+        let source = try makeContext()
+        source.insert(ToolProject(name: "from-file", githubURL: "https://github.com/test/from-file", status: .collector))
+        let rows = try source.fetch(FetchDescriptor<ToolProject>()).map(CatalogProjectDTO.init)
+        let ctx = try makeContext()
+        let plan = CatalogImportService.plan(rows: rows, sourceURL: URL(fileURLWithPath: "/tmp/x.json"), context: ctx)
+        CatalogSave.failureForTesting = DiskFull()
+        let result = CatalogImportService.apply(plan, updatingExisting: false, into: ctx)
+        CatalogSave.failureForTesting = nil
+        check("import file: a failed save reports it", result.saveFailed && result.added == 0)
+        check("import file: the rows are taken back out", count(ctx) == 0)
+    }
+
     let withToken = BulkURLImport.rateLimitMessage(at: 0, of: 5, resetText: nil, hasToken: true)
     check("message: with a token, no token advice", !withToken.contains("Add a token") && withToken.contains("repo 1 of 5"))
 }

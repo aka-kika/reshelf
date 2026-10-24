@@ -36,6 +36,8 @@ enum CatalogImportService {
         let added: Int
         let updated: Int
         let skipped: Int
+        /// The catalog could not be saved: nothing was added or changed.
+        var saveFailed = false
     }
 
     // MARK: - Picking a file
@@ -146,8 +148,12 @@ enum CatalogImportService {
                 }
             }
         }
-        if !plan.additions.isEmpty || (updatingExisting && !plan.matches.isEmpty) {
-            CatalogSave.save(context)
+        if !plan.additions.isEmpty || (updatingExisting && !plan.matches.isEmpty),
+           !CatalogSave.save(context, "the import") {
+            // Back to what is on disk, so the list doesn't show rows that
+            // are gone after a relaunch, and the sheet says nothing was added.
+            context.rollback()
+            return Result(added: 0, updated: 0, skipped: 0, saveFailed: true)
         }
 
         return Result(added: plan.additions.count,
@@ -197,6 +203,7 @@ enum CatalogImportService {
         let additions = Plan(sourceURL: full.sourceURL, additions: full.additions,
                              matches: [], folders: usedFolders, recordedFolders: full.recordedFolders)
         let result = apply(additions, updatingExisting: false, into: context, backupReason: backupReason)
+        if result.saveFailed { return result }
         var updated = 0
         if puttingBackChanges && !changed.isEmpty {
             let localFolderIDs = Dictionary(
@@ -219,7 +226,10 @@ enum CatalogImportService {
                 }
                 updated += 1
             }
-            CatalogSave.save(context)
+            if !CatalogSave.save(context, "the restore") {
+                context.rollback()
+                return Result(added: 0, updated: 0, skipped: 0, saveFailed: true)
+            }
         }
         return Result(added: result.added, updated: updated,
                       skipped: full.matches.count - updated)
