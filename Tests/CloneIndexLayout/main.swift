@@ -252,6 +252,32 @@ await check("deec: an unborn branch is not trashed as a half-written clone") {
                "the unborn checkout was trashed")
 }
 
+await check("deec: a clone whose objects arrived but whose checkout never ran is aborted") {
+    let half = root.appendingPathComponent("Utility/halfdone")
+    try fm.createDirectory(at: half.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try git(["clone", "-q", "--no-checkout", upstream.path, half.path], in: base)
+    try git(["remote", "set-url", "origin", "https://github.com/kika/halfdone.git"], in: half)
+    try? fm.removeItem(at: half.appendingPathComponent(".git/index"))
+    try expect(!fm.fileExists(atPath: half.appendingPathComponent(".git/index").path), "index still there")
+    try expect(!CatalogCloneService.hasCloneMarker(half), "marker present")
+    try expect(CatalogCloneService.isAbortedClone(half), "half-done clone not aborted")
+    try expect(!CatalogCloneService.isFinishedCheckout(half), "half-done clone counts as finished")
+    try expect(CatalogCloneService.isLeftoverClone(half), "half-done clone is not a leftover")
+    try expect(CatalogCloneService.scanCloneIndex(root: root)["kika/halfdone"] == nil,
+               "index adopted a half-done clone")
+    // Even with the marker written, the unfinished checkout stays out.
+    try markClone(half)
+    try expect(CatalogCloneService.scanCloneIndex(root: root)["kika/halfdone"] == nil,
+               "index adopted a marked half-done clone")
+    // The fresh git init case next to it stays not aborted.
+    let fresh = root.appendingPathComponent("Utility/freshinit")
+    try fm.createDirectory(at: fresh, withIntermediateDirectories: true)
+    try git(["init", "-q", "-b", "main"], in: fresh)
+    try git(["remote", "add", "origin", "https://github.com/kika/freshinit.git"], in: fresh)
+    try expect(!CatalogCloneService.isAbortedClone(fresh), "fresh git init counts as aborted")
+    try fm.removeItem(at: half.appendingPathComponent(".git/reshelf-clone"))
+}
+
 await check("b009: the default folder chosen by hand is not a custom folder") {
     let defaultPath = CloneLocation.defaultRootURL.path
     try expect(CloneLocation.isDefault(storedPath: nil), "nil")
