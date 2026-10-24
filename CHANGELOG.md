@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Quick Capture has a Notes field.** The note Capture Assist writes is on the form before you save.
 - **⌘-click adds to the row you already clicked.** The batch count matches the rows that look selected, and ⌘T, ⌘Y and ⌘⇧G move that batch.
 - **Put back changes restores the shelf, tags, notes and folder only.** Name, links, description and category stay as they are. The restore sheet already said this.
 - **A backup taken before a big change is not deleted when the 30 routine snapshots fill up.** Restore from Backup can still find that undo point.

@@ -152,6 +152,12 @@ struct QuickCaptureSheet: View {
                             TextField("Why you're saving this (optional)", text: $personalNote)
                         }
 
+                        // Capture Assist writes this. It used to be saved with
+                        // no field on the form, so the note arrived unseen.
+                        field("Notes") {
+                            TextField("Notes", text: $notes)
+                        }
+
                         moreDetailsDisclosure
                     }
                 }
