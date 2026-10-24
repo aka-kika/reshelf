@@ -177,10 +177,18 @@ enum CatalogImportService {
                         backupReason: String) -> Result {
         let full = plan(rows: rows, folders: folders, sourceURL: URL(fileURLWithPath: "/"), context: context)
         let changed = changedMatches(in: full, context: context)
+        // Only folders a restored repo actually uses. Creating every folder in
+        // the file brought back folders she had deleted, even when the sheet
+        // said nothing was restored.
+        var usedFolderIDs = Set(full.additions.compactMap(\.folderID))
+        if puttingBackChanges {
+            usedFolderIDs.formUnion(changed.compactMap { $0.row.folderID })
+        }
+        let usedFolders = folders.filter { usedFolderIDs.contains($0.id) }
         // Additions only. Put-back is not a full overwrite: name, links,
         // description and category stay. `apply` still writes the safety backup.
         let additions = Plan(sourceURL: full.sourceURL, additions: full.additions,
-                             matches: [], folders: folders)
+                             matches: [], folders: usedFolders)
         let result = apply(additions, updatingExisting: false, into: context, backupReason: backupReason)
         var updated = 0
         if puttingBackChanges && !changed.isEmpty {

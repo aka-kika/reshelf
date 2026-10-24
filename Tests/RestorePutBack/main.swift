@@ -167,6 +167,28 @@ func run() throws {
     check("put-back counts the shelf and note change", back.updated == 1)
     check("shelf, tags and notes are back",
           row.status == .topShelf && row.tags == ["swift"] && row.notes == "n" && row.personalNote == "why")
+    // 8. A restore that changes nothing does not bring back a deleted folder (0163).
+    let ctx5 = try makeContext()
+    let epsilon = project("epsilon", .collector)
+    ctx5.insert(epsilon)
+    let gone = CatalogFolderService.create(name: "Gone", in: ctx5)!
+    epsilon.folderID = gone.id
+    try ctx5.save()
+    CatalogBackupService.writeSnapshot(all(ctx5), folders: CatalogFolderService.folders(in: ctx5),
+                                       reason: "Before deleting folder Gone")
+    guard let snapGone = CatalogBackupService.snapshotURLs().first(where: {
+        CatalogBackupService.reason(in: $0) == "Before deleting folder Gone"
+    }) else {
+        check("gone-folder backup written", false)
+        return
+    }
+    check("deleting the folder ungroups", CatalogFolderService.delete(gone, in: ctx5) == 1)
+    let quiet = CatalogBackupService.restore(from: snapGone, puttingBackChanges: false,
+                                             into: ctx5, snapshotDate: "gone")
+    check("nothing to restore when the repo is still there", quiet.added == 0 && quiet.updated == 0)
+    check("a deleted folder stays deleted",
+          !CatalogFolderService.folders(in: ctx5).contains { $0.name == "Gone" })
+
     check("name, link, description and category stay",
           row.name == "delta renamed" && row.category == "Games"
           && row.githubURL == "https://github.com/test/delta" && row.shortDescription == "changed")

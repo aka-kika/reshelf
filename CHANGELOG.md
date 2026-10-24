@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Restore no longer brings back a folder you deleted when it has nothing to restore.** A folder is created only when a repo coming back from that backup uses it.
 - **Clone no longer deletes a file that is sitting where the clone would go.** An empty leftover folder goes to the Trash. Anything else stops the clone and stays put.
 - **Quick Capture has a Notes field.** The note Capture Assist writes is on the form before you save.
 - **⌘-click adds to the row you already clicked.** The batch count matches the rows that look selected, and ⌘T, ⌘Y and ⌘⇧G move that batch.
