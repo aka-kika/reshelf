@@ -203,10 +203,11 @@ struct RestoreBackupSheet: View {
 
     private func parseDate(from filename: String) -> Date? {
         // catalog-yyyy-MM-dd-HHmmss.json, or …-HHmmss-2.json for a second
-        // backup written in the same second.
+        // backup written in the same second; a labelled one ends -before.json.
         let stamp = filename
             .replacingOccurrences(of: "catalog-", with: "")
             .replacingOccurrences(of: ".json", with: "")
+            .replacingOccurrences(of: CatalogBackupService.labelledSuffix + "$", with: "", options: .regularExpression)
             .replacingOccurrences(of: #"^(\d{4}-\d{2}-\d{2}-\d{6})-\d+$"#, with: "$1", options: .regularExpression)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

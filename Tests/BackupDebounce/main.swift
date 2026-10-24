@@ -150,6 +150,32 @@ func run() async throws {
     check("a labelled backup survives the routine prune", labelledKept)
     check("routine backups stay at 30", routineCount == 30)
 
+    // 8b. Labelled backups stop at 40, told apart by name (329a). A 1.16.0
+    //     labelled file (no suffix) is renamed, not deleted, when it ages out.
+    let legacyName = backups.appendingPathComponent("catalog-2001-01-01-000000.json")
+    try FileManager.default.copyItem(
+        at: files().first { CatalogBackupService.reason(in: $0) == "Before removing keep-me" }!,
+        to: legacyName)
+    all(ctx)[0].notes = "push the old file out"
+    _ = CatalogBackupService.writeSnapshot(all(ctx))
+    let renamedLegacy = backups.appendingPathComponent(
+        "catalog-2001-01-01-000000\(CatalogBackupService.labelledSuffix).json")
+    check("an old unsuffixed labelled file is renamed, not deleted as routine",
+          !FileManager.default.fileExists(atPath: legacyName.path)
+          && CatalogBackupService.reason(in: renamedLegacy) == "Before removing keep-me")
+    for i in 0..<45 {
+        all(ctx)[0].notes = "labelled \(i)"
+        _ = CatalogBackupService.writeSnapshot(all(ctx), reason: "Before wave \(i)")
+    }
+    let labelledFiles = files().filter(CatalogBackupService.isLabelled)
+    check("labelled backups stay at \(CatalogBackupService.maxLabelledSnapshots)",
+          labelledFiles.count == CatalogBackupService.maxLabelledSnapshots)
+    check("every labelled file has a label", labelledFiles.allSatisfy { CatalogBackupService.reason(in: $0) != nil })
+    check("the newest labelled backups are the ones kept",
+          CatalogBackupService.reason(in: labelledFiles[0]) == "Before wave 44"
+          && !labelledFiles.contains { CatalogBackupService.reason(in: $0) == "Before wave 4" })
+    check("routine backups are still 30", files().filter { !CatalogBackupService.isLabelled($0) }.count == 30)
+
     // 9. A backup that cannot be written reports failure (4fc5). The caller
     //    stops the delete or the Yard Sale move instead of saying it was saved.
     func catalogFiles(in dir: URL) -> Int {

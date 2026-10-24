@@ -13,6 +13,14 @@ enum CatalogBackupService {
     /// Labelled backups (a reason like "Before removing …") are kept besides these.
     static let maxSnapshots = 30
 
+    /// How many labelled "Before …" backups to keep, newest first. Each one is
+    /// a full copy of the catalog, and every delete or batch move writes one.
+    static let maxLabelledSnapshots = 40
+
+    /// A labelled backup's file name ends in this (before `.json`), so pruning
+    /// tells the two kinds apart without opening every file.
+    static let labelledSuffix = "-before"
+
     /// Tests point backups at a temp folder; the app never sets this.
     static var backupsDirectoryOverride: URL?
 
@@ -128,12 +136,20 @@ enum CatalogBackupService {
         // in the same runloop tick — and an atomic write to the same filename
         // would replace the safety copy with exactly what it was protecting
         // against.
-        var url = backupsDirectory.appendingPathComponent("catalog-\(timestamp()).json")
+        let suffix = reason == nil ? "" : labelledSuffix
+        let stamp = timestamp()
+        var stem = "catalog-\(stamp)"
         var attempt = 2
-        while FileManager.default.fileExists(atPath: url.path) {
-            url = backupsDirectory.appendingPathComponent("catalog-\(timestamp())-\(attempt).json")
+        func taken(_ stem: String) -> Bool {
+            [stem, stem + labelledSuffix].contains {
+                FileManager.default.fileExists(atPath: backupsDirectory.appendingPathComponent("\($0).json").path)
+            }
+        }
+        while taken(stem) {
+            stem = "catalog-\(stamp)-\(attempt)"
             attempt += 1
         }
+        let url = backupsDirectory.appendingPathComponent("\(stem)\(suffix).json")
         do {
             try data.write(to: url, options: .atomic)
             prune()
@@ -175,13 +191,57 @@ enum CatalogBackupService {
     }
 
     /// Routine snapshots stop at `maxSnapshots`. A labelled "Before …" backup
-    /// is the undo point for a delete or a move, so it is not one of the 30.
+    /// is the undo point for a delete or a move, so it is not one of the 30;
+    /// labelled ones stop at `maxLabelledSnapshots`. Kinds are told apart by
+    /// file name. 1.16.0 wrote labelled files without the suffix: one of those
+    /// is opened only when it is about to be pruned, and renamed instead.
     private static func prune() {
-        let routine = snapshotURLs().filter { reason(in: $0) == nil } // newest first
-        guard routine.count > maxSnapshots else { return }
+        let fm = FileManager.default
+        let all = snapshotURLs() // newest first
+        var labelled = all.filter(isLabelled)
+        let routine = all.filter { !isLabelled($0) }
         for url in routine.dropFirst(maxSnapshots) {
-            try? FileManager.default.removeItem(at: url)
+            if reason(in: url) != nil {
+                let target = url.deletingLastPathComponent()
+                    .appendingPathComponent(sortKey(url) + labelledSuffix + ".json")
+                if (try? fm.moveItem(at: url, to: target)) != nil {
+                    labelled.append(target)
+                    continue
+                }
+            }
+            try? fm.removeItem(at: url)
         }
+        labelled.sort { isNewer($0, than: $1) }
+        for url in labelled.dropFirst(maxLabelledSnapshots) {
+            try? fm.removeItem(at: url)
+        }
+    }
+
+    /// Whether the file name says this is a labelled "Before …" backup.
+    static func isLabelled(_ url: URL) -> Bool {
+        url.deletingPathExtension().lastPathComponent.hasSuffix(labelledSuffix)
+    }
+
+    /// The file name without `.json` and the label suffix:
+    /// `catalog-yyyy-MM-dd-HHmmss[-n]`.
+    static func sortKey(_ url: URL) -> String {
+        let name = url.deletingPathExtension().lastPathComponent
+        return name.hasSuffix(labelledSuffix) ? String(name.dropLast(labelledSuffix.count)) : name
+    }
+
+    /// Newer first: by time stamp, then by the same-second number (`-2`,
+    /// `-10`) as a number, so `-10` is newer than `-9`.
+    static func isNewer(_ a: URL, than b: URL) -> Bool {
+        func split(_ url: URL) -> (String, Int) {
+            let key = sortKey(url)
+            // "catalog-" + "yyyy-MM-dd-HHmmss" is 25 characters.
+            guard key.count > 26, key.dropFirst(25).first == "-", let n = Int(key.dropFirst(26))
+            else { return (key, 1) }
+            return (String(key.prefix(25)), n)
+        }
+        let (stampA, numberA) = split(a)
+        let (stampB, numberB) = split(b)
+        return stampA != stampB ? stampA > stampB : numberA > numberB
     }
 
     // MARK: - Reading / restoring
@@ -193,10 +253,10 @@ enum CatalogBackupService {
                                                  includingPropertiesForKeys: nil)) ?? []
         return files
             .filter { $0.lastPathComponent.hasPrefix("catalog-") && $0.pathExtension == "json" }
-            // Compare without ".json": with it, "…-035806.json" sorts after its
-            // same-second sibling "…-035806-2.json" ("." > "-"), so the older
-            // file passed as the newest.
-            .sorted { $0.deletingPathExtension().lastPathComponent > $1.deletingPathExtension().lastPathComponent }
+            // Not by raw file name: "…-035806.json" sorts after its
+            // same-second sibling "…-035806-2.json" ("." > "-"), and "-10"
+            // before "-9", so an older file passed as the newest.
+            .sorted { isNewer($0, than: $1) }
     }
 
     static func projects(in url: URL) -> [CatalogProjectDTO] {

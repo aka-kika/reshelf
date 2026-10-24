@@ -237,8 +237,8 @@ real source you curated instead of guessing from stale docs.
 
 Everything sits under `~/reshelf/` in open formats (SwiftData store, SQLite, plain
 git clones, JSON backups) — see [Where data lives](#where-data-lives). reshelf keeps
-the last 30 routine JSON backups, plus the labelled backups taken before a big
-change, and restores from them if the catalog ever comes up empty. Not when you
+the last 30 routine JSON backups, plus the last 40 labelled backups taken before a
+big change, and restores from them if the catalog ever comes up empty. Not when you
 emptied the shelf yourself: that stays empty.
 
 ## Stack
