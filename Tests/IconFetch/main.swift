@@ -55,5 +55,26 @@ DispatchQueue.concurrentPerform(iterations: 40) { _ in
 }
 check("40 resizes in parallel all fit", allOK)
 
+// e998: a failed avatar is remembered and not asked for again right away.
+let t0 = Date(timeIntervalSince1970: 1_000_000)
+check("never failed: try", IconRules.shouldRetry(failedAt: nil, now: t0))
+check("failed an hour ago: leave it", !IconRules.shouldRetry(failedAt: t0, now: t0.addingTimeInterval(3600)))
+check("failed over a day ago: try again", IconRules.shouldRetry(failedAt: t0, now: t0.addingTimeInterval(IconRules.retryAfter + 1)))
+
+let suite = "reshelf-icon-test-\(UUID().uuidString)"
+let defaults = UserDefaults(suiteName: suite)!
+let log = IconFailureLog(defaults: defaults, key: "failures")
+check("a fresh log tries", log.shouldTry(owner: "Octocat", now: t0))
+log.recordFailure(owner: "Octocat", now: t0)
+check("after a failure it is skipped", !log.shouldTry(owner: "Octocat", now: t0.addingTimeInterval(60)))
+check("owner case does not matter", !log.shouldTry(owner: "octocat", now: t0.addingTimeInterval(60)))
+check("other owners are not affected", log.shouldTry(owner: "someone-else", now: t0.addingTimeInterval(60)))
+let relaunched = IconFailureLog(defaults: defaults, key: "failures")
+check("the memory survives a relaunch", !relaunched.shouldTry(owner: "octocat", now: t0.addingTimeInterval(60)))
+check("it expires after a day", relaunched.shouldTry(owner: "octocat", now: t0.addingTimeInterval(IconRules.retryAfter + 1)))
+log.clear(owner: "Octocat")
+check("a success clears it", log.shouldTry(owner: "octocat", now: t0.addingTimeInterval(60)))
+defaults.removePersistentDomain(forName: suite)
+
 if failures > 0 { print("\(failures) failed"); exit(1) }
 print("IconFetch: all passed")

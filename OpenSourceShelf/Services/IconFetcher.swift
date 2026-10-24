@@ -21,16 +21,28 @@ enum IconFetcher {
             return
         }
 
+        // The avatar belongs to the owner. One that failed recently is left alone,
+        // so a relaunch or a bulk import does not ask again for every repo.
+        let owner = ownerRepo.owner
+        let failures = IconFailureLog()
+        guard failures.shouldTry(owner: owner) else {
+            clearInFlight(project.id)
+            return
+        }
+
         let projectID = project.id
 
-        URLSession.shared.dataTask(with: avatarURL) { data, response, _ in
+        URLSession.shared.dataTask(with: avatarURL) { data, response, error in
             defer { clearInFlight(projectID) }
-            guard let data = data,
-                  let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200,
+            // No answer at all (offline, timeout) is not remembered: the next launch may work.
+            guard error == nil, let httpResponse = response as? HTTPURLResponse else { return }
+            guard httpResponse.statusCode == 200,
+                  let data = data,
                   let resized = IconRules.resizedPNG(data, maxSide: 64) else {
+                failures.recordFailure(owner: owner)
                 return
             }
+            failures.clear(owner: owner)
 
             DispatchQueue.main.async {
                 // Re-fetch by id instead of touching the captured model: the

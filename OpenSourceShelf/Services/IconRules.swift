@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 import ImageIO
 
-/// Pure parts of the icon download: the size math and the resize.
+/// Pure parts of the icon download: the size math, the resize, and the memory of failed downloads.
 enum IconRules {
     /// The size that fits inside `maxSide` x `maxSide`, keeping the shape. Never scales up.
     static func fittedSize(width: Double, height: Double, maxSide: Double) -> (width: Int, height: Int) {
@@ -31,5 +31,45 @@ enum IconRules {
         CGImageDestinationAddImage(dest, scaled, nil)
         guard CGImageDestinationFinalize(dest) else { return nil }
         return out as Data
+    }
+
+    /// How long a failed avatar is left alone. A missing or broken avatar rarely fixes itself in a day.
+    static let retryAfter: TimeInterval = 24 * 60 * 60
+
+    static func shouldRetry(failedAt: Date?, now: Date) -> Bool {
+        guard let failedAt else { return true }
+        return now.timeIntervalSince(failedAt) >= retryAfter
+    }
+}
+
+/// Remembers which GitHub owners had no usable avatar, kept in UserDefaults so a relaunch
+/// does not ask again. The avatar belongs to the owner, so one entry covers all their repos.
+struct IconFailureLog {
+    let defaults: UserDefaults
+    let key: String
+
+    init(defaults: UserDefaults = .standard, key: String = "reshelf.iconFetchFailures") {
+        self.defaults = defaults
+        self.key = key
+    }
+
+    private func load() -> [String: Date] {
+        defaults.dictionary(forKey: key) as? [String: Date] ?? [:]
+    }
+
+    func shouldTry(owner: String, now: Date = Date()) -> Bool {
+        IconRules.shouldRetry(failedAt: load()[owner.lowercased()], now: now)
+    }
+
+    func recordFailure(owner: String, now: Date = Date()) {
+        var all = load()
+        all[owner.lowercased()] = now
+        defaults.set(all, forKey: key)
+    }
+
+    func clear(owner: String) {
+        var all = load()
+        guard all.removeValue(forKey: owner.lowercased()) != nil else { return }
+        defaults.set(all, forKey: key)
     }
 }
