@@ -239,8 +239,8 @@ struct ContentView: View {
                         listSelection = .project(project.id)
                     case .duplicate(let project):
                         revealProject(project.id)
-                    case .failed:
-                        NSSound.beep()
+                    case .failed(let message):
+                        NotificationCenter.default.post(name: .catalogStatusNotice, object: message)
                     }
                 }
             }

@@ -565,6 +565,8 @@ extension Notification.Name {
     static let toggleInspectorColumn = Notification.Name("toggleInspectorColumn")
     /// Scroll the project list to a row (object: the project's UUID).
     static let revealProjectInList = Notification.Name("revealProjectInList")
+    /// A one-line status for the project list (object: the message).
+    static let catalogStatusNotice = Notification.Name("catalogStatusNotice")
     static let exportCatalog = Notification.Name("exportCatalog")
     static let importURLs = Notification.Name("importURLs")
     static let importCatalog = Notification.Name("importCatalog")

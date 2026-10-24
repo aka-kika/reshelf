@@ -230,6 +230,11 @@ struct ProjectListView: View {
             onRefreshRepoInfo: { note in refreshRepoInfo(note.object as? String) },
             onPullFolderClones: { note in
                 if let id = note.object as? UUID { pullClones(inFolder: id) }
+            },
+            onStatusNotice: { note in
+                if let message = note.object as? String, !message.isEmpty {
+                    statusNotice = message
+                }
             }
         ))
         .confirmationDialog(
@@ -1250,6 +1255,7 @@ private struct CatalogEventHandlers: ViewModifier {
     let onYardSaleUnlicensed: () -> Void
     let onRefreshRepoInfo: (Notification) -> Void
     let onPullFolderClones: (Notification) -> Void
+    let onStatusNotice: (Notification) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -1261,6 +1267,7 @@ private struct CatalogEventHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .yardSaleUnlicensed)) { _ in onYardSaleUnlicensed() }
             .onReceive(NotificationCenter.default.publisher(for: .refreshRepoInfo), perform: onRefreshRepoInfo)
             .onReceive(NotificationCenter.default.publisher(for: .pullFolderClones), perform: onPullFolderClones)
+            .onReceive(NotificationCenter.default.publisher(for: .catalogStatusNotice), perform: onStatusNotice)
     }
 }
 
