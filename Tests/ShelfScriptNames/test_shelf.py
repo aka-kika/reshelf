@@ -113,6 +113,23 @@ r = run("find", "dotdot-cat")
 if r.returncode != 0 or "CLONED" not in r.stdout or foreign not in r.stdout:
     fail(f"marked checkout not cloned: {r.stdout}{r.stderr}")
 
+# Only the origin remote names the clone (146706e): another remote or a
+# comment with a github.com link comes first in this config.
+decoy = os.path.join(root, "Work", "two")
+os.makedirs(os.path.join(decoy, ".git"))
+with open(os.path.join(decoy, ".git", "config"), "w") as f:
+    f.write('[core]\n\tcomment = see github.com/acme/one\n'
+            '[remote "upstream"]\n\turl = https://github.com/acme/one.git\n'
+            '[remote "origin"]\n\turl = git@github.com:acme/two.git\n')
+with open(os.path.join(decoy, ".git", "reshelf-clone"), "w") as f:
+    f.write("reshelf\n")
+r = run("find", "dot-cat")
+if r.returncode != 0 or decoy not in r.stdout:
+    fail(f"origin remote did not decide the clone: {r.stdout}{r.stderr}")
+r = run("find", "dotdot-cat")
+if decoy in r.stdout:
+    fail(f"a non-origin remote decided the clone: {r.stdout}")
+
 if failures:
     print(f"ShelfScriptNames: {failures} failed")
     sys.exit(1)

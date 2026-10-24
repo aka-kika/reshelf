@@ -154,6 +154,24 @@ def _stamps_legacy(root):
     return os.path.normpath(root) == default
 
 
+def origin_slug(config_text):
+    """(owner, repo) from the origin remote's url in a .git/config, else None.
+    Same rule as the app: another remote or a comment naming github.com must
+    not decide which repo the folder is."""
+    in_origin = False
+    for raw in config_text.splitlines():
+        line = raw.strip()
+        if line.startswith("["):
+            in_origin = line.lower() == '[remote "origin"]'
+            continue
+        if not in_origin or not line.lower().startswith("url") or "=" not in line:
+            continue
+        url = line.split("=", 1)[1].strip()
+        m = re.search(r"github\.com[/:]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", url, re.I)
+        return (m.group(1), m.group(2)) if m else None
+    return None
+
+
 def clone_index(root):
     """owner/repo (lowercased) -> clone folder, only for clones reshelf marked."""
     index = {}
@@ -163,10 +181,10 @@ def clone_index(root):
             text = open(cfg, errors="ignore").read()
         except OSError:
             continue
-        m = re.search(r"url\s*=\s*\S*github\.com[/:]([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$", text, re.M)
-        if not m:
+        found = origin_slug(text)
+        if not found:
             continue
-        owner, repo = m.group(1), m.group(2)
+        owner, repo = found
         clone_dir = os.path.dirname(os.path.dirname(cfg))
         if not has_marker(clone_dir):
             if not (stamp and _layout_name(os.path.basename(clone_dir), owner, repo)):
