@@ -671,7 +671,9 @@ struct ContentView: View {
                     project.category = merged
                 }
             }
-            CatalogSave.save(modelContext)
+            // A failed save must not move clone folders or mark the merge done.
+            // The next launch tries again.
+            guard CatalogSave.save(modelContext, "the merged categories") else { return }
         }
         CatalogCloneService.mergeCategoryFolders(merges)
         storedCategoryMergeVersion = Self.categoryMergeVersion

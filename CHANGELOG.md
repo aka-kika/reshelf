@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **A failed save no longer finishes the one-time category merge.** Clone folders stay put, and the merge runs again next launch.
 - **Remove Duplicate Repos keeps Local-First and Self-Hosted.** A flag set on either copy stays set, and it counts when choosing which copy to keep.
 - **Emptying the shelf is remembered immediately.** A quit in that moment no longer lets the next launch restore every repo.
 - **Picking a repo in Search shows it, even when a filter was hiding it.** The list goes back to All Projects and the search box clears.
