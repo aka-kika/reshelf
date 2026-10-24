@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Two quick Send to reshelf links for the same repo save it once.** The duplicate check runs again after the GitHub fetch.
 - **Fetching a second link in Quick Capture clears the first repo's note, use cases and flags.**
 - **Return while Quick Capture is still fetching does not start a second request.**
 - **A catalog restored at launch is classified.** The one-time category tidy no longer marks itself done while it is still looking at the empty list from before the restore.

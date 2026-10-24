@@ -275,6 +275,13 @@ enum LinkCaptureService {
             return .failed(error.localizedDescription)
         }
 
+        // A second Send to reshelf for the same repo can pass the check above,
+        // then both fetches finish and both insert. Check again after the fetch.
+        let again = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+        if let dup = again.first(where: { GitHubRepositoryURL.dedupKey(for: $0.githubURL) == key }) {
+            return .duplicate(dup)
+        }
+
         let name = info.fullName?.components(separatedBy: "/").last ?? url
         let topics = info.topics ?? []
         let project = ToolProject(
