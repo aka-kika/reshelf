@@ -6,6 +6,7 @@ All notable changes to **reshelf** are documented here. This project follows
 ## [Unreleased]
 
 ### Fixed
+- **Emptying the shelf is remembered immediately.** A quit in that moment no longer lets the next launch restore every repo.
 - **Picking a repo in Search shows it, even when a filter was hiding it.** The list goes back to All Projects and the search box clears.
 - **The inspector no longer shows another owner's description when this repo has no metadata row yet.** The lookup matches owner and name, not the bare repo name.
 - **Two quick Send to reshelf links for the same repo save it once.** The duplicate check runs again after the GitHub fetch.

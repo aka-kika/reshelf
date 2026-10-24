@@ -966,13 +966,24 @@ struct ProjectListView: View {
             statusNotice = Self.backupFailedNotice
             return false
         }
+        let previousCount = allProjects.count
         for project in projects {
             if listSelection?.projectID == project.id { listSelection = nil }
             modelContext.delete(project)
         }
         CatalogSave.save(modelContext)
+        rememberEmptiedShelf(previousCount: previousCount)
         AppRefreshBus.emit(.catalogStateUpdated)
         return true
+    }
+
+    /// The count observer sets this too, but a quit in the same moment can
+    /// land before that observer runs. The next launch would restore everything.
+    private func rememberEmptiedShelf(previousCount: Int) {
+        let left = (try? modelContext.fetchCount(FetchDescriptor<ToolProject>())) ?? previousCount
+        if left == 0 {
+            CatalogBackupService.noteProjectCount(old: max(previousCount, 1), new: 0)
+        }
     }
 
     private var filteredProjects: [ToolProject] {

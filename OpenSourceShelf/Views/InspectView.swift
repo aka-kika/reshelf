@@ -640,6 +640,10 @@ struct InspectView: View {
         }
         modelContext.delete(project)
         CatalogSave.save(modelContext)
+        let left = (try? modelContext.fetchCount(FetchDescriptor<ToolProject>())) ?? 1
+        if left == 0 {
+            CatalogBackupService.noteProjectCount(old: 1, new: 0)
+        }
         AppRefreshBus.emit(.catalogStateUpdated)
         onDelete?()
     }
