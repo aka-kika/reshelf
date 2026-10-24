@@ -451,6 +451,8 @@ struct QuickCaptureSheet: View {
     /// Return-key handler: fetch when nothing is fetched yet, otherwise save.
     /// Keeps the whole capture keyboard-only (paste → Enter → Enter).
     private func handleSubmit() {
+        // Return while the fetch is in flight used to start a second request.
+        if isFetching { return }
         if duplicateProject != nil {
             openExisting()
         } else if fetchedInfo == nil {
@@ -468,7 +470,7 @@ struct QuickCaptureSheet: View {
 
     private func fetchRepo() {
         let trimmed = urlText.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, duplicateProject == nil else { return }
+        guard !isFetching, !trimmed.isEmpty, duplicateProject == nil else { return }
         isFetching = true; errorMessage = nil
 
         Task {
