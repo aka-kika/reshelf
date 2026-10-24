@@ -141,15 +141,25 @@ struct RestoreBackupSheet: View {
 
     private func updatePreview() {
         guard let selected else { preview = nil; return }
-        let recorded = ((try? Data(contentsOf: selected)).flatMap {
-            try? CatalogExportService.didRecordFolders($0)
-        }) ?? false
-        let plan = CatalogImportService.plan(rows: CatalogBackupService.projects(in: selected),
-                                             folders: CatalogBackupService.folders(in: selected),
-                                             recordedFolders: recorded,
-                                             sourceURL: selected, context: modelContext)
-        preview = (plan.additions.count,
-                   CatalogImportService.changedMatches(in: plan, context: modelContext).count)
+        let url = selected
+        // The file read and decode stay off the main thread. Comparing with
+        // the catalog happens back here, where the SwiftData context lives.
+        Task {
+            let decoded = await Task.detached(priority: .userInitiated) { () -> (rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], recorded: Bool) in
+                let data = (try? Data(contentsOf: url)) ?? Data()
+                let rows = (try? CatalogExportService.decode(data)) ?? []
+                let folders = (try? CatalogExportService.decodeFolders(data)) ?? []
+                let recorded = (try? CatalogExportService.didRecordFolders(data)) ?? false
+                return (rows, folders, recorded)
+            }.value
+            guard self.selected == url else { return }
+            let plan = CatalogImportService.plan(rows: decoded.rows,
+                                                 folders: decoded.folders,
+                                                 recordedFolders: decoded.recorded,
+                                                 sourceURL: url, context: modelContext)
+            preview = (plan.additions.count,
+                       CatalogImportService.changedMatches(in: plan, context: modelContext).count)
+        }
     }
 
     /// Reads the files in the background (30 snapshots of a big catalog took
