@@ -134,7 +134,8 @@ struct ImportURLsSheet: View {
             leftover = text
             switch outcome.stop {
             case .none:
-                stopMessage = nil
+                stopMessage = outcome.remaining.isEmpty ? nil
+                    : "The \(outcome.remaining.count) link\(outcome.remaining.count == 1 ? "" : "s") that failed \(outcome.remaining.count == 1 ? "is" : "are") still in the box."
             case .byUser:
                 stopMessage = "Stopped. The \(outcome.remaining.count) link\(outcome.remaining.count == 1 ? "" : "s") not imported yet are still in the box."
             case .rateLimit(let resetText):
@@ -169,7 +170,8 @@ enum BulkURLImport {
         var stop: Stop
         /// 0-based position of the link the run stopped at, nil when it finished.
         var stoppedAt: Int?
-        /// The links from `stoppedAt` on: not imported, not tried, not failed.
+        /// Links to put back in the box: ones that failed, then any not tried
+        /// because the run stopped. A skipped duplicate is not here.
         var remaining: [String]
     }
 
@@ -183,13 +185,17 @@ enum BulkURLImport {
                     shouldStop: () -> Bool,
                     onProgress: (Counts) -> Void) async -> Outcome {
         var counts = Counts()
+        // Links whose fetch failed. They go back in the box: an offline run
+        // or a bad token used to wipe the whole pasted list.
+        var failedURLs: [String] = []
         // Grows as the run imports: the same URL pasted twice in one list
         // must dedupe against what this run already added, not just
         // against the pre-import catalog.
         var seen = existing
         for (index, url) in list.enumerated() {
             if shouldStop() {
-                return Outcome(counts: counts, stop: .byUser, stoppedAt: index, remaining: Array(list[index...]))
+                return Outcome(counts: counts, stop: .byUser, stoppedAt: index,
+                               remaining: failedURLs + Array(list[index...]))
             }
             let key = GitHubRepositoryURL.dedupKey(for: url)
             if seen.contains(key) {
@@ -205,9 +211,10 @@ enum BulkURLImport {
                 counts.imported += 1
             } catch CaptureError.rateLimited(let resetText) {
                 return Outcome(counts: counts, stop: .rateLimit(resetText: resetText),
-                               stoppedAt: index, remaining: Array(list[index...]))
+                               stoppedAt: index, remaining: failedURLs + Array(list[index...]))
             } catch {
                 counts.failed.append(url.split(separator: "/").suffix(2).joined(separator: "/"))
+                failedURLs.append(url)
             }
             counts.progress += 1
             onProgress(counts)
@@ -216,7 +223,7 @@ enum BulkURLImport {
                 try? await Task.sleep(nanoseconds: pause)
             }
         }
-        return Outcome(counts: counts, stop: .none, stoppedAt: nil, remaining: [])
+        return Outcome(counts: counts, stop: .none, stoppedAt: nil, remaining: failedURLs)
     }
 
     /// "GitHub's limit was reached at repo 61 of 200; …", `index` 0-based.

@@ -2,6 +2,11 @@ import Foundation
 import SwiftData
 
 setvbuf(stdout, nil, _IONBF, 0)
+// Saves schedule a backup. Keep it out of ~/reshelf.
+let backups = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("reshelf-import-urls-\(UUID().uuidString)")
+CatalogBackupService.backupsDirectoryOverride = backups
+defer { try? FileManager.default.removeItem(at: backups) }
 var failures = 0
 func check(_ name: String, _ ok: Bool) {
     print((ok ? "PASS: " : "FAIL: ") + name)
@@ -80,7 +85,9 @@ func run() async throws {
                 return info(for: url)
             },
             pause: 0, shouldStop: { false }, onProgress: { progress.append($0.progress) })
-        check("full run: finishes", outcome.stop == .none && outcome.remaining.isEmpty)
+        check("full run: finishes", outcome.stop == .none)
+        check("full run: the failed link stays for another try",
+              outcome.remaining == ["https://github.com/test/repo4"])
         check("full run: 4 imported", outcome.counts.imported == 4 && count(ctx) == 4)
         check("full run: catalog and in-run duplicates skipped", outcome.counts.skipped == 2)
         check("full run: a missing repo fails without stopping the run", outcome.counts.failed == ["test/repo4"])

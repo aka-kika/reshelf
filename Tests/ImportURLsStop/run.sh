@@ -12,6 +12,11 @@ swiftc -o "$out/test" \
     "$app/Models/ToolProject.swift" \
     "$app/Models/ProjectStatus.swift" \
     "$app/Models/CatalogFolder.swift" \
+    "$app/Services/CatalogFolderService.swift" \
+    "$app/Services/CatalogExportService.swift" \
+    "$app/Services/CatalogImportService.swift" \
+    "$app/Services/CatalogBackupService.swift" \
+    "$app/Services/DuplicateMerge.swift" \
     "$app/Services/CatalogSave.swift" \
     "$app/Services/Ingestion/GitHubRepositoryURL.swift" \
     "$app/Services/CategoryClassifier.swift" \
