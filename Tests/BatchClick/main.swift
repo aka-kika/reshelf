@@ -28,5 +28,19 @@ check("shift-click extends from the anchor", state.batch == [a, b, c])
 state = CatalogBatchClick.apply(state, clicked: b, command: false, shift: false, orderedIDs: order)
 check("a later plain click drops the batch", state.batch.isEmpty && state.selected == b)
 
+// ⌘T targets (71cf): visible batch rows only, a batch of one included.
+check("command-T moves the visible batch rows, in list order",
+      CatalogBatchClick.shelfMoveTargets(batch: [c, a], selected: b, visibleIDs: order) == [a, c])
+check("command-T skips batch rows a filter hides",
+      CatalogBatchClick.shelfMoveTargets(batch: [a, c], selected: a, visibleIDs: [a, b]) == [a])
+check("a batch of one moves that row, not the inspector row",
+      CatalogBatchClick.shelfMoveTargets(batch: [b], selected: a, visibleIDs: order) == [b])
+check("no batch moves the inspector row",
+      CatalogBatchClick.shelfMoveTargets(batch: [], selected: b, visibleIDs: [a]) == [b])
+check("a batch the filter hides falls back to a visible inspector row",
+      CatalogBatchClick.shelfMoveTargets(batch: [c], selected: a, visibleIDs: [a, b]) == [a])
+check("a hidden batch and a hidden inspector row move nothing",
+      CatalogBatchClick.shelfMoveTargets(batch: [c], selected: c, visibleIDs: [a, b]).isEmpty)
+
 if failures > 0 { print("\(failures) failed"); exit(1) }
 print("BatchClick: all passed")

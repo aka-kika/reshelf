@@ -555,15 +555,23 @@ struct ProjectListView: View {
         CatalogSave.save(modelContext)
     }
 
-    /// ⌘T / ⌘Y / ⌘⇧G — move the batch when more than one row is in it,
-    /// otherwise the repo the inspector is showing.
+    /// ⌘T / ⌘Y / ⌘⇧G — move the batch rows the list shows, otherwise the
+    /// repo the inspector is showing.
     private func moveSelectedToShelf(_ rawStatus: String?) {
         guard let rawStatus, let shelf = ProjectStatus(rawValue: rawStatus) else { return }
-        if batchSelection.count > 1 {
-            let projects = allProjects.filter { batchSelection.contains($0.id) }
-            guard !projects.isEmpty else { return }
+        let visible = filteredProjects
+        let targets = CatalogBatchClick.shelfMoveTargets(batch: batchSelection,
+                                                         selected: listSelection?.projectID,
+                                                         visibleIDs: visible.map(\.id))
+        guard !targets.isEmpty else { return }
+        let isBatch = !batchSelection.isEmpty && targets.allSatisfy(batchSelection.contains)
+        if isBatch {
+            let projects = visible.filter { targets.contains($0.id) }
             let moving = projects.filter { $0.status != shelf }
-            guard !moving.isEmpty else { return }
+            guard !moving.isEmpty else {
+                clearBatchSelection()
+                return
+            }
             let noun = moving.count == 1 ? "repo" : "repos"
             guard CatalogBackupService.writeSnapshot(
                 allProjects, folders: folders,
@@ -574,9 +582,10 @@ struct ProjectListView: View {
             for project in moving { project.status = shelf }
             CatalogSave.save(modelContext)
             statusNotice = "Moved \(moving.count) \(noun) to \(shelf.displayName). A backup was saved."
+            clearBatchSelection()
             return
         }
-        guard let id = listSelection?.projectID,
+        guard let id = targets.first,
               let project = allProjects.first(where: { $0.id == id }) else { return }
         guard project.status != shelf else { return }
         setShelf(shelf, for: project)

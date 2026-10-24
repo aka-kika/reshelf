@@ -64,4 +64,14 @@ enum CatalogBatchClick {
         next.selected = clicked
         return next
     }
+
+    /// The rows ⌘T / ⌘Y / ⌘⇧G move: the batch rows the list shows (a filter
+    /// can hide some), in list order, even a batch of one. With no visible
+    /// batch, the row the inspector shows.
+    static func shelfMoveTargets(batch: Set<UUID>, selected: UUID?, visibleIDs: [UUID]) -> [UUID] {
+        let visibleBatch = visibleIDs.filter(batch.contains)
+        if !visibleBatch.isEmpty { return visibleBatch }
+        guard let selected, visibleIDs.contains(selected) || batch.isEmpty else { return [] }
+        return [selected]
+    }
 }
