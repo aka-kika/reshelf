@@ -803,22 +803,7 @@ struct ProjectListView: View {
     /// Higher = keep. Prefers a higher shelf, then richer/edited data, then the
     /// original (earliest added) — so the copy you invested in survives.
     private func dedupKeepScore(_ p: ToolProject) -> Int {
-        var score = 0
-        switch p.status {
-        case .topShelf: score += 3000
-        case .collector: score += 2000
-        case .yardSale: score += 1000
-        }
-        if !p.personalNote.isEmpty { score += 60 }
-        if !p.notes.isEmpty { score += 50 }
-        if p.folderID != nil { score += 40 }
-        score += min(p.tags.count, 20)
-        score += min(p.useCases.count, 20) * 2
-        if !p.longDescription.isEmpty { score += 20 }
-        if !p.websiteURL.isEmpty { score += 10 }
-        if !p.license.isEmpty { score += 5 }
-        if p.lastCheckedDate != nil { score += 10 }
-        return score
+        DuplicateMerge.keepScore(p)
     }
 
     private func mergeHandWrittenFields(from victim: ToolProject, into keeper: ToolProject) {

@@ -24,6 +24,32 @@ enum DuplicateMerge {
         if keeper.license.trimmingCharacters(in: .whitespaces).isEmpty {
             keeper.license = victim.license
         }
+        // A flag set on either copy stays set. Never turn one off.
+        if victim.isLocalFirst { keeper.isLocalFirst = true }
+        if victim.isSelfHosted { keeper.isSelfHosted = true }
+    }
+
+    /// Higher = keep. A higher shelf wins, then richer data, then the flags.
+    /// The list uses this so the copy you invested in survives.
+    static func keepScore(_ p: ToolProject) -> Int {
+        var score = 0
+        switch p.status {
+        case .topShelf: score += 3000
+        case .collector: score += 2000
+        case .yardSale: score += 1000
+        }
+        if !p.personalNote.isEmpty { score += 60 }
+        if !p.notes.isEmpty { score += 50 }
+        if p.folderID != nil { score += 40 }
+        score += min(p.tags.count, 20)
+        score += min(p.useCases.count, 20) * 2
+        if !p.longDescription.isEmpty { score += 20 }
+        if !p.websiteURL.isEmpty { score += 10 }
+        if !p.license.isEmpty { score += 5 }
+        if p.lastCheckedDate != nil { score += 10 }
+        if p.isLocalFirst { score += 15 }
+        if p.isSelfHosted { score += 15 }
+        return score
     }
 
     /// Kept order first, then the dropped copy's new entries; case-insensitive.

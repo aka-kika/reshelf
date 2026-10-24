@@ -137,6 +137,14 @@ func run() throws {
     check("empty fields filled", keeper.personalNote == "saved for the menu bar" && keeper.websiteURL == "https://example.com")
     check("contained note not repeated", DuplicateMerge.joined("one two three", "two") == "one two three")
     check("shelf of kept copy unchanged", keeper.status == .topShelf)
+    let flagged = project("flags", .collector)
+    flagged.isLocalFirst = true
+    flagged.isSelfHosted = true
+    let plain = project("flags", .collector)
+    check("a flagged copy scores above a plain one on the same shelf",
+          DuplicateMerge.keepScore(flagged) > DuplicateMerge.keepScore(plain))
+    DuplicateMerge.merge(from: flagged, into: plain)
+    check("flags set on either copy are kept", plain.isLocalFirst && plain.isSelfHosted)
 
     // 7. Put-back restores shelf, tags and notes, and leaves name, link,
     //    description and category alone (76e9).
