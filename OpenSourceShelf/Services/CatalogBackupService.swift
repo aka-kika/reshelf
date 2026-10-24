@@ -138,17 +138,15 @@ enum CatalogBackupService {
         // against.
         let suffix = reason == nil ? "" : labelledSuffix
         let stamp = timestamp()
-        var stem = "catalog-\(stamp)"
-        var attempt = 2
-        func taken(_ stem: String) -> Bool {
-            [stem, stem + labelledSuffix].contains {
-                FileManager.default.fileExists(atPath: backupsDirectory.appendingPathComponent("\($0).json").path)
-            }
-        }
-        while taken(stem) {
-            stem = "catalog-\(stamp)-\(attempt)"
-            attempt += 1
-        }
+        // The number goes above every file of this second, never into a gap
+        // a prune left: a lower number sorts as older and would be pruned
+        // straight away in a burst of writes (a bulk delete, a test).
+        let sameSecond = snapshotURLs().filter { sortKey($0).hasPrefix("catalog-\(stamp)") }
+        let highest = sameSecond.map { url -> Int in
+            let key = sortKey(url)
+            return key == "catalog-\(stamp)" ? 1 : Int(key.dropFirst("catalog-\(stamp)-".count)) ?? 1
+        }.max()
+        let stem = highest.map { "catalog-\(stamp)-\($0 + 1)" } ?? "catalog-\(stamp)"
         let url = backupsDirectory.appendingPathComponent("\(stem)\(suffix).json")
         do {
             try data.write(to: url, options: .atomic)
