@@ -27,3 +27,6 @@ xcuserdata/
 
 # Local xcodebuild output (release script uses .build/)
 /build/
+future-features.md
+docs/inbox/
+IDEAS.md
