@@ -22,6 +22,7 @@ All notable changes to **reshelf** are documented here. This project follows
 - **Sort in fits lists:** the same Sort button as every other list, with **Best Fit** first (and the start).
 - **Live clones folder:** reshelf watches its clone folder (FSEvents, coalesced, off while the app is hidden), so a clone an agent made or a folder trashed in Finder shows without switching windows. Idea from SkillDeck (MIT); no code taken.
 - **Local edits mark:** a cloned row says "local edits" (and the inspector explains it) when the clone has tracked changes, so Pull skipping it is no surprise. Checked when you select the repo, with Check Clones for Updates, and on Pull; never a scan of every clone. Idea from cortex (MIT); no code taken.
+- **Sidebar order in Settings:** Settings → General → Sidebar lists the sections (Library, My Repos, Folders, Categories, Tags) to drag into order and show or hide, with the same list as the Inspector's (one shared component); Reset to Default. Backups and exports carry it.
 - **No sparkle icons:** the Capture tab shows a tray, Quick Capture's AI Suggestions a lightbulb.
 - The skill's `shelf.py fits` follows the new order and the Fits filters.
 

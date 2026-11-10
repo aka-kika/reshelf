@@ -15,6 +15,8 @@ struct SettingsView: View {
     @AppStorage(CaptureAssist.autoGenerateKey) private var captureAutoGenerate = true
     @AppStorage(LicenseInfo.warnStorageKey) private var warnOnStrictLicense = true
     @AppStorage(SidebarTagRanking.modeKey) private var sidebarTagsMode: SidebarTagRanking.Mode = .top
+    /// Read so the Sidebar list redraws when the layout is saved.
+    @AppStorage(SidebarLayout.storageKey) private var sidebarLayoutJSON = ""
 
     // Settings > Fits (Project fits, round 2)
     @AppStorage(FitScorer.limitKey) private var fitsLimit = FitScorer.defaultLimit
@@ -157,6 +159,34 @@ struct SettingsView: View {
                 }
             }
             SettingsDivider()
+            SettingsSection("Sidebar", detail: "Show or hide sections. Drag to reorder.") {
+                let layout = sidebarLayoutJSON.isEmpty ? SidebarLayout() : SidebarLayout.current()
+                ReorderableSectionList(
+                    items: layout.order.map { name in
+                        .init(id: name, title: name, icon: Self.sidebarIcon(name),
+                              usesGitHubMark: name == "My Repos",
+                              canHide: !SidebarLayout.alwaysShown.contains(name))
+                    },
+                    isVisible: { !layout.hidden.contains($0) },
+                    setVisible: { name, visible in
+                        var next = layout
+                        next.hidden.removeAll { $0 == name }
+                        if !visible { next.hidden.append(name) }
+                        next.save()
+                    },
+                    move: { dropped, onto in
+                        var next = layout
+                        guard let from = next.order.firstIndex(of: dropped),
+                              let to = next.order.firstIndex(of: onto) else { return }
+                        next.order.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+                        next.save()
+                    })
+                if !layout.isDefault {
+                    Button("Reset to Default") { SidebarLayout().save() }
+                        .controlSize(.small)
+                }
+            }
+            SettingsDivider()
             SettingsSection("Licenses") {
                 SettingsRow("License warnings",
                             detail: "A caution in the inspector for copyleft, missing or unclear licenses.") {
@@ -270,43 +300,24 @@ struct SettingsView: View {
             }
             SettingsDivider()
             SettingsSection("Inspector", detail: "Show or hide sections. Drag to reorder.") {
-                VStack(spacing: 2) {
-                    ForEach(sectionOrder) { section in
-                        InspectorSectionRow(
-                            section: section,
-                            isVisible: Binding(
-                                get: { settings.isVisible(section) },
-                                set: { newValue in
-                                    settings.setVisible(section, newValue)
-                                    CatalogSave.save(modelContext)
-                                }
-                            )
-                        )
-                        .draggable(section.rawValue) {
-                            InspectorSectionRow(
-                                section: section,
-                                isVisible: .constant(settings.isVisible(section))
-                            )
-                            .frame(width: 280)
-                            .opacity(0.8)
-                        }
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let droppedRaw = items.first,
-                                  let droppedSection = InspectorSection(rawValue: droppedRaw),
-                                  droppedSection != section else { return false }
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                if let fromIndex = sectionOrder.firstIndex(of: droppedSection),
-                                   let toIndex = sectionOrder.firstIndex(of: section) {
-                                    sectionOrder.move(fromOffsets: IndexSet(integer: fromIndex),
-                                                      toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
-                                    settings.inspectorSectionOrder = sectionOrder
-                                    CatalogSave.save(modelContext)
-                                }
-                            }
-                            return true
-                        }
-                    }
-                }
+                ReorderableSectionList(
+                    items: sectionOrder.map { .init(id: $0.rawValue, title: $0.displayName, icon: $0.icon) },
+                    isVisible: { id in InspectorSection(rawValue: id).map { settings.isVisible($0) } ?? true },
+                    setVisible: { id, value in
+                        guard let section = InspectorSection(rawValue: id) else { return }
+                        settings.setVisible(section, value)
+                        CatalogSave.save(modelContext)
+                    },
+                    move: { droppedID, ontoID in
+                        guard let dropped = InspectorSection(rawValue: droppedID),
+                              let onto = InspectorSection(rawValue: ontoID),
+                              let fromIndex = sectionOrder.firstIndex(of: dropped),
+                              let toIndex = sectionOrder.firstIndex(of: onto) else { return }
+                        sectionOrder.move(fromOffsets: IndexSet(integer: fromIndex),
+                                          toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+                        settings.inspectorSectionOrder = sectionOrder
+                        CatalogSave.save(modelContext)
+                    })
             }
         }
     }
@@ -337,6 +348,16 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    static func sidebarIcon(_ name: String) -> String {
+        switch name {
+        case "Library": return "square.grid.2x2"
+        case "Folders": return "folder"
+        case "Categories": return "square.stack.3d.up"
+        case "Tags": return "tag"
+        default: return "circle"
         }
     }
 
@@ -835,30 +856,67 @@ private struct AboutLinkButton: View {
 
 // MARK: - Inspector Section Row (drag-reorderable)
 
-private struct InspectorSectionRow: View {
-    let section: InspectorSection
-    @Binding var isVisible: Bool
+/// A list of sections to show or hide and drag into order: the Inspector
+/// (Settings > Library) and the Sidebar (Settings > General) use this one
+/// component, so they look and work the same (Kika's same-feature-same-look
+/// rule).
+struct ReorderableSectionList: View {
+    struct Item: Identifiable, Equatable {
+        let id: String
+        let title: String
+        var icon: String = ""
+        /// The GitHub mark instead of an SF Symbol (My Repos).
+        var usesGitHubMark = false
+        var canHide = true
+    }
+
+    let items: [Item]
+    let isVisible: (String) -> Bool
+    let setVisible: (String, Bool) -> Void
+    /// Drop `dropped` onto `onto`.
+    let move: (_ dropped: String, _ onto: String) -> Void
 
     var body: some View {
+        VStack(spacing: 2) {
+            ForEach(items) { item in
+                row(item)
+                    .draggable(item.id) {
+                        row(item).frame(width: 280).opacity(0.8)
+                    }
+                    .dropDestination(for: String.self) { dropped, _ in
+                        guard let id = dropped.first, id != item.id,
+                              items.contains(where: { $0.id == id }) else { return false }
+                        withAnimation(.easeInOut(duration: 0.25)) { move(id, item.id) }
+                        return true
+                    }
+            }
+        }
+    }
+
+    private func row(_ item: Item) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
-
-            Image(systemName: section.icon)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .frame(width: 16)
-
-            Text(section.displayName)
+            Group {
+                if item.usesGitHubMark {
+                    GitHubMarkIcon(size: 12)
+                } else {
+                    Image(systemName: item.icon)
+                        .font(.system(size: 12))
+                }
+            }
+            .foregroundStyle(.secondary)
+            .frame(width: 16)
+            Text(item.title)
                 .font(.system(size: 13))
-
             Spacer()
-
-            Toggle(section.displayName, isOn: $isVisible)
+            Toggle(item.title, isOn: Binding(get: { isVisible(item.id) }, set: { setVisible(item.id, $0) }))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .labelsHidden()
+                .disabled(!item.canHide)
+                .help(item.canHide ? "" : "Always shown")
         }
         .padding(.vertical, 5)
         .contentShape(Rectangle())

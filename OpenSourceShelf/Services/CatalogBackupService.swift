@@ -360,6 +360,7 @@ enum CatalogBackupService {
         CatalogImportService.merge(snapshot.projects, folders: folders(in: snapshot.url), into: context)
         if let data = try? Data(contentsOf: snapshot.url) {
             myReposRestorer((try? CatalogExportService.decodeMyRepos(data)) ?? [], context)
+            SidebarLayout.applyIfPresent(data)
         }
         #if DEBUG
         print("[reshelf] Catalog was empty — restored \(snapshot.projects.count) projects from \(snapshot.url.lastPathComponent)")
@@ -384,6 +385,7 @@ enum CatalogBackupService {
                                                   backupReason: "Before restoring the backup from \(snapshotDate)",
                                                   foldersWereRecorded: recorded)
         myReposRestorer((try? CatalogExportService.decodeMyRepos(data)) ?? [], context)
+        SidebarLayout.applyIfPresent(data)
         return result
     }
 

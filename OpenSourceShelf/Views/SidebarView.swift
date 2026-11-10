@@ -63,6 +63,11 @@ struct SidebarView: View {
                     limit: FitScorer.limitChoices.contains(fitsLimit) ? fitsLimit : FitScorer.defaultLimit)
     }
 
+    /// Settings > General > Sidebar: section order and hidden ones.
+    @AppStorage(SidebarLayout.storageKey) private var sidebarLayoutJSON = ""
+    private var sidebarLayout: SidebarLayout {
+        sidebarLayoutJSON.isEmpty ? SidebarLayout() : SidebarLayout.current()
+    }
     @State private var renameTarget: CatalogFolder?
     /// Right-click a repo under My Repos > Filter: its popover.
     @State private var filterPopoverFor: UUID?
@@ -113,101 +118,8 @@ struct SidebarView: View {
             }
 
             List(selection: $selection) {
-                Section(SidebarSection.library.rawValue) {
-                    SidebarRow(item: .allProjects, count: counts.count(for: .allProjects))
-                    SidebarRow(item: .topShelf, count: counts.count(for: .topShelf))
-                    SidebarRow(item: .collector, count: counts.count(for: .collector))
-                    SidebarRow(item: .yardSale, count: counts.count(for: .yardSale))
-                    SidebarRow(item: .cloned, count: counts.count(for: .cloned))
-                }
-
-                // Her own repos (Project fits). Always shown: the + in its
-                // heading is where she adds the first one.
-                Section(isExpanded: $myReposExpanded) {
-                    if let batch = fitsRunner.batch {
-                        FitsBatchRow(batch: batch) { fitsRunner.stopAll() }
-                    }
-                    ForEach(visibleMyRepos) { repo in
-                        MyRepoSidebarRow(
-                            repo: repo,
-                            count: visibleFitCount(of: repo, byKey: fitsByKey),
-                            isRunning: fitsRunner.isRunning(repo.id)
-                        )
-                        .contextMenu { myRepoMenu(repo) }
-                        .popover(isPresented: Binding(
-                            get: { filterPopoverFor == repo.id },
-                            set: { if !$0 { filterPopoverFor = nil } }), arrowEdge: .trailing) {
-                            RepoFitFilterPopover(repoID: repo.id)
-                        }
-                    }
-                    if myRepos.count > Self.myReposShownFolded {
-                        ShowMoreTagsRow(hidden: myRepos.count - Self.myReposShownFolded, showsAll: $showAllMyRepos)
-                    }
-                } header: {
-                    HStack {
-                        collapsibleHeader(.myRepos, isExpanded: $myReposExpanded)
-                            .contextMenu { myReposHeadingMenu }
-                        Spacer()
-                        Button {
-                            NotificationCenter.default.post(name: .addMyRepos, object: nil)
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Add Your Repos to the Sidebar")
-                    }
-                }
-
-                // Only when folders exist — an empty heading would be noise on a
-                // fresh install, and folders are opt-in by nature.
-                if !folders.isEmpty {
-                    // Collapsible: hover the heading for the native chevron, or
-                    // click the heading itself.
-                    Section(isExpanded: $foldersExpanded) {
-                        ForEach(folders) { folder in
-                            FolderSidebarRow(
-                                folder: folder,
-                                count: memberCount(of: folder)
-                            )
-                            .contextMenu {
-                                Button("Pull Repos") {
-                                    NotificationCenter.default.post(name: .pullFolderClones, object: folder.id)
-                                }
-                                .disabled(!hasClones(in: folder))
-                                Divider()
-                                Button("Rename") { renameTarget = folder }
-                                Button("Delete Folder") { deleteTarget = folder }
-                            }
-                        }
-                    } header: {
-                        collapsibleHeader(.folders, isExpanded: $foldersExpanded)
-                    }
-                }
-
-                if !categories.isEmpty {
-                    Section(isExpanded: $categoriesExpanded) {
-                        ForEach(categories) { item in
-                            SidebarRow(item: item, count: counts.count(for: item))
-                        }
-                    } header: {
-                        collapsibleHeader(.categories, isExpanded: $categoriesExpanded)
-                    }
-                }
-
-                if !tags.isEmpty {
-                    Section(isExpanded: $tagsExpanded) {
-                        ForEach(visibleTags(tags), id: \.key) { tag in
-                            TagSidebarRow(key: tag.key, name: tag.name, count: tag.count)
-                        }
-                        if tags.count > Self.tagsShownFolded {
-                            ShowMoreTagsRow(hidden: tags.count - Self.tagsShownFolded, showsAll: $showAllTags)
-                        }
-                    } header: {
-                        collapsibleHeader(.tags, isExpanded: $tagsExpanded)
-                    }
+                ForEach(sidebarLayout.visibleOrder, id: \.self) { name in
+                    sidebarSection(name, counts: counts, categories: categories, tags: tags, fitsByKey: fitsByKey)
                 }
             }
             .listStyle(.sidebar)
@@ -292,6 +204,115 @@ struct SidebarView: View {
                 withAnimation(.easeInOut(duration: 0.2)) { isExpanded.wrappedValue.toggle() }
             }
             .help(isExpanded.wrappedValue ? "Hide \(section.rawValue)" : "Show \(section.rawValue)")
+    }
+
+    /// One sidebar section by its name; the order and the hidden ones come
+    /// from Settings > General > Sidebar (`SidebarLayout`).
+    @ViewBuilder
+    private func sidebarSection(_ name: String, counts: SidebarFilterCounts,
+                                categories: [SidebarItem], tags: [(key: String, name: String, count: Int)],
+                                fitsByKey: [String: ToolProject]) -> some View {
+        switch name {
+        case "Library":
+        Section(SidebarSection.library.rawValue) {
+            SidebarRow(item: .allProjects, count: counts.count(for: .allProjects))
+            SidebarRow(item: .topShelf, count: counts.count(for: .topShelf))
+            SidebarRow(item: .collector, count: counts.count(for: .collector))
+            SidebarRow(item: .yardSale, count: counts.count(for: .yardSale))
+            SidebarRow(item: .cloned, count: counts.count(for: .cloned))
+        }
+        case "My Repos":
+        // Her own repos (Project fits). Always shown: the + in its
+        // heading is where she adds the first one.
+        Section(isExpanded: $myReposExpanded) {
+            if let batch = fitsRunner.batch {
+                FitsBatchRow(batch: batch) { fitsRunner.stopAll() }
+            }
+            ForEach(visibleMyRepos) { repo in
+                MyRepoSidebarRow(
+                    repo: repo,
+                    count: visibleFitCount(of: repo, byKey: fitsByKey),
+                    isRunning: fitsRunner.isRunning(repo.id)
+                )
+                .contextMenu { myRepoMenu(repo) }
+                .popover(isPresented: Binding(
+                    get: { filterPopoverFor == repo.id },
+                    set: { if !$0 { filterPopoverFor = nil } }), arrowEdge: .trailing) {
+                    RepoFitFilterPopover(repoID: repo.id)
+                }
+            }
+            if myRepos.count > Self.myReposShownFolded {
+                ShowMoreTagsRow(hidden: myRepos.count - Self.myReposShownFolded, showsAll: $showAllMyRepos)
+            }
+        } header: {
+            HStack {
+                collapsibleHeader(.myRepos, isExpanded: $myReposExpanded)
+                    .contextMenu { myReposHeadingMenu }
+                Spacer()
+                Button {
+                    NotificationCenter.default.post(name: .addMyRepos, object: nil)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Add Your Repos to the Sidebar")
+            }
+        }
+        case "Folders":
+        // Only when folders exist — an empty heading would be noise on a
+        // fresh install, and folders are opt-in by nature.
+        if !folders.isEmpty {
+            // Collapsible: hover the heading for the native chevron, or
+            // click the heading itself.
+            Section(isExpanded: $foldersExpanded) {
+                ForEach(folders) { folder in
+                    FolderSidebarRow(
+                        folder: folder,
+                        count: memberCount(of: folder)
+                    )
+                    .contextMenu {
+                        Button("Pull Repos") {
+                            NotificationCenter.default.post(name: .pullFolderClones, object: folder.id)
+                        }
+                        .disabled(!hasClones(in: folder))
+                        Divider()
+                        Button("Rename") { renameTarget = folder }
+                        Button("Delete Folder") { deleteTarget = folder }
+                    }
+                }
+            } header: {
+                collapsibleHeader(.folders, isExpanded: $foldersExpanded)
+            }
+        }
+        case "Categories":
+        if !categories.isEmpty {
+            Section(isExpanded: $categoriesExpanded) {
+                ForEach(categories) { item in
+                    SidebarRow(item: item, count: counts.count(for: item))
+                }
+            } header: {
+                collapsibleHeader(.categories, isExpanded: $categoriesExpanded)
+            }
+        }
+        case "Tags":
+        if !tags.isEmpty {
+            Section(isExpanded: $tagsExpanded) {
+                ForEach(visibleTags(tags), id: \.key) { tag in
+                    TagSidebarRow(key: tag.key, name: tag.name, count: tag.count)
+                }
+                if tags.count > Self.tagsShownFolded {
+                    ShowMoreTagsRow(hidden: tags.count - Self.tagsShownFolded, showsAll: $showAllTags)
+                }
+            } header: {
+                collapsibleHeader(.tags, isExpanded: $tagsExpanded)
+            }
+        }
+        default:
+            EmptyView()
+        }
     }
 
     /// The folded list keeps the picked repo visible even past the cut.

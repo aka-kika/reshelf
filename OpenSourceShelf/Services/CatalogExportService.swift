@@ -233,6 +233,63 @@ struct RepoFitDTO: Codable, Equatable {
     var isBumped: Bool? = nil
 }
 
+/// The sidebar's sections in her order, and the ones she hid (Settings >
+/// General > Sidebar, Kika, 10 Nov: "reorder the side bar like inspector").
+/// Kept in UserDefaults; backups and exports carry it when it is not the
+/// default, and Restore and Import put it back.
+struct SidebarLayout: Codable, Equatable {
+    /// The same names as `SidebarSection` (raw values).
+    static let sections = ["Library", "My Repos", "Folders", "Categories", "Tags"]
+    /// Library holds All Projects and the shelves: it can move, not hide.
+    static let alwaysShown: Set<String> = ["Library"]
+    static let storageKey = "reshelf.sidebar.layout"
+
+    var order: [String] = sections
+    var hidden: [String] = []
+
+    /// Unknown names out, missing ones appended in their default place.
+    var normalized: SidebarLayout {
+        var seen = Set<String>()
+        var out = order.filter { Self.sections.contains($0) && seen.insert($0).inserted }
+        for name in Self.sections where !out.contains(name) { out.append(name) }
+        let hide = Set(hidden).intersection(Self.sections).subtracting(Self.alwaysShown)
+        return SidebarLayout(order: out, hidden: Self.sections.filter { hide.contains($0) })
+    }
+
+    var visibleOrder: [String] { let n = normalized; return n.order.filter { !n.hidden.contains($0) } }
+    var isDefault: Bool { normalized == SidebarLayout() }
+
+    static func current(_ defaults: UserDefaults = .standard) -> SidebarLayout {
+        guard let json = defaults.string(forKey: storageKey),
+              let layout = try? JSONDecoder().decode(SidebarLayout.self, from: Data(json.utf8))
+        else { return SidebarLayout() }
+        return layout.normalized
+    }
+
+    /// Saves it; the default removes the key (Reset).
+    func save(_ defaults: UserDefaults = .standard) {
+        let n = normalized
+        if n.isDefault {
+            defaults.removeObject(forKey: Self.storageKey)
+        } else if let data = try? JSONEncoder().encode(n), let json = String(data: data, encoding: .utf8) {
+            defaults.set(json, forKey: Self.storageKey)
+        }
+    }
+
+    /// For a backup or export: nil when it is the default.
+    static func forSnapshot(_ defaults: UserDefaults = .standard) -> SidebarLayout? {
+        let layout = current(defaults)
+        return layout.isDefault ? nil : layout
+    }
+
+    /// Restore and Import: puts a file's layout back when it has one.
+    static func applyIfPresent(_ data: Data, to defaults: UserDefaults = .standard) {
+        guard let snapshot = try? CatalogExportService.makeDecoder().decode(CatalogSnapshotDTO.self, from: data),
+              let layout = snapshot.sidebarLayout else { return }
+        layout.save(defaults)
+    }
+}
+
 struct CatalogSnapshotDTO: Codable {
     var exportedAt: Date
     var app: String
@@ -251,14 +308,16 @@ struct CatalogSnapshotDTO: Codable {
     /// Kika's own repos and their saved fits (Project fits, 10 Nov). Nil for
     /// a file written before they existed.
     var myRepos: [MyRepoDTO]?
+    /// Her sidebar order and hidden sections; nil = the default (or an older file).
+    var sidebarLayout: SidebarLayout?
 
     enum CodingKeys: String, CodingKey {
-        case exportedAt, app, version, projectCount, projects, folders, reason, myRepos
+        case exportedAt, app, version, projectCount, projects, folders, reason, myRepos, sidebarLayout
     }
 
     init(exportedAt: Date, app: String, version: Int, projectCount: Int,
          projects: [CatalogProjectDTO], folders: [CatalogFolderDTO]?, reason: String?,
-         myRepos: [MyRepoDTO]? = nil) {
+         myRepos: [MyRepoDTO]? = nil, sidebarLayout: SidebarLayout? = SidebarLayout.forSnapshot()) {
         self.exportedAt = exportedAt
         self.app = app
         self.version = version
@@ -268,6 +327,7 @@ struct CatalogSnapshotDTO: Codable {
         self.recordedFolders = true
         self.reason = reason
         self.myRepos = myRepos
+        self.sidebarLayout = sidebarLayout
     }
 
     init(from decoder: Decoder) throws {
@@ -281,6 +341,7 @@ struct CatalogSnapshotDTO: Codable {
         folders = try container.decodeIfPresent([CatalogFolderDTO].self, forKey: .folders)
         reason = try container.decodeIfPresent(String.self, forKey: .reason)
         myRepos = try container.decodeIfPresent([MyRepoDTO].self, forKey: .myRepos)
+        sidebarLayout = try? container.decodeIfPresent(SidebarLayout.self, forKey: .sidebarLayout)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -295,6 +356,7 @@ struct CatalogSnapshotDTO: Codable {
         try container.encode(folders ?? [], forKey: .folders)
         try container.encodeIfPresent(reason, forKey: .reason)
         if let myRepos, !myRepos.isEmpty { try container.encode(myRepos, forKey: .myRepos) }
+        try container.encodeIfPresent(sidebarLayout, forKey: .sidebarLayout)
     }
 }
 
@@ -310,7 +372,7 @@ enum CatalogExportService {
         return encoder
     }
 
-    private static func makeDecoder() -> JSONDecoder {
+    static func makeDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder

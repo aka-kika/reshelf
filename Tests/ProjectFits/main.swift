@@ -281,6 +281,32 @@ func run() throws {
     check("file from before Project fits reads", ((try? CatalogExportService.decodeMyRepos(old)) ?? [MyRepoDTO(
         fullName: "x", githubURL: "", summary: "", addedAt: Date(), sortIndex: 0, lastRunNote: "", fits: [])]).isEmpty)
 
+    // 7b. Sidebar layout (Settings > General > Sidebar): order, hidden,
+    //     Library always shown, Reset removes it, files carry it.
+    let side = UserDefaults(suiteName: "reshelf-sidebar-\(UUID().uuidString)")!
+    check("sidebar: default when nothing saved", SidebarLayout.current(side) == SidebarLayout()
+          && SidebarLayout.current(side).visibleOrder == SidebarLayout.sections)
+    var layout = SidebarLayout(order: ["Tags", "Library", "Bogus"], hidden: ["Folders", "Library"])
+    layout.save(side)
+    let back = SidebarLayout.current(side)
+    check("sidebar: order kept, unknown dropped, missing appended",
+          back.order == ["Tags", "Library", "My Repos", "Folders", "Categories"])
+    check("sidebar: hidden kept, Library can't hide", back.hidden == ["Folders"]
+          && back.visibleOrder == ["Tags", "Library", "My Repos", "Categories"])
+    SidebarLayout().save(side)
+    check("sidebar: Reset removes the setting", side.string(forKey: SidebarLayout.storageKey) == nil)
+    layout = SidebarLayout(order: ["Categories", "Library", "My Repos", "Folders", "Tags"], hidden: ["Tags"])
+    let snap = CatalogSnapshotDTO(exportedAt: Date(), app: "reshelf", version: 1, projectCount: 0, projects: [],
+                                  folders: [], reason: nil, sidebarLayout: layout)
+    let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+    let snapData = try encoder.encode(snap)
+    SidebarLayout.applyIfPresent(snapData, to: side)
+    check("sidebar: a backup carries it and Restore puts it back", SidebarLayout.current(side) == layout)
+    let plain = try encoder.encode(CatalogSnapshotDTO(exportedAt: Date(), app: "reshelf", version: 1, projectCount: 0,
+                                                      projects: [], folders: [], reason: nil, sidebarLayout: nil))
+    SidebarLayout.applyIfPresent(plain, to: side)
+    check("sidebar: a file without one leaves hers alone", SidebarLayout.current(side) == layout)
+
     // 8. Restore into another store adds the repo with its fits; an existing repo keeps its own list.
     let ctx2 = try makeContext()
     check("merge adds the missing repo", ProjectFitsService.merge(rows, in: ctx2) == 1)
