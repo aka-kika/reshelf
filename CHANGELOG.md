@@ -7,6 +7,15 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
 
+### Changed in build 36 (Kika's first look at build 35)
+- **Best fit first, real fits only.** No fixed 10 and no fixed Top Shelf slots: a list holds the repos that really fit, best first whichever shelf, up to the limit you pick. Top Shelf gets a small lift and wins a near tie; each row names its shelf instead of shelf headings.
+- **Specific fits win.** Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On Kika's shelf, repos listed for 3 or more of her 11 repos went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).
+- **Find Fits Again looks only at what is new** (shelf repos saved or changed since the last run) and slots them into the saved list; with nothing new it says so without asking GitHub. **Check All Again** looks at the whole shelf.
+- **Settings → Fits:** most fits (10, 15, 20, 25), same language only, updated lately, hide GPL and AGPL, hide archived. They apply to runs and to the saved lists at once.
+- **My Repos** shows the GitHub mark, and its first 5 with Show more / Show less.
+- **Settings tabs fit their content** (no more mostly empty window), and the Guide tab explains My Repos and Find Fits.
+- No "…" in the fits menu items. The skill's `shelf.py fits` follows the new order and the Fits filters.
+
 ### Added
 - **My Repos and Project fits.** Add your own GitHub repos to the sidebar (the + next to My Repos: a popup lists your repos; without a token, your public ones by user name). Click one and the list shows the repos on your shelf that fit it: Top Shelf first, then The Collector, with a dot on fits that are new since the run before. The inspector shows **Why it fits** on top, one line written on your Mac by Apple Intelligence (the shared words when it is not available).
 - **Runs only when you ask.** Fits are found once when you add a repo, then only with **Find Fits Again** (right-click the repo, or the Shelf menu). It reads your repo's README, compares it with everything on Top Shelf and The Collector, reads today's README of the best 25, and saves the list with the time it ran. Nothing runs on open or in the background. **Stop** ends a run and keeps the saved list.
