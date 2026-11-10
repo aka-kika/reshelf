@@ -75,7 +75,15 @@ struct ProjectListView: View {
     @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
 
     private var sortOrder: CatalogSortOrder {
-        CatalogSortOrder(rawValue: sortOrderRaw) ?? .recentlyAdded
+        let order = CatalogSortOrder(rawValue: sortOrderRaw) ?? .recentlyAdded
+        return order == .bestFit ? .recentlyAdded : order
+    }
+    /// Fits lists keep their own sort, Best Fit to start (Kika, 10 Nov: "make
+    /// the sort by also in the fits. all tabs should look same").
+    @AppStorage("reshelf.fitsSortOrder") private var fitsSortOrderRaw = CatalogSortOrder.bestFit.rawValue
+
+    private var fitsSortOrder: CatalogSortOrder {
+        CatalogSortOrder(rawValue: fitsSortOrderRaw) ?? .bestFit
     }
 
     var body: some View {
@@ -83,7 +91,7 @@ struct ProjectListView: View {
         // read from the footer and from every batch row's context menu, which
         // re-sorted the whole catalog per row (multi-second hangs at ~950 repos).
         let fits = fitsModel
-        let visibleProjects = fits?.projects ?? filteredProjects
+        let visibleProjects = fits.map { fitsSortOrder.sorted($0.projects) } ?? filteredProjects
         let batchProjects = batchSelection.isEmpty
             ? []
             : visibleProjects.filter { batchSelection.contains($0.id) }
@@ -112,8 +120,13 @@ struct ProjectListView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
                     Spacer()
-                    // Fits keep one order: best fit first.
-                    if fits == nil { sortMenu }
+                    // The same Sort button on every list; fits add Best Fit.
+                    if fits == nil {
+                        sortMenu(selection: $sortOrderRaw, options: CatalogSortOrder.catalogChoices, current: sortOrder)
+                    } else {
+                        sortMenu(selection: $fitsSortOrderRaw, options: CatalogSortOrder.fitsChoices,
+                                 current: fitsSortOrder)
+                    }
                     HeaderChromeButton(systemImage: "magnifyingglass", help: "Search (⌘K)") {
                         NotificationCenter.default.post(name: .openCommandPalette, object: nil)
                     }
@@ -1065,7 +1078,7 @@ struct ProjectListView: View {
     }
 
     private var filteredProjects: [ToolProject] {
-        if let fits = fitsModel { return fits.projects }
+        if let fits = fitsModel { return fitsSortOrder.sorted(fits.projects) }
         let bySidebar = applySidebarFilter(allProjects)
         let bySearch = debouncedSearchText.isEmpty
             ? bySidebar
@@ -1074,10 +1087,11 @@ struct ProjectListView: View {
     }
 
     /// Header control to pick how the list is ordered (Recently Added / Name / Stars).
-    private var sortMenu: some View {
+    private func sortMenu(selection: Binding<String>, options: [CatalogSortOrder],
+                          current: CatalogSortOrder) -> some View {
         Menu {
-            Picker("Sort by", selection: $sortOrderRaw) {
-                ForEach(CatalogSortOrder.allCases) { order in
+            Picker("Sort by", selection: selection) {
+                ForEach(options) { order in
                     Label(order.displayName, systemImage: order.icon).tag(order.rawValue)
                 }
             }
@@ -1092,7 +1106,7 @@ struct ProjectListView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Sort: \(sortOrder.displayName)")
+        .help("Sort: \(current.displayName)")
         .titlebarClickable()
     }
 
@@ -1384,6 +1398,8 @@ private struct CatalogEventHandlers: ViewModifier {
 
 /// How the catalog list is ordered. Persisted via `@AppStorage`.
 enum CatalogSortOrder: String, CaseIterable, Identifiable {
+    /// Fits lists only: the order the run saved, best fit first.
+    case bestFit
     case recentlyAdded
     case lastUpdated
     case name
@@ -1391,8 +1407,13 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// The Sort menu everywhere; a fits list adds Best Fit on top.
+    static let catalogChoices: [CatalogSortOrder] = [.recentlyAdded, .lastUpdated, .name, .stars]
+    static let fitsChoices: [CatalogSortOrder] = [.bestFit] + catalogChoices
+
     var displayName: String {
         switch self {
+        case .bestFit: "Best Fit"
         case .recentlyAdded: "Recently Added"
         case .lastUpdated: "Recently Updated"
         case .name: "Name (A–Z)"
@@ -1402,6 +1423,7 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .bestFit: "line.3.horizontal.decrease"
         case .recentlyAdded: "clock"
         case .lastUpdated: "arrow.trianglehead.2.clockwise"
         case .name: "textformat"
@@ -1424,6 +1446,8 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
         }
         let ordered: [SortKey]
         switch self {
+        case .bestFit:
+            ordered = keys
         case .recentlyAdded:
             ordered = keys.sorted { $0.added > $1.added }
         case .lastUpdated:
