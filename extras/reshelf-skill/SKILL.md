@@ -31,8 +31,16 @@ python3 $S/shelf.py find --collector <terms...>  # step 2: The Collector, only i
 python3 $S/shelf.py find --top                   # the whole Top Shelf, recently added first
 python3 $S/shelf.py clone <name-or-github-url>   # dry run: destination + license
 python3 $S/shelf.py clone <name-or-github-url> --yes   # clone, ONLY after the user said yes
+python3 $S/shelf.py fits                         # their own repos under My Repos, last run
+python3 $S/shelf.py fits <repo>                  # shelf repos that fit one of them, with why
+python3 $S/shelf.py fits --here                  # the same for the repo you are working in
 bash    $S/shelf-map.sh ["<Category>" | --all]   # browse what's on disk by category
 ```
+
+`fits` reads what the app saved the last time the user pressed **Find Fits** for one of
+their own repos (My Repos in the sidebar): Top Shelf first, a why line per repo, `NEW`
+for fits new since the run before. Repos they hid stay out. It never runs a match: only
+the user does that, in the app.
 
 `find` prints, per repo: category, the **date it was added**, `CLONED` + path or
 `not cloned` + GitHub URL, a **license note**, and tags. It reads the app's catalog
@@ -47,6 +55,9 @@ date as a tiebreaker, never over real relevance.
 ## How to work through a request
 
 ### 1. Top Shelf first
+
+Working inside one of the user's own repos? Run `shelf.py fits --here` first: if it is
+under My Repos, its saved fits are the best starting list. Then search as below.
 
 Turn their goal into a few search terms and run `shelf.py find <terms>`. Try 2 or 3 term
 sets (synonyms, the likely category, the stack) before deciding Top Shelf has nothing.

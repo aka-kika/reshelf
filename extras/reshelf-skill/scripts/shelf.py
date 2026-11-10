@@ -6,9 +6,14 @@
     shelf.py find --top                      every Top Shelf repo, recently added first
     shelf.py clone <name-or-github-url>      dry run: shows where it would go + license
     shelf.py clone <name-or-github-url> --yes    actually clone (only after the user said yes)
+    shelf.py fits                            the user's own repos under My Repos, with last run
+    shelf.py fits <repo>                     the shelf repos that fit one of them, with why
+    shelf.py fits --here                     the same for the repo this folder is a clone of
 
 Reads the reshelf app's catalog (live store, or the newest JSON backup) read-only.
 Yard Sale is always left out: those repos are on their way out.
+`fits` only reads what the app saved the last time the user pressed Find Fits; it
+never runs a match itself, and repos the user hid from a list stay out.
 Clones exactly like the app does: <clone root>/<Category>/<repo>, falling back to
 <owner>-<repo> on a name clash, full clone, git-lfs filters bypassed. A checkout
 counts as cloned only with the reshelf marker (.git/reshelf-clone), written when
@@ -282,6 +287,165 @@ def cmd_find(args):
         print("\nNothing that fits? Next step: shelf.py find --collector <terms>")
 
 
+# --- fits (Project fits, saved by the app) ------------------------------------
+
+def _apple_time(value):
+    return float(value) + APPLE_EPOCH if value is not None else None
+
+
+def load_my_repos():
+    """The user's repos under My Repos with their saved fits, from the live store
+    (tables ZMYREPO, ZREPOFIT) or the newest JSON backup (`myRepos`)."""
+    if os.path.exists(STORE):
+        try:
+            db = sqlite3.connect(f"file:{STORE}?mode=ro", uri=True)
+            db.row_factory = sqlite3.Row
+            tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if "ZMYREPO" in tables and "ZREPOFIT" in tables:
+                repos = []
+                for r in db.execute("""SELECT ZID, ZFULLNAME, ZGITHUBURL, ZSUMMARY, ZLASTRUNAT,
+                                       ZLASTRUNNOTE, ZSORTINDEX FROM ZMYREPO ORDER BY ZSORTINDEX, ZFULLNAME"""):
+                    fits = [dict(key=f["ZREPOKEY"] or "", rank=f["ZRANK"] or 0, why=f["ZWHY"] or "",
+                                 new=bool(f["ZISNEW"]), hidden=bool(f["ZISHIDDEN"]))
+                            for f in db.execute("""SELECT ZREPOKEY, ZRANK, ZWHY, ZISNEW, ZISHIDDEN
+                                                   FROM ZREPOFIT WHERE ZMYREPOID = ? ORDER BY ZRANK""",
+                                                (r["ZID"],))]
+                    repos.append(dict(full=r["ZFULLNAME"] or "", url=r["ZGITHUBURL"] or "",
+                                      summary=r["ZSUMMARY"] or "", last=_apple_time(r["ZLASTRUNAT"]),
+                                      note=r["ZLASTRUNNOTE"] or "", fits=fits))
+                return "live catalog", repos
+            if "ZTOOLPROJECT" in tables:
+                return "live catalog", []
+        except sqlite3.Error:
+            pass
+    backups = sorted(glob.glob(os.path.join(RESHELF_HOME, "backups", "catalog-*.json")),
+                     key=os.path.getmtime, reverse=True)
+    if not backups:
+        return "no catalog", []
+    data = json.load(open(backups[0]))
+    rows = data.get("myRepos", []) if isinstance(data, dict) else []
+    repos = []
+    for r in sorted(rows, key=lambda r: (r.get("sortIndex", 0), r.get("fullName", ""))):
+        last = r.get("lastRunAt")
+        repos.append(dict(
+            full=r.get("fullName", ""), url=r.get("githubURL", ""), summary=r.get("summary", ""),
+            last=_iso_seconds(last) if last else None, note=r.get("lastRunNote", ""),
+            fits=[dict(key=f.get("repo", ""), rank=f.get("rank", 0), why=f.get("why", ""),
+                       new=bool(f.get("isNew")), hidden=bool(f.get("isHidden")))
+                  for f in sorted(r.get("fits", []), key=lambda f: f.get("rank", 0))]))
+    return f"backup {os.path.basename(backups[0])}", repos
+
+
+def _origin_of_cwd():
+    try:
+        out = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True,
+                             text=True, cwd=os.getcwd()).stdout.strip()
+    except OSError:
+        return None
+    return owner_repo(out) if out else None
+
+
+def _day_time(ts):
+    return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "never"
+
+
+def _catalog_by_key():
+    _, catalog = load_catalog()
+    by_key = {}
+    for p in catalog:
+        o = owner_repo(p["url"])
+        if o:
+            by_key[f"{o[0]}/{o[1]}".lower()] = p
+    return by_key
+
+
+def _shown_fits(repo, by_key):
+    """(fit, catalog row) pairs shown for a repo, by shelf. Hidden by the user,
+    gone from the catalog, or since moved to Yard Sale: left out."""
+    groups = {"topShelf": [], "collector": []}
+    for f in repo["fits"]:
+        p = by_key.get(f["key"])
+        if f["hidden"] or not p or p["status"] not in groups:
+            continue
+        groups[p["status"]].append((f, p))
+    return groups
+
+
+def cmd_fits(args):
+    here = "--here" in args
+    wanted = " ".join(a for a in args if not a.startswith("--")).strip()
+    source, repos = load_my_repos()
+    if not repos:
+        # Also what an older reshelf (no My Repos tables yet) gives.
+        print(f"No My Repos yet   (source: {source}).\n"
+              "The user adds their own repos in reshelf (the + next to My Repos) and runs "
+              "Find Fits there. Nothing to read until then; do not run a match yourself.")
+        return
+    if not here and not wanted:
+        print(f"My Repos: {len(repos)}   (source: {source})\n")
+        by_key = _catalog_by_key()
+        for r in repos:
+            groups = _shown_fits(r, by_key)
+            shown = len(groups["topShelf"]) + len(groups["collector"])
+            print(f"- {r['full']}   last run {_day_time(r['last'])}   {shown} fit(s)")
+            if r["summary"]:
+                print(f"    {r['summary'][:140]}")
+        print("\nNext: shelf.py fits <repo>   (or --here inside a clone of one of them)")
+        return
+
+    if here:
+        o = _origin_of_cwd()
+        if not o:
+            sys.exit("This folder is not a git clone with a GitHub origin.")
+        key = f"{o[0]}/{o[1]}".lower()
+        repo = next((r for r in repos if r["full"].lower() == key), None)
+        if not repo:
+            sys.exit(f"{o[0]}/{o[1]} is not under My Repos. The user can add it in reshelf "
+                     "(the + next to My Repos).")
+    else:
+        w = wanted.lower()
+        o = owner_repo(wanted)
+        repo = next((r for r in repos if r["full"].lower() == w
+                     or r["full"].split("/")[-1].lower() == w
+                     or (o and r["full"].lower() == f"{o[0]}/{o[1]}".lower())), None)
+        if not repo:
+            names = ", ".join(r["full"].split("/")[-1] for r in repos) or "none yet"
+            sys.exit(f"'{wanted}' is not under My Repos (there: {names}).")
+
+    name = repo["full"].split("/")[-1]
+    if repo["last"] is None:
+        print(f"{name}: Find Fits has not run yet. It runs only when the user asks, in the "
+              "reshelf app (right-click the repo, Find Fits). Do not run a match yourself.")
+        return
+
+    by_key = _catalog_by_key()
+    index = clone_index(clone_root())
+    hidden = sum(1 for f in repo["fits"] if f["hidden"])
+    groups = _shown_fits(repo, by_key)
+
+    total = len(groups["topShelf"]) + len(groups["collector"])
+    print(f"Fits for {repo['full']}: {total}   last run {_day_time(repo['last'])}   (source: {source})")
+    if repo["note"]:
+        print(f"  note: {repo['note']}")
+    if total == 0:
+        print("\nNothing on the shelf fit it on the last run.")
+    for status, label in (("topShelf", "Top Shelf"), ("collector", "The Collector")):
+        if not groups[status]:
+            continue
+        print(f"\n{label}:")
+        for f, p in groups[status]:
+            path = clone_path(p, index)
+            print(f"- {p['name']}  [{p['category'] or 'no category'}]  "
+                  f"{'CLONED' if path else 'not cloned'}{'  NEW since the run before' if f['new'] else ''}")
+            if f["why"]:
+                print(f"    why: {f['why'][:200]}")
+            print(f"    {path if path else p['url']}")
+            print(f"    license: {license_note(p['license'])}")
+    if hidden:
+        print(f"\n({hidden} hidden by the user from this list; not shown)")
+    print("\nThese were saved by the app when the user last pressed Find Fits; they are not refreshed here.")
+
+
 # --- clone ---------------------------------------------------------------------
 
 def category_folder(category):
@@ -362,8 +526,10 @@ def main():
         cmd_find(args)
     elif cmd == "clone":
         cmd_clone(args)
+    elif cmd == "fits":
+        cmd_fits(args)
     else:
-        sys.exit(f"Unknown command '{cmd}'. Use find or clone.")
+        sys.exit(f"Unknown command '{cmd}'. Use find, fits or clone.")
 
 
 if __name__ == "__main__":

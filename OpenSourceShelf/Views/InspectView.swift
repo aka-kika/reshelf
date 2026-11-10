@@ -3,6 +3,14 @@ import SwiftData
 
 struct InspectView: View {
     let project: ToolProject
+    /// Why this repo fits one of Kika's repos, while that repo is picked
+    /// under My Repos (Project fits). Nil everywhere else.
+    struct WhyItFits: Equatable {
+        let repoName: String
+        let why: String
+        let isNew: Bool
+    }
+    var whyItFits: WhyItFits? = nil
     /// Called after the project is deleted so the owner clears its selection —
     /// otherwise the stale selection keeps pointing at a row that no longer
     /// exists.
@@ -58,6 +66,9 @@ struct InspectView: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
+                    if let whyItFits {
+                        whyItFitsSection(whyItFits)
+                    }
                     metadataSection
 
                     if !project.longDescription.isEmpty {
@@ -300,6 +311,31 @@ struct InspectView: View {
                 LicenseCautionBanner(license: project.license)
             }
         }
+    }
+
+    /// Same look as the other inspector parts, on a quiet tinted card so it
+    /// reads as being about her project, not about the repo.
+    private func whyItFitsSection(_ fit: WhyItFits) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                sectionTitle("Why it fits \(fit.repoName)")
+                if fit.isNew {
+                    Text("New")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(fit.why)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary)
+                .lineSpacing(3)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.07)))
+        .padding(.bottom, 14)
     }
 
     @ViewBuilder

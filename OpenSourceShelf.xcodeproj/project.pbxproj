@@ -275,6 +275,55 @@
 			path = "OpenSourceShelf/Services/DuplicateMerge.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		PF1F9CCDB8530674FF3D5952 /* MyRepo.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "MyRepo.swift";
+			path = "OpenSourceShelf/Models/MyRepo.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PFC4B4BF02B4878CA4597C4F /* FitScorer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "FitScorer.swift";
+			path = "OpenSourceShelf/Services/ProjectFits/FitScorer.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PF69136148D11E4306786C33 /* ProjectFitsService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ProjectFitsService.swift";
+			path = "OpenSourceShelf/Services/ProjectFits/ProjectFitsService.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PF5F1B84E21D033E7947C165 /* ProjectFitsGitHub.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ProjectFitsGitHub.swift";
+			path = "OpenSourceShelf/Services/ProjectFits/ProjectFitsGitHub.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PF3D5101D0A05141AB181BB0 /* ProjectFitsRunner.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ProjectFitsRunner.swift";
+			path = "OpenSourceShelf/Services/ProjectFits/ProjectFitsRunner.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PFD426EDD420CEC73357BCD3 /* ProjectFitsViews.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ProjectFitsViews.swift";
+			path = "OpenSourceShelf/Views/ProjectFits/ProjectFitsViews.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PF4A0AAC991BDD64BF88FBE9 /* AddMyReposSheet.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "AddMyReposSheet.swift";
+			path = "OpenSourceShelf/Views/ProjectFits/AddMyReposSheet.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		F0LDER201234567890ABCD /* CatalogFolderService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -545,6 +594,13 @@
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
 				F0LDER201234567890ABCD /* CatalogFolderService.swift */,
+				PF4A0AAC991BDD64BF88FBE9 /* AddMyReposSheet.swift */,
+				PFD426EDD420CEC73357BCD3 /* ProjectFitsViews.swift */,
+				PF3D5101D0A05141AB181BB0 /* ProjectFitsRunner.swift */,
+				PF5F1B84E21D033E7947C165 /* ProjectFitsGitHub.swift */,
+				PF69136148D11E4306786C33 /* ProjectFitsService.swift */,
+				PFC4B4BF02B4878CA4597C4F /* FitScorer.swift */,
+				PF1F9CCDB8530674FF3D5952 /* MyRepo.swift */,
 				DUPM1F001234567890ABCDE01 /* DuplicateMerge.swift */,
 				CSAV1F001234567890ABCDE01 /* CatalogSave.swift */,
 				F0LDER101234567890ABCD /* ShelfSelection.swift */,
@@ -575,6 +631,34 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		PF3679AAC02A976BACACD1B9 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PF1F9CCDB8530674FF3D5952;
+		};
+		PF376C066DAB03C0C6909F3B /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PFC4B4BF02B4878CA4597C4F;
+		};
+		PF41B72686A85DBFA614A849 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PF69136148D11E4306786C33;
+		};
+		PF64C221B64A14B35928C2B4 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PF5F1B84E21D033E7947C165;
+		};
+		PFC003C14185ECB41C2AFFE1 /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PF3D5101D0A05141AB181BB0;
+		};
+		PF7BAFA25FAFF95530E034EF /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PFD426EDD420CEC73357BCD3;
+		};
+		PFEB97AF2EEDF3F786DB630E /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PF4A0AAC991BDD64BF88FBE9;
 		};
 		F0LDER202234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -898,6 +982,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			files = (
 				F0LDER202234567890ABCD,
+				PFEB97AF2EEDF3F786DB630E,
+				PF7BAFA25FAFF95530E034EF,
+				PFC003C14185ECB41C2AFFE1,
+				PF64C221B64A14B35928C2B4,
+				PF41B72686A85DBFA614A849,
+				PF376C066DAB03C0C6909F3B,
+				PF3679AAC02A976BACACD1B9,
 				F0LDER102234567890ABCD,
 				F0LDER002234567890ABCD,
 				LUPD00012234567890ABCD,

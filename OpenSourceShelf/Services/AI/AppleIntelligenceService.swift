@@ -114,6 +114,29 @@ enum AppleIntelligenceService {
         #endif
     }
 
+    /// Project fits: one short line on why a shelf repo fits one of Kika's
+    /// repos, from the facts in `prompt` only.
+    static func whyItFits(prompt: String) async throws -> String {
+        #if canImport(FoundationModels)
+        guard #available(macOS 26.0, *) else { throw GenerationFailure.unavailable(.osTooOld) }
+        let status = availability
+        guard status.isAvailable else { throw GenerationFailure.unavailable(status) }
+
+        let session = LanguageModelSession(instructions: """
+            You help a developer see which open source repo from her saved shelf helps a project \
+            she is building. Use only the facts given. Write plain words, no hype, no emoji.
+            """)
+        do {
+            let generated = try await session.respond(to: prompt, generating: WhyItFitsGeneration.self).content
+            return generated.why.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch let error as LanguageModelSession.GenerationError {
+            throw mapGenerationError(error)
+        }
+        #else
+        throw GenerationFailure.unavailable(.frameworkMissing)
+        #endif
+    }
+
     #if canImport(FoundationModels)
     @available(macOS 26.0, *)
     private static func mapGenerationError(_ error: LanguageModelSession.GenerationError) -> Error {
@@ -139,5 +162,14 @@ private struct CaptureSuggestionGeneration {
     var isLocalFirst: Bool
     @Guide(description: "True only if the tool is designed to be self-hosted")
     var isSelfHosted: Bool
+}
+#endif
+
+#if canImport(FoundationModels)
+@available(macOS 26.0, *)
+@Generable
+private struct WhyItFitsGeneration {
+    @Guide(description: "One sentence, at most 20 words, naming what in the shelf repo helps the project. Start with a verb or a noun, not with the repo's name.")
+    var why: String
 }
 #endif

@@ -206,6 +206,7 @@ enum SidebarTagKey {
 
 enum SidebarSection: String {
     case library = "Library"
+    case myRepos = "My Repos"
     case folders = "Folders"
     case categories = "Categories"
     case tags = "Tags"

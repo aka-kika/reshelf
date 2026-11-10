@@ -45,12 +45,16 @@ struct SidebarView: View {
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
     @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
+    @Query(sort: \MyRepo.sortIndex) private var myRepos: [MyRepo]
+    @Query private var repoFits: [RepoFit]
+    @ObservedObject private var fitsRunner = ProjectFitsRunner.shared
 
     @State private var renameTarget: CatalogFolder?
     @State private var deleteTarget: CatalogFolder?
     @State private var draftName = ""
     /// Collapsed/expanded per section, remembered across launches.
     @AppStorage("reshelf.sidebar.foldersExpanded") private var foldersExpanded = true
+    @AppStorage("reshelf.sidebar.myReposExpanded") private var myReposExpanded = true
     @AppStorage("reshelf.sidebar.categoriesExpanded") private var categoriesExpanded = true
     @AppStorage("reshelf.sidebar.tagsExpanded") private var tagsExpanded = true
     /// Set in Settings → General → Sidebar Tags.
@@ -92,6 +96,34 @@ struct SidebarView: View {
                     SidebarRow(item: .collector, count: counts.count(for: .collector))
                     SidebarRow(item: .yardSale, count: counts.count(for: .yardSale))
                     SidebarRow(item: .cloned, count: counts.count(for: .cloned))
+                }
+
+                // Her own repos (Project fits). Always shown: the + in its
+                // heading is where she adds the first one.
+                Section(isExpanded: $myReposExpanded) {
+                    ForEach(myRepos) { repo in
+                        MyRepoSidebarRow(
+                            repo: repo,
+                            count: visibleFitCount(of: repo),
+                            isRunning: fitsRunner.isRunning(repo.id)
+                        )
+                        .contextMenu { myRepoMenu(repo) }
+                    }
+                } header: {
+                    HStack {
+                        collapsibleHeader(.myRepos, isExpanded: $myReposExpanded)
+                        Spacer()
+                        Button {
+                            NotificationCenter.default.post(name: .addMyRepos, object: nil)
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Add Your Repos to the Sidebar")
+                    }
                 }
 
                 // Only when folders exist — an empty heading would be noise on a
@@ -174,6 +206,9 @@ struct SidebarView: View {
             }
             .onChange(of: selection) { _, new in
                 if new?.tagName != nil { tagsExpanded = true }
+                // A repo just added (or picked from the Shelf menu) must be
+                // visible even when the section was folded.
+                if new?.myRepoID != nil { myReposExpanded = true }
             }
             .alert("Delete Folder?", isPresented: presenting($deleteTarget)) {
                 Button("Delete Folder", role: .destructive) {
@@ -233,6 +268,39 @@ struct SidebarView: View {
             shown.append(picked)
         }
         return shown
+    }
+
+    private func visibleFitCount(of repo: MyRepo) -> Int {
+        repoFits.filter { $0.myRepoID == repo.id && !$0.isHidden }.count
+    }
+
+    /// Right-click on one of her repos. Plain words, no "…" (Kika's rule for
+    /// right-click menus).
+    @ViewBuilder
+    private func myRepoMenu(_ repo: MyRepo) -> some View {
+        if fitsRunner.isRunning(repo.id) {
+            Button("Stop Finding Fits") { fitsRunner.stop(repo.id) }
+        } else {
+            Button(repo.lastRunAt == nil ? "Find Fits" : "Find Fits Again") {
+                NotificationCenter.default.post(name: .findFitsAgain, object: repo.id)
+            }
+        }
+        Button("Show Hidden Fits") {
+            NotificationCenter.default.post(name: .showHiddenFits, object: repo.id)
+        }
+        .disabled(!repoFits.contains { $0.myRepoID == repo.id && $0.isHidden })
+        if let url = WebLink.url(repo.githubURL) {
+            Button("Open on GitHub") { NSWorkspace.shared.open(url) }
+        }
+        Divider()
+        Button("Remove from Sidebar") {
+            if selection == .myRepo(repo.id) { selection = .builtin(.allProjects) }
+            fitsRunner.stop(repo.id)
+            // The fits list and hidden ones go with it; a backup keeps them.
+            CatalogBackupService.writeSnapshot(from: modelContext,
+                                               reason: "Before removing \(repo.displayName) from My Repos")
+            ProjectFitsService.remove(repo, in: modelContext)
+        }
     }
 
     /// Counted from the already-loaded `@Query` rather than a fetch, so a row
@@ -360,6 +428,36 @@ enum SidebarTagRanking {
 
     static func isUseful(_ tag: String) -> Bool {
         !tag.isEmpty && !redundant.contains(key(for: tag))
+    }
+}
+
+/// One of her own repos: shows its saved fits in the list. A spinner while
+/// Find Fits runs, the number of fits otherwise.
+private struct MyRepoSidebarRow: View {
+    let repo: MyRepo
+    let count: Int
+    let isRunning: Bool
+
+    var body: some View {
+        HStack {
+            Image(systemName: "hammer")
+                .frame(width: 20)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            Text(repo.displayName)
+                .font(.system(size: 13))
+                .lineLimit(1)
+            Spacer()
+            if isRunning {
+                ProgressView()
+                    .controlSize(.mini)
+            } else if count > 0 {
+                SidebarCount(count)
+            }
+        }
+        .padding(.vertical, 2)
+        .help(repo.fullName)
+        .tag(ShelfSelection.myRepo(repo.id))
     }
 }
 

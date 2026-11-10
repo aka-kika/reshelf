@@ -24,6 +24,15 @@ enum CatalogBackupService {
     /// Tests point backups at a temp folder; the app never sets this.
     static var backupsDirectoryOverride: URL?
 
+    /// Kika's repos and their fits for the next snapshot. The app points this
+    /// at `ProjectFitsService` at launch; tests leave it empty. Called on the
+    /// main thread; given the store's context when one is at hand, so a
+    /// routine snapshot also picks up shelf moves of fitted repos.
+    @MainActor static var myReposSource: (ModelContext?) -> [MyRepoDTO] = { _ in [] }
+    /// Puts a file's repos and fits back (only repos this Mac does not have).
+    /// The app points this at `ProjectFitsService.merge`; tests leave it empty.
+    @MainActor static var myReposRestorer: ([MyRepoDTO], ModelContext) -> Void = { _, _ in }
+
     static var backupsDirectory: URL {
         if let override = backupsDirectoryOverride {
             try? FileManager.default.createDirectory(at: override, withIntermediateDirectories: true)
@@ -57,7 +66,8 @@ enum CatalogBackupService {
         // Copied on the caller's thread: models must not cross threads.
         let rows = projects.map(CatalogProjectDTO.init)
         let folderRows = folders.map(CatalogFolderDTO.init)
-        return writeQueue.sync { write(rows, folders: folderRows, reason: reason) }
+        let myRepos = Thread.isMainThread ? MainActor.assumeIsolated { myReposSource(nil) } : []
+        return writeQueue.sync { write(rows, folders: folderRows, myRepos: myRepos, reason: reason) }
     }
 
     // MARK: - Routine snapshots (debounced)
@@ -87,7 +97,8 @@ enum CatalogBackupService {
             let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
             let rows = projects.map(CatalogProjectDTO.init)
             let folderRows = folders.map(CatalogFolderDTO.init)
-            writeQueue.async { _ = write(rows, folders: folderRows, reason: nil) }
+            let myRepos = myReposSource(context)
+            writeQueue.async { _ = write(rows, folders: folderRows, myRepos: myRepos, reason: nil) }
         }
     }
 
@@ -105,8 +116,9 @@ enum CatalogBackupService {
     }
 
     /// Runs on `writeQueue` only. `false` when the bytes could not be written.
-    private static func write(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], reason: String?) -> Bool {
-        guard let data = try? encode(rows, folders: folders, reason: reason) else { return false }
+    private static func write(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO],
+                              myRepos: [MyRepoDTO] = [], reason: String?) -> Bool {
+        guard let data = try? encode(rows, folders: folders, myRepos: myRepos, reason: reason) else { return false }
 
         // Skip only when the *content* is genuinely unchanged. This used to compare
         // byte lengths, which quietly failed: an edit that swaps one value for
@@ -126,7 +138,10 @@ enum CatalogBackupService {
            fingerprint(of: existingRows) == fingerprint(of: newRows),
            // A new, renamed or reordered folder touches no project row.
            folderFingerprint(of: (try? CatalogExportService.decodeFolders(existing)) ?? [])
-               == folderFingerprint(of: folders) {
+               == folderFingerprint(of: folders),
+           // A new run or a hidden fit touches no project row either.
+           ((try? CatalogExportService.decodeMyRepos(existing)) ?? [])
+               == ((try? CatalogExportService.decodeMyRepos(data)) ?? []) {
             return true // unchanged since last snapshot
         }
 
@@ -162,7 +177,8 @@ enum CatalogBackupService {
 
     /// The same file `CatalogExportService.encode` writes, from rows already
     /// copied off the models.
-    private static func encode(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO], reason: String?) throws -> Data {
+    private static func encode(_ rows: [CatalogProjectDTO], folders: [CatalogFolderDTO],
+                               myRepos: [MyRepoDTO], reason: String?) throws -> Data {
         let payload = CatalogSnapshotDTO(
             exportedAt: Date(),
             app: "reshelf",
@@ -170,7 +186,8 @@ enum CatalogBackupService {
             projectCount: rows.count,
             projects: rows,
             folders: folders,
-            reason: reason
+            reason: reason,
+            myRepos: myRepos
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -341,6 +358,9 @@ enum CatalogBackupService {
         guard count == 0, !emptiedByUser, let snapshot = latestNonEmptySnapshot() else { return false }
 
         CatalogImportService.merge(snapshot.projects, folders: folders(in: snapshot.url), into: context)
+        if let data = try? Data(contentsOf: snapshot.url) {
+            myReposRestorer((try? CatalogExportService.decodeMyRepos(data)) ?? [], context)
+        }
         #if DEBUG
         print("[reshelf] Catalog was empty — restored \(snapshot.projects.count) projects from \(snapshot.url.lastPathComponent)")
         #endif
@@ -359,10 +379,12 @@ enum CatalogBackupService {
         guard !incoming.isEmpty else { return .init(added: 0, updated: 0, skipped: 0) }
         let data = (try? Data(contentsOf: url)) ?? Data()
         let recorded = (try? CatalogExportService.didRecordFolders(data)) ?? false
-        return CatalogImportService.restore(incoming, folders: folders(in: url),
-                                            puttingBackChanges: puttingBackChanges, into: context,
-                                            backupReason: "Before restoring the backup from \(snapshotDate)",
-                                            foldersWereRecorded: recorded)
+        let result = CatalogImportService.restore(incoming, folders: folders(in: url),
+                                                  puttingBackChanges: puttingBackChanges, into: context,
+                                                  backupReason: "Before restoring the backup from \(snapshotDate)",
+                                                  foldersWereRecorded: recorded)
+        myReposRestorer((try? CatalogExportService.decodeMyRepos(data)) ?? [], context)
+        return result
     }
 
     // MARK: - Helpers

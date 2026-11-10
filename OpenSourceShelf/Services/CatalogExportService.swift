@@ -196,6 +196,34 @@ struct CatalogFolderDTO: Codable {
     }
 }
 
+/// One of Kika's repos with its saved fits, as backups, exports and the
+/// reshelf skill's `shelf.py fits` read them.
+struct MyRepoDTO: Codable, Equatable {
+    var fullName: String
+    var githubURL: String
+    var summary: String
+    var addedAt: Date
+    var sortIndex: Int
+    var lastRunAt: Date?
+    var previousRunAt: Date?
+    var lastRunNote: String
+    var fits: [RepoFitDTO]
+}
+
+struct RepoFitDTO: Codable, Equatable {
+    /// `owner/repo`, lowercased (the catalog row's GitHub key).
+    var repo: String
+    /// Name, link and shelf of the catalog row when the file was written, so
+    /// a reader needs no second lookup. Empty when the row is gone.
+    var name: String
+    var githubURL: String
+    var shelf: String
+    var rank: Int
+    var why: String
+    var isNew: Bool
+    var isHidden: Bool
+}
+
 struct CatalogSnapshotDTO: Codable {
     var exportedAt: Date
     var app: String
@@ -211,13 +239,17 @@ struct CatalogSnapshotDTO: Codable {
     /// shown in Restore from Backup so the right one is easy to pick. Nil for
     /// routine snapshots and manual exports.
     var reason: String?
+    /// Kika's own repos and their saved fits (Project fits, 10 Nov). Nil for
+    /// a file written before they existed.
+    var myRepos: [MyRepoDTO]?
 
     enum CodingKeys: String, CodingKey {
-        case exportedAt, app, version, projectCount, projects, folders, reason
+        case exportedAt, app, version, projectCount, projects, folders, reason, myRepos
     }
 
     init(exportedAt: Date, app: String, version: Int, projectCount: Int,
-         projects: [CatalogProjectDTO], folders: [CatalogFolderDTO]?, reason: String?) {
+         projects: [CatalogProjectDTO], folders: [CatalogFolderDTO]?, reason: String?,
+         myRepos: [MyRepoDTO]? = nil) {
         self.exportedAt = exportedAt
         self.app = app
         self.version = version
@@ -226,6 +258,7 @@ struct CatalogSnapshotDTO: Codable {
         self.folders = folders
         self.recordedFolders = true
         self.reason = reason
+        self.myRepos = myRepos
     }
 
     init(from decoder: Decoder) throws {
@@ -238,6 +271,7 @@ struct CatalogSnapshotDTO: Codable {
         recordedFolders = container.contains(.folders)
         folders = try container.decodeIfPresent([CatalogFolderDTO].self, forKey: .folders)
         reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        myRepos = try container.decodeIfPresent([MyRepoDTO].self, forKey: .myRepos)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -251,6 +285,7 @@ struct CatalogSnapshotDTO: Codable {
         // "these repos were in no folder".
         try container.encode(folders ?? [], forKey: .folders)
         try container.encodeIfPresent(reason, forKey: .reason)
+        if let myRepos, !myRepos.isEmpty { try container.encode(myRepos, forKey: .myRepos) }
     }
 }
 
@@ -273,7 +308,8 @@ enum CatalogExportService {
     }
 
     /// Encodes the given projects to pretty-printed, ISO-8601-dated JSON.
-    static func encode(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil) throws -> Data {
+    static func encode(_ projects: [ToolProject], folders: [CatalogFolder] = [], reason: String? = nil,
+                       myRepos: [MyRepoDTO]? = nil) throws -> Data {
         let payload = CatalogSnapshotDTO(
             exportedAt: Date(),
             app: "reshelf",
@@ -281,7 +317,8 @@ enum CatalogExportService {
             projectCount: projects.count,
             projects: projects.map(CatalogProjectDTO.init),
             folders: folders.map(CatalogFolderDTO.init),
-            reason: reason
+            reason: reason,
+            myRepos: myRepos
         )
         return try makeEncoder().encode(payload)
     }
@@ -302,6 +339,12 @@ enum CatalogExportService {
         try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).folders ?? []
     }
 
+    /// Kika's repos and their fits in a snapshot/export. Empty for files
+    /// written before Project fits.
+    static func decodeMyRepos(_ data: Data) throws -> [MyRepoDTO] {
+        try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).myRepos ?? []
+    }
+
     /// False for a backup written before the catalog had folders.
     static func didRecordFolders(_ data: Data) throws -> Bool {
         try makeDecoder().decode(CatalogSnapshotDTO.self, from: data).recordedFolders
@@ -310,7 +353,8 @@ enum CatalogExportService {
     /// Presents a save panel and writes the catalog JSON. Shows an alert on failure.
     /// Must be called on the main thread (it drives AppKit panels).
     @MainActor
-    static func presentExportPanel(projects: [ToolProject], folders: [CatalogFolder] = []) {
+    static func presentExportPanel(projects: [ToolProject], folders: [CatalogFolder] = [],
+                                   myRepos: [MyRepoDTO] = []) {
         let panel = NSSavePanel()
         panel.title = "Export Catalog"
         panel.message = "Save your reshelf catalog as JSON."
@@ -322,7 +366,7 @@ enum CatalogExportService {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {
-            let data = try encode(projects, folders: folders)
+            let data = try encode(projects, folders: folders, myRepos: myRepos)
             try data.write(to: url, options: .atomic)
         } catch {
             presentFailureAlert(error)

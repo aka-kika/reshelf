@@ -14,6 +14,9 @@ struct ProjectListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
     @Query(sort: \CatalogFolder.sortIndex) private var folders: [CatalogFolder]
+    @Query(sort: \MyRepo.sortIndex) private var myRepos: [MyRepo]
+    @Query private var repoFits: [RepoFit]
+    @ObservedObject private var fitsRunner = ProjectFitsRunner.shared
 
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     /// The search text the list actually filters on. Trails `searchText` by a
@@ -65,7 +68,8 @@ struct ProjectListView: View {
         // Filter + sort once per body pass. These used to be computed properties
         // read from the footer and from every batch row's context menu, which
         // re-sorted the whole catalog per row (multi-second hangs at ~950 repos).
-        let visibleProjects = filteredProjects
+        let fits = fitsModel
+        let visibleProjects = fits?.projects ?? filteredProjects
         let batchProjects = batchSelection.isEmpty
             ? []
             : visibleProjects.filter { batchSelection.contains($0.id) }
@@ -77,10 +81,25 @@ struct ProjectListView: View {
                     HeaderChromeButton(systemImage: "sidebar.left", help: "Toggle Sidebar") {
                         NotificationCenter.default.post(name: .toggleSidebarColumn, object: nil)
                     }
-                    Text(listTitle)
-                        .font(.system(size: 15, weight: .semibold))
+                    if let fits {
+                        // One of her repos: name, and how many fits from when.
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(fits.repo.displayName)
+                                .font(.system(size: 14, weight: .semibold))
+                                .lineLimit(1)
+                            Text(fits.subtitle)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .help(fits.repo.fullName)
+                    } else {
+                        Text(listTitle)
+                            .font(.system(size: 15, weight: .semibold))
+                    }
                     Spacer()
-                    sortMenu
+                    // Fits keep one order (Top Shelf first, best fit first).
+                    if fits == nil { sortMenu }
                     HeaderChromeButton(systemImage: "magnifyingglass", help: "Search (⌘K)") {
                         NotificationCenter.default.post(name: .openCommandPalette, object: nil)
                     }
@@ -130,13 +149,31 @@ struct ProjectListView: View {
             }
 
             Group {
-                if visibleProjects.isEmpty {
+                if let fits, visibleProjects.isEmpty || fitsRunner.isRunning(fits.repo.id) {
+                    FitsEmptyState(
+                        repo: fits.repo,
+                        progress: fitsRunner.progress[fits.repo.id],
+                        failure: fitsRunner.failure[fits.repo.id],
+                        onFind: {
+                            NotificationCenter.default.post(name: .findFitsAgain, object: fits.repo.id)
+                        },
+                        onStop: { fitsRunner.stop(fits.repo.id) })
+                } else if visibleProjects.isEmpty {
                     catalogListEmptyState
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(visibleProjects) { project in
+                                    if let heading = fits?.groupHeadings[project.id] {
+                                        Text(heading)
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(.secondary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 16)
+                                            .padding(.top, 10)
+                                            .padding(.bottom, 2)
+                                    }
                                     ProjectRowView(
                                         project: project,
                                         isSelected: listSelection?.projectID == project.id
@@ -146,6 +183,7 @@ struct ProjectListView: View {
                                         isClonedLocally: CatalogCloneService.isCloned(project),
                                         isBehind: behindProjectIDs.contains(project.id),
                                         hasNoClearLicense: project.hasNoClearLicense,
+                                        isNewFit: fits?.newIDs.contains(project.id) ?? false,
                                         contentKey: ProjectRowView.contentKey(for: project),
                                         onSelect: { selectProject(project, modifiers: $0) }
                                     )
@@ -175,9 +213,11 @@ struct ProjectListView: View {
 
             Divider()
             HStack {
-                Text("\(visibleProjects.count) project\(visibleProjects.count == 1 ? "" : "s")")
+                Text(fits?.footer ?? "\(visibleProjects.count) project\(visibleProjects.count == 1 ? "" : "s")")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(fits?.footer ?? "")
                 Spacer()
                 if !batchProjects.isEmpty {
                     Text("\(batchProjects.count) selected")
@@ -468,6 +508,17 @@ struct ProjectListView: View {
 
     @ViewBuilder
     private func singleProjectContextMenu(for project: ToolProject) -> some View {
+        // A fit of one of her repos: hide it from that list (it stays hidden
+        // through later runs; Show Hidden Fits brings it back).
+        if let repoID = sidebarSelection?.myRepoID,
+           let repo = myRepos.first(where: { $0.id == repoID }) {
+            Button("Hide from \(repo.displayName) Fits") {
+                ProjectFitsService.setHidden(true, repoKey: GitHubRepositoryURL.dedupKey(for: project.githubURL),
+                                             repoID: repoID, in: modelContext)
+                if listSelection?.projectID == project.id { listSelection = nil }
+            }
+            Divider()
+        }
         // Link actions (open / copy) live on the links in the inspector, not here.
         // — Shelf — one-tap triage between shelves
         Menu("Move to") {
@@ -995,7 +1046,15 @@ struct ProjectListView: View {
         }
     }
 
+    /// Set while one of her repos is picked in the sidebar.
+    private var fitsModel: FitsListModel? {
+        guard let id = sidebarSelection?.myRepoID,
+              let repo = myRepos.first(where: { $0.id == id }) else { return nil }
+        return FitsListModel(repo: repo, fits: repoFits, allProjects: allProjects, search: debouncedSearchText)
+    }
+
     private var filteredProjects: [ToolProject] {
+        if let fits = fitsModel { return fits.projects }
         let bySidebar = applySidebarFilter(allProjects)
         let bySearch = debouncedSearchText.isEmpty
             ? bySidebar
@@ -1133,6 +1192,8 @@ struct ProjectRowView: View, Equatable {
     /// Local clone is behind its upstream (updates available to pull).
     var isBehind: Bool = false
     var hasNoClearLicense: Bool = false
+    /// A fit of one of her repos that was not in the run before.
+    var isNewFit: Bool = false
     /// Captured text and icon presence, for the same reason as `statusKey`: an
     /// edit or a fetched icon changes the project but not the reference.
     var contentKey: String = ""
@@ -1149,6 +1210,7 @@ struct ProjectRowView: View, Equatable {
             && lhs.isClonedLocally == rhs.isClonedLocally
             && lhs.isBehind == rhs.isBehind
             && lhs.hasNoClearLicense == rhs.hasNoClearLicense
+            && lhs.isNewFit == rhs.isNewFit
             && lhs.isSelected == rhs.isSelected
             && lhs.contentKey == rhs.contentKey
     }
@@ -1163,9 +1225,17 @@ struct ProjectRowView: View, Equatable {
             ProjectIcon(project: project)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(project.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(project.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    if isNewFit {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.7))
+                            .frame(width: 6, height: 6)
+                            .help("New since the run before")
+                    }
+                }
                 Text(project.shortDescription)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

@@ -163,6 +163,12 @@ struct ImportCatalogSheet: View {
         result = CatalogImportService.apply(plan,
                                             updatingExisting: updateExisting,
                                             into: modelContext)
+        // Repos of her own (My Repos) that this Mac does not have yet come
+        // along with their saved fits.
+        if let data = try? Data(contentsOf: request.url),
+           let myRepos = try? CatalogExportService.decodeMyRepos(data), !myRepos.isEmpty {
+            ProjectFitsService.merge(myRepos, in: modelContext)
+        }
     }
 }
 
