@@ -1,0 +1,34 @@
+import Foundation
+import SwiftData
+
+// Writes a real SwiftData catalog (the same tables the app writes) for the
+// shelf.py fits test. Usage: make-store <path to catalog.store>
+let url = URL(fileURLWithPath: CommandLine.arguments[1])
+let schema = Schema([ToolProject.self, CatalogFolder.self, MyRepo.self, RepoFit.self])
+let container = try! ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, url: url))
+let ctx = ModelContext(container)
+for (name, link, shelf, license) in [
+    ("Mole", "https://github.com/tw93/Mole", ProjectStatus.topShelf, "GPL-3.0"),
+    ("uninstally", "https://github.com/x/uninstally", .collector, "MIT"),
+    ("gone", "https://github.com/x/gone", .yardSale, "MIT"),
+    ("hiddenone", "https://github.com/x/hiddenone", .collector, "MIT"),
+] {
+    ctx.insert(ToolProject(name: name, shortDescription: "\(name) desc", githubURL: link,
+                           category: "macOS", status: shelf, license: license))
+}
+let sift = MyRepo(fullName: "kika/Sift", githubURL: "https://github.com/kika/Sift", summary: "Scores Mac apps", sortIndex: 0)
+sift.lastRunAt = Date(timeIntervalSince1970: 1_762_790_400)
+sift.lastRunNote = "GitHub's limit was reached: 3 repos used saved info."
+ctx.insert(sift)
+let fresh = MyRepo(fullName: "kika/Kartina", githubURL: "https://github.com/kika/Kartina", sortIndex: 1)
+ctx.insert(fresh)
+for (key, rank, why, new, hidden) in [
+    ("tw93/mole", 0, "Finds leftover files after an uninstall", false, false),
+    ("x/uninstally", 1, "Dry run before removing", true, false),
+    ("x/gone", 2, "moved to Yard Sale after the run", false, false),
+    ("x/hiddenone", 3, "hidden by her", false, true),
+    ("x/deleted", 4, "row deleted from the catalog", false, false),
+] {
+    ctx.insert(RepoFit(myRepoID: sift.id, repoKey: key, rank: rank, why: why, isNew: new, isHidden: hidden))
+}
+try! ctx.save()
