@@ -734,8 +734,12 @@ struct ProjectListView: View {
                 guard LiveProject.isAlive(project) else { continue }
                 let id = project.id, name = project.name
                 let status = await CatalogCloneService.updateStatus(for: project)
-                // The same pass notes clones with local edits (Pull skips them).
-                await CloneEditsStore.shared.check(project)
+                // The row can be removed during the ls-remote (up to 60 s):
+                // check again before the local-edits pass reads it.
+                if LiveProject.isAlive(project) {
+                    // The same pass notes clones with local edits (Pull skips them).
+                    await CloneEditsStore.shared.check(project)
+                }
                 switch status {
                 case .updatesAvailable: behind.insert(id)
                 case .error(let message): unchecked.append(name); uncheckedReason = message

@@ -519,10 +519,11 @@ struct InspectView: View {
     /// doesn't hit the network; Check and Pull still ask afresh.
     private func autoCheckUpdatesIfCloned() async {
         guard CatalogCloneService.isCloned(project) else { return }
+        let id = project.id // the row may be deleted during git status
         // Local edits: one local git status when the repo is selected.
         await CloneEditsStore.shared.check(project)
-        guard cloneUpdateStatus == nil, !isCheckingUpdates else { return }
-        if let known = CatalogCloneService.cachedUpdateStatus(for: project.id) {
+        guard LiveProject.isAlive(project), cloneUpdateStatus == nil, !isCheckingUpdates else { return }
+        if let known = CatalogCloneService.cachedUpdateStatus(for: id) {
             cloneUpdateStatus = known
             return
         }

@@ -856,6 +856,9 @@ final class CloneEditsStore: ObservableObject {
     /// the last one.
     @discardableResult
     func check(_ project: ToolProject) async -> Bool? {
+        // Callers often hold a row across an earlier await; a deleted model
+        // traps on its first read (crash 5866, Check Clones for Updates).
+        guard LiveProject.isAlive(project) else { return nil }
         let id = project.id
         guard let edits = await CatalogCloneService.hasLocalEdits(for: project) else { return nil }
         set(id, hasEdits: edits)

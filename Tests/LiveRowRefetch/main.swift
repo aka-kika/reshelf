@@ -200,6 +200,41 @@ func runAll() async throws {
         let count = (try? context.fetchCount(FetchDescriptor<ToolProject>())) ?? -1
         check("18f0: the store stays empty", count == 0)
     }
+
+    // 7. 5866: Check Clones for Updates. The row is removed while its
+    // ls-remote runs; the local-edits pass after it must not read the row.
+    // Uses the clone case 6 left at <root>/Utility/one.
+    do {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let project = ToolProject(name: "while-checking", githubURL: "https://github.com/acme/one", category: "Utility")
+        context.insert(project)
+        try context.save()
+        CatalogCloneService.invalidateCloneIndex()
+        check("5866: the repo counts as cloned", CatalogCloneService.isCloned(project))
+        let id = project.id
+        let task = Task { @MainActor in await CatalogCloneService.updateStatus(for: project) }
+        await Task.yield()
+        context.delete(project)
+        try context.save()
+        _ = await task.value
+        // What the Check Clones loop now does after the await.
+        check("5866: the loop sees the row is gone", !LiveProject.isAlive(project))
+        let edits = await CloneEditsStore.shared.check(project)
+        check("5866: local-edits check of a deleted row returns nil, no crash", edits == nil)
+        check("5866: no edits mark for the deleted row", !CloneEditsStore.shared.edited.contains(id))
+
+        // A live clone is still checked: clean, then with a tracked edit.
+        let live = ToolProject(name: "live", githubURL: "https://github.com/acme/one", category: "Utility")
+        context.insert(live)
+        try context.save()
+        let clean = await CloneEditsStore.shared.check(live)
+        check("5866: a live clean clone reads as no edits", clean == false)
+        let readme = cloneRoot.appendingPathComponent("Utility/one/README")
+        try "changed\n".write(to: readme, atomically: true, encoding: .utf8)
+        let edited = await CloneEditsStore.shared.check(live)
+        check("5866: a live edited clone reads as edited", edited == true)
+    }
 }
 
 try await runAll()
