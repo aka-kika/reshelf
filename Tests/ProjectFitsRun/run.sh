@@ -32,6 +32,7 @@ swiftc -o "$out/test" \
     "$app/Services/ProjectFits/ProjectFitsService.swift" \
     "$app/Services/ProjectFits/ProjectFitsGitHub.swift" \
     "$app/Services/ProjectFits/ProjectFitsRunner.swift" \
+    "$app/Views/ProjectFits/ProjectFitsViews.swift" \
     "$here/Stubs.swift" \
     "$here/main.swift" 2>&1 | grep -v "warning:" || true
 [ -x "$out/test" ] || { echo "FAIL: build"; exit 1; }

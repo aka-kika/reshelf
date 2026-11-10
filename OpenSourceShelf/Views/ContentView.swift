@@ -265,8 +265,10 @@ struct ContentView: View {
                 onSelectSidebarItem: selectSidebarItem,
                 onAppear: handleContentAppear
             ))
+            .modifier(ProjectFitsHandlers(sidebarSelection: $sidebarSelection))
             .onReceive(NotificationCenter.default.publisher(for: .exportCatalog)) { _ in
-                CatalogExportService.presentExportPanel(projects: allProjects, folders: allFolders)
+                CatalogExportService.presentExportPanel(projects: allProjects, folders: allFolders,
+                                                        myRepos: ProjectFitsService.snapshot(in: modelContext))
             }
             // Sheet-wedge recovery: a caught ViewBridge exception mid-presentation
             // leaves SwiftUI believing a sheet is up when none is on screen, and
@@ -631,6 +633,7 @@ struct ContentView: View {
     private var detailColumn: some View {
         CatalogInspectorPane(
             listSelection: listSelection,
+            myRepoID: sidebarSelection?.myRepoID,
             onSelectionChange: { listSelection = $0 }
         )
     }
@@ -711,6 +714,49 @@ struct ContentView: View {
             CatalogSave.save(modelContext)
         }
         storedClassifierVersion = Self.classifierVersion
+    }
+}
+
+/// Project fits: the Add popup, Find Fits (sidebar, list and Shelf menu) and
+/// the hidden-fits sheet. Kept apart so ContentView's body stays type-checkable.
+private struct ProjectFitsHandlers: ViewModifier {
+    @Binding var sidebarSelection: ShelfSelection?
+    @Environment(\.modelContext) private var modelContext
+    @State private var showingAddRepos = false
+    @State private var hiddenFitsFor: HiddenFitsRequest?
+
+    struct HiddenFitsRequest: Identifiable {
+        let id: UUID
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .addMyRepos)) { _ in
+                presentSheetAfterEndingTextEditing { showingAddRepos = true }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .findFitsAgain)) { note in
+                // From the Shelf menu there is no id: the repo picked in the sidebar.
+                guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else {
+                    NotificationCenter.default.post(
+                        name: .catalogStatusNotice,
+                        object: "Pick one of your repos under My Repos first, then Find Fits Again.")
+                    return
+                }
+                sidebarSelection = .myRepo(id)
+                ProjectFitsRunner.shared.run([id], in: modelContext)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showHiddenFits)) { note in
+                guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else { return }
+                presentSheetAfterEndingTextEditing { hiddenFitsFor = HiddenFitsRequest(id: id) }
+            }
+            .sheet(isPresented: $showingAddRepos) {
+                AddMyReposSheet { added in
+                    if let first = added.first { sidebarSelection = .myRepo(first) }
+                }
+            }
+            .sheet(item: $hiddenFitsFor) { request in
+                HiddenFitsSheet(repoID: request.id)
+            }
     }
 }
 

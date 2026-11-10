@@ -206,7 +206,7 @@ struct SettingsView: View {
         if !githubTokenStatus.isEmpty { return githubTokenStatus }
         return githubTokenStored
             ? "Saved in your Keychain."
-            : "Optional. Raises GitHub's limit from 60 to 5,000 requests an hour."
+            : "Optional. Raises GitHub's limit from 60 to 5,000 requests an hour, and lets My Repos list your private repos (it needs read access to their contents)."
     }
 
     /// Where clones live, the agent skill, and what the inspector shows.

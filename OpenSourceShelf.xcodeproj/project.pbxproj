@@ -310,6 +310,20 @@
 			path = "OpenSourceShelf/Services/ProjectFits/ProjectFitsRunner.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		PFD426EDD420CEC73357BCD3 /* ProjectFitsViews.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ProjectFitsViews.swift";
+			path = "OpenSourceShelf/Views/ProjectFits/ProjectFitsViews.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		PF4A0AAC991BDD64BF88FBE9 /* AddMyReposSheet.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "AddMyReposSheet.swift";
+			path = "OpenSourceShelf/Views/ProjectFits/AddMyReposSheet.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		F0LDER201234567890ABCD /* CatalogFolderService.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -580,6 +594,8 @@
 				CE09F1A2B3C4D5E6F7080009 /* CatalogCloneService.swift */,
 				IMPCAT01234567890ABCDEF01 /* CatalogImportService.swift */,
 				F0LDER201234567890ABCD /* CatalogFolderService.swift */,
+				PF4A0AAC991BDD64BF88FBE9 /* AddMyReposSheet.swift */,
+				PFD426EDD420CEC73357BCD3 /* ProjectFitsViews.swift */,
 				PF3D5101D0A05141AB181BB0 /* ProjectFitsRunner.swift */,
 				PF5F1B84E21D033E7947C165 /* ProjectFitsGitHub.swift */,
 				PF69136148D11E4306786C33 /* ProjectFitsService.swift */,
@@ -635,6 +651,14 @@
 		PFC003C14185ECB41C2AFFE1 /* in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = PF3D5101D0A05141AB181BB0;
+		};
+		PF7BAFA25FAFF95530E034EF /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PFD426EDD420CEC73357BCD3;
+		};
+		PFEB97AF2EEDF3F786DB630E /* in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = PF4A0AAC991BDD64BF88FBE9;
 		};
 		F0LDER202234567890ABCD /* in Sources */ = {
 			isa = PBXBuildFile;
@@ -958,6 +982,8 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			files = (
 				F0LDER202234567890ABCD,
+				PFEB97AF2EEDF3F786DB630E,
+				PF7BAFA25FAFF95530E034EF,
 				PFC003C14185ECB41C2AFFE1,
 				PF64C221B64A14B35928C2B4,
 				PF41B72686A85DBFA614A849,

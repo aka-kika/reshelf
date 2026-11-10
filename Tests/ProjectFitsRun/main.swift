@@ -96,7 +96,30 @@ func run() async throws {
           && ProjectFitsService.fits(for: added[0].id, in: ctx).contains { $0.repoKey == "tw93/mole" })
     check("runner idle afterwards", !ProjectFitsRunner.shared.isRunning(added[0].id))
 
-    // 7. A clone's README on disk is read (README.md, any case).
+    // 7. The list for one of her repos: Top Shelf heading first, new dot,
+    //    hidden left out but counted, search narrows, a shelf move regroups.
+    let sift = added[0]
+    ProjectFitsService.applyRun(repoID: sift.id, found: [("x/uninstally", "removes leftovers"),
+                                                         ("tw93/mole", "cleans caches"),
+                                                         ("x/notes", "notes")], note: "", in: ctx)
+    ProjectFitsService.setHidden(true, repoKey: "x/notes", repoID: sift.id, in: ctx)
+    let all = (try? ctx.fetch(FetchDescriptor<ToolProject>())) ?? []
+    let fitsNow = (try? ctx.fetch(FetchDescriptor<RepoFit>())) ?? []
+    let model = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "")
+    check("list: Top Shelf first, hidden out", model.projects.map(\.name) == ["Mole", "uninstally"])
+    check("list: headings above each shelf group",
+          model.groupHeadings.count == 2 && model.groupHeadings.values.contains("TOP SHELF"))
+    check("list: hidden counted in the footer", model.hiddenCount == 1 && model.footer.contains("1 hidden"))
+    check("list: new since the run before marked", model.newIDs.count == 1
+          && model.newIDs.contains(all.first { $0.name == "uninstally" }!.id))
+    check("list: subtitle says how many and when", model.subtitle.hasPrefix("2 fits · last run"))
+    let searched = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "native")
+    check("list: search narrows the fits", searched.projects.map(\.name) == ["uninstally"])
+    all.first { $0.name == "uninstally" }!.status = .topShelf
+    let moved = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "")
+    check("list: a fit moved to Top Shelf joins that group", moved.groupHeadings.count == 1)
+
+    // 8. A clone's README on disk is read (README.md, any case).
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fits-readme-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     try "hello from disk".write(to: dir.appendingPathComponent("Readme.md"), atomically: true, encoding: .utf8)

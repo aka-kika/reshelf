@@ -12,6 +12,8 @@ enum ShelfSelection: Hashable {
     case folder(UUID)
     /// A GitHub topic from the sidebar's Tags section (`SidebarTagRanking.key`).
     case tag(String)
+    /// One of Kika's own repos (My Repos): the list shows its saved fits.
+    case myRepo(UUID)
 
     var builtinItem: SidebarItem? {
         if case let .builtin(item) = self { return item }
@@ -25,6 +27,11 @@ enum ShelfSelection: Hashable {
 
     var tagName: String? {
         if case let .tag(name) = self { return name }
+        return nil
+    }
+
+    var myRepoID: UUID? {
+        if case let .myRepo(id) = self { return id }
         return nil
     }
 }
