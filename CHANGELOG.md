@@ -20,6 +20,7 @@ All notable changes to **reshelf** are documented here. This project follows
 - **All repos at once:** right-click the My Repos heading → **New Fits** / **Analyze All Fits** (one after another, one progress line, Stop), and **Filter** to open Settings → Fits. Also in the Shelf menu.
 - **Made room:** a run that pushes saved fits off because of the limit says so under the list ("2 older fits made room: … Show"); **Keep** puts one back for good and the weakest other fit goes instead. Right-click a kept fit → **Unpin** undoes it.
 - **Sort in fits lists:** the same Sort button as every other list, with **Best Fit** first (and the start).
+- **Live clones folder:** reshelf watches its clone folder (FSEvents, coalesced, off while the app is hidden), so a clone an agent made or a folder trashed in Finder shows without switching windows. Idea from SkillDeck (MIT); no code taken.
 - **No sparkle icons:** the Capture tab shows a tray, Quick Capture's AI Suggestions a lightbulb.
 - The skill's `shelf.py fits` follows the new order and the Fits filters.
 

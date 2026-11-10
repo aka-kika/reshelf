@@ -199,6 +199,17 @@ struct ContentView: View {
     @State private var isResizingInspector = false
     @State private var isApplyingColumnVisibility = false
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
+    @AppStorage(CloneLocation.storageKey) private var cloneRootPathSetting = ""
+
+    private func watchCloneFolder() {
+        let store = appRefreshStore
+        CloneFolderWatcher.shared.start(root: CloneLocation.rootURL) {
+            Task { @MainActor in
+                await CatalogCloneService.refreshCloneIndex()
+                store.handle(.catalogStateUpdated)
+            }
+        }
+    }
     @Query(sort: \ToolProject.name) private var allProjects: [ToolProject]
     @Query(sort: \CatalogFolder.sortIndex) private var allFolders: [CatalogFolder]
 
@@ -292,6 +303,16 @@ struct ContentView: View {
                     await CatalogCloneService.refreshCloneIndex()
                     appRefreshStore.handle(.catalogStateUpdated)
                 }
+            }
+            // Live clones folder: a clone made or trashed outside reshelf
+            // shows while the window is merely visible. Off while hidden.
+            .onAppear { watchCloneFolder() }
+            .onChange(of: cloneRootPathSetting) { _, _ in watchCloneFolder() }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didHideNotification)) { _ in
+                CloneFolderWatcher.shared.stop()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didUnhideNotification)) { _ in
+                watchCloneFolder()
             }
             .onReceive(NotificationCenter.default.publisher(for: .importURLs)) { _ in
                 presentSheetAfterEndingTextEditing { showingImportURLs = true }

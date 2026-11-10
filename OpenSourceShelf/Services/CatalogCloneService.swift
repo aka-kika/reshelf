@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import CoreServices
 
 /// Resolves the root folder where repositories are cloned. The user can override
 /// it in Settings; otherwise it defaults to `~/reshelf/repos`. Stored as a
@@ -741,5 +742,86 @@ enum CatalogCloneService {
     static func open(_ url: URL, inEditorAt appURL: URL) {
         NSWorkspace.shared.open([url], withApplicationAt: appURL,
                                 configuration: NSWorkspace.OpenConfiguration())
+    }
+}
+
+/// Live clones folder (Kika, 10 Nov; the idea from SkillDeck, MIT, which
+/// watches its skill folders; no code taken from it). Watches the clone root
+/// with FSEvents so a clone an agent's shelf.py made, or a folder trashed in
+/// Finder, shows in reshelf without switching windows. Cheap: FSEvents
+/// coalesces for a second, only changes at the category level or a clone's
+/// `.git` (where the reshelf marker lands) count, one rescan per burst, no
+/// polling. The app stops it while hidden.
+final class CloneFolderWatcher {
+    static let shared = CloneFolderWatcher()
+
+    private var stream: FSEventStreamRef?
+    private(set) var root: URL?
+    private var onChange: (() -> Void)?
+    private var pending: DispatchWorkItem?
+    private let queue = DispatchQueue(label: "reshelf.clone-folder-watcher")
+    /// Quiet time after the last relevant event before one rescan.
+    var settle: TimeInterval = 1.0
+
+    var isRunning: Bool { stream != nil }
+
+    /// Starts (or restarts, when the folder changed) watching `root`.
+    /// `onChange` runs on the main queue.
+    func start(root: URL, onChange: @escaping () -> Void) {
+        // Real path: FSEvents reports /private/var for /var, and a custom
+        // clone folder can be a link.
+        let standardized = root.resolvingSymlinksInPath().standardizedFileURL
+        self.onChange = onChange
+        if stream != nil, self.root == standardized { return }
+        stop()
+        guard FileManager.default.fileExists(atPath: standardized.path) else { return }
+        self.root = standardized
+        var context = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
+                                           retain: nil, release: nil, copyDescription: nil)
+        let callback: FSEventStreamCallback = { _, info, count, paths, _, _ in
+            guard let info else { return }
+            let watcher = Unmanaged<CloneFolderWatcher>.fromOpaque(info).takeUnretainedValue()
+            let list = unsafeBitCast(paths, to: NSArray.self) as? [String] ?? []
+            watcher.received(Array(list.prefix(count)))
+        }
+        guard let created = FSEventStreamCreate(
+            kCFAllocatorDefault, callback, &context, [standardized.path] as CFArray,
+            FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1.0,
+            FSEventStreamCreateFlags(kFSEventStreamCreateFlagUseCFTypes)) else { return }
+        FSEventStreamSetDispatchQueue(created, queue)
+        FSEventStreamStart(created)
+        stream = created
+    }
+
+    func stop() {
+        pending?.cancel()
+        pending = nil
+        guard let stream else { return }
+        FSEventStreamStop(stream)
+        FSEventStreamInvalidate(stream)
+        FSEventStreamRelease(stream)
+        self.stream = nil
+    }
+
+    private func received(_ paths: [String]) {
+        guard let root, paths.contains(where: { Self.isRelevant($0, root: root.path) }) else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pending?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.onChange?() }
+            self.pending = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + self.settle, execute: work)
+        }
+    }
+
+    /// The root, a category folder (a clone folder appeared or went), or a
+    /// clone's `.git` (its marker was written). Not the files inside a clone.
+    static func isRelevant(_ path: String, root: String) -> Bool {
+        let rootParts = URL(fileURLWithPath: root).resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        let parts = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        guard parts.count >= rootParts.count, Array(parts.prefix(rootParts.count)) == rootParts else { return false }
+        let rel = Array(parts.dropFirst(rootParts.count))
+        if rel.count <= 1 { return true }
+        return rel.count == 3 && rel[2] == ".git"
     }
 }
