@@ -176,8 +176,16 @@ struct ProjectListView: View {
                 .background(Color.primary.opacity(0.04))
             }
 
+            if let fits, !fitsRunner.isRunning(fits.repo.id), !visibleProjects.isEmpty,
+               let failure = fitsRunner.failure[fits.repo.id] {
+                FitsFailureBanner(repoName: fits.repo.displayName, failure: failure) {
+                    fitsRunner.clearFailure(fits.repo.id)
+                }
+            }
+
             Group {
-                if let fits, visibleProjects.isEmpty || fitsRunner.isRunning(fits.repo.id) {
+                // A search with no hits says so, not "Nothing on your shelf fits".
+                if let fits, (visibleProjects.isEmpty && !fits.isSearching) || fitsRunner.isRunning(fits.repo.id) {
                     FitsEmptyState(
                         repo: fits.repo,
                         progress: fitsRunner.progress[fits.repo.id],

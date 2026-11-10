@@ -236,6 +236,11 @@ func run() async throws {
     check("list: a lower limit shows at once", capped.projects.count == 1)
     let searched = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "native")
     check("list: search narrows the fits", searched.projects.map(\.name) == ["uninstally"])
+    check("90b8: a search counts matches of all fits", searched.subtitle.hasPrefix("1 of 2 fits match"))
+    let noHits = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "zzz-nothing")
+    check("90b8: a search with no hits is a search, not 0 fits",
+          noHits.projects.isEmpty && noHits.isSearching && noHits.fitCount == 2
+          && noHits.subtitle.hasPrefix("0 of 2 fits match"))
     all.first { $0.name == "uninstally" }!.status = .topShelf
     let moved = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "")
     check("list: a shelf move keeps the fit order", moved.projects.map(\.name) == ["uninstally", "Mole"])

@@ -49,6 +49,9 @@ final class ProjectFitsRunner: ObservableObject {
 
     func isRunning(_ repoID: UUID) -> Bool { progress[repoID] != nil }
 
+    /// Dismiss on the failure banner.
+    func clearFailure(_ repoID: UUID) { failure[repoID] = nil }
+
     func stop(_ repoID: UUID) {
         tasks[repoID]?.cancel()
     }

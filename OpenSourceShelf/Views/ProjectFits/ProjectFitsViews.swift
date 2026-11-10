@@ -17,6 +17,10 @@ struct FitsListModel {
     let madeRoom: [ToolProject]
     /// The limit this list uses (Keep needs it).
     let limit: Int
+    /// Fits shown before the search narrows them (the header counts these).
+    let fitCount: Int
+    /// A search is narrowing the list.
+    let isSearching: Bool
 
     init(repo: MyRepo, fits: [RepoFit], allProjects: [ToolProject], search: String,
          filters: FitFilters = FitFilters(), limit: Int = .max, facts: [String: RepoFacts] = [:],
@@ -32,6 +36,8 @@ struct FitsListModel {
         madeRoom = mine.filter { $0.isBumped && !$0.isHidden }.sorted { $0.score > $1.score }
             .compactMap { byKey[$0.repoKey] }
         self.limit = limit
+        fitCount = passing.count
+        isSearching = !search.isEmpty
         var rows: [ToolProject] = []
         var newIDs = Set<UUID>()
         for (fit, project) in passing {
@@ -71,8 +77,10 @@ struct FitsListModel {
     /// "4 fits · last run 10 Nov, 18:40"
     var subtitle: String {
         guard repo.lastRunAt != nil else { return "Not run yet" }
-        let count = projects.count
-        var parts = ["\(count) fit\(count == 1 ? "" : "s")"]
+        // The search narrows the rows, not the fits (90b8: "0 fits").
+        let count = fitCount
+        var parts = [isSearching ? "\(projects.count) of \(count) fits match"
+                                 : "\(count) fit\(count == 1 ? "" : "s")"]
         if let last = repo.lastRunAt {
             parts.append("last run " + last.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
         }
@@ -87,6 +95,32 @@ struct FitsListModel {
         if filteredCount > 0 { parts.append("\(filteredCount) left out by Fits filters") }
         if !repo.lastRunNote.isEmpty { parts.append(repo.lastRunNote) }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// A failed run over a repo that already has a list: the saved list stays
+/// and this says why the run did not replace it (90b8: it was silent).
+struct FitsFailureBanner: View {
+    let repoName: String
+    let failure: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+            Text("Couldn't find new fits for \(repoName): \(failure) The saved list is unchanged.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button("Dismiss", action: onDismiss)
+                .font(.system(size: 10))
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.primary.opacity(0.04))
     }
 }
 
