@@ -1,7 +1,8 @@
 #!/bin/bash
 # The reshelf skill's `shelf.py fits` reads My Repos and their saved fits from a
 # real SwiftData store (made here with the app's models) or the newest backup,
-# read-only: Top Shelf first, why lines, NEW, hidden / Yard Sale / deleted left
+# read-only: best fit first with the shelf per row, why lines, NEW, Fits filters,
+# hidden / Yard Sale / deleted left
 # out, --here from the folder's origin, a never-run repo says so.
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"

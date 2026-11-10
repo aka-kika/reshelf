@@ -28,6 +28,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 
 HOME = os.path.expanduser("~")
@@ -73,9 +74,10 @@ def load_catalog():
             db.row_factory = sqlite3.Row
             cols = {r[1] for r in db.execute("PRAGMA table_info(ZTOOLPROJECT)")}
             added = "ZADDEDDATE" if "ZADDEDDATE" in cols else "0"
+            updated = "ZLASTUPDATEDDATE" if "ZLASTUPDATEDDATE" in cols else "NULL"
             rows = db.execute(f"""SELECT ZNAME, ZSHORTDESCRIPTION, ZLONGDESCRIPTION, ZGITHUBURL,
                 ZCATEGORY, ZSTATUSRAW, ZLICENSE, ZSTARS, ZNOTES, ZPERSONALNOTE, ZTAGS, ZUSECASES,
-                {added} AS ADDED FROM ZTOOLPROJECT""").fetchall()
+                {added} AS ADDED, {updated} AS UPDATED FROM ZTOOLPROJECT""").fetchall()
             return "live catalog", [dict(
                 name=r["ZNAME"] or "", short=r["ZSHORTDESCRIPTION"] or "",
                 long=r["ZLONGDESCRIPTION"] or "", url=r["ZGITHUBURL"] or "",
@@ -83,7 +85,8 @@ def load_catalog():
                 license=r["ZLICENSE"] or "", stars=r["ZSTARS"] or "",
                 notes=r["ZNOTES"] or "", personal=r["ZPERSONALNOTE"] or "",
                 tags=_archived_strings(r["ZTAGS"]), usecases=_archived_strings(r["ZUSECASES"]),
-                added=float(r["ADDED"] or 0) + APPLE_EPOCH) for r in rows]
+                added=float(r["ADDED"] or 0) + APPLE_EPOCH,
+                updated=_apple_time(r["UPDATED"])) for r in rows]
         except sqlite3.Error:
             pass
     backups = sorted(glob.glob(os.path.join(RESHELF_HOME, "backups", "catalog-*.json")),
@@ -98,7 +101,8 @@ def load_catalog():
         category=p.get("category", ""), status=p.get("status", "collector"),
         license=p.get("license", ""), stars=p.get("stars", ""), notes=p.get("notes", ""),
         personal=p.get("personalNote", "") or "", tags=p.get("tags", []),
-        usecases=p.get("useCases", []), added=_iso_seconds(p.get("addedDate"))) for p in rows]
+        usecases=p.get("useCases", []), added=_iso_seconds(p.get("addedDate")),
+        updated=_iso_seconds(p.get("lastUpdatedDate")) or None) for p in rows]
 
 
 def _iso_seconds(text):
@@ -303,8 +307,11 @@ def load_my_repos():
             tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if "ZMYREPO" in tables and "ZREPOFIT" in tables:
                 repos = []
-                for r in db.execute("""SELECT ZID, ZFULLNAME, ZGITHUBURL, ZSUMMARY, ZLASTRUNAT,
-                                       ZLASTRUNNOTE, ZSORTINDEX FROM ZMYREPO ORDER BY ZSORTINDEX, ZFULLNAME"""):
+                cols = {c[1] for c in db.execute("PRAGMA table_info(ZMYREPO)")}
+                language = "ZLANGUAGE" if "ZLANGUAGE" in cols else "''"
+                for r in db.execute(f"""SELECT ZID, ZFULLNAME, ZGITHUBURL, ZSUMMARY, ZLASTRUNAT,
+                                       ZLASTRUNNOTE, ZSORTINDEX, {language} AS LANGUAGE
+                                       FROM ZMYREPO ORDER BY ZSORTINDEX, ZFULLNAME"""):
                     fits = [dict(key=f["ZREPOKEY"] or "", rank=f["ZRANK"] or 0, why=f["ZWHY"] or "",
                                  new=bool(f["ZISNEW"]), hidden=bool(f["ZISHIDDEN"]))
                             for f in db.execute("""SELECT ZREPOKEY, ZRANK, ZWHY, ZISNEW, ZISHIDDEN
@@ -312,7 +319,8 @@ def load_my_repos():
                                                 (r["ZID"],))]
                     repos.append(dict(full=r["ZFULLNAME"] or "", url=r["ZGITHUBURL"] or "",
                                       summary=r["ZSUMMARY"] or "", last=_apple_time(r["ZLASTRUNAT"]),
-                                      note=r["ZLASTRUNNOTE"] or "", fits=fits))
+                                      note=r["ZLASTRUNNOTE"] or "", language=r["LANGUAGE"] or "",
+                                      fits=fits))
                 return "live catalog", repos
             if "ZTOOLPROJECT" in tables:
                 return "live catalog", []
@@ -330,6 +338,7 @@ def load_my_repos():
         repos.append(dict(
             full=r.get("fullName", ""), url=r.get("githubURL", ""), summary=r.get("summary", ""),
             last=_iso_seconds(last) if last else None, note=r.get("lastRunNote", ""),
+            language=r.get("language") or "",
             fits=[dict(key=f.get("repo", ""), rank=f.get("rank", 0), why=f.get("why", ""),
                        new=bool(f.get("isNew")), hidden=bool(f.get("isHidden")))
                   for f in sorted(r.get("fits", []), key=lambda f: f.get("rank", 0))]))
@@ -359,16 +368,76 @@ def _catalog_by_key():
     return by_key
 
 
-def _shown_fits(repo, by_key):
-    """(fit, catalog row) pairs shown for a repo, by shelf. Hidden by the user,
-    gone from the catalog, or since moved to Yard Sale: left out."""
-    groups = {"topShelf": [], "collector": []}
-    for f in repo["fits"]:
+def _fit_filters():
+    """The user's Settings > Fits filters in the app (same for every repo).
+    RESHELF_FITS_FILTERS (JSON) is for tests: it keeps the app's settings out."""
+    keys = {"sameLanguage": "reshelf.fits.sameLanguage", "updated": "reshelf.fits.updated",
+            "hideGPL": "reshelf.fits.hideGPL", "hideArchived": "reshelf.fits.hideArchived"}
+    if os.environ.get("RESHELF_FITS_FILTERS"):
+        raw = json.loads(os.environ["RESHELF_FITS_FILTERS"])
+    else:
+        raw = {}
+        for name, key in keys.items():
+            try:
+                raw[name] = subprocess.run(["defaults", "read", "com.kika.opensourceshelf", key],
+                                           capture_output=True, text=True).stdout.strip()
+            except OSError:
+                raw[name] = ""
+    on = lambda v: str(v).lower() in ("1", "true", "yes")
+    months = {"lastYear": 12, "sixMonths": 6, "threeMonths": 3}.get(str(raw.get("updated", "")))
+    return dict(same_language=on(raw.get("sameLanguage")), months=months,
+                hide_gpl=on(raw.get("hideGPL")), hide_archived=on(raw.get("hideArchived")))
+
+
+def _repo_facts():
+    """Language, archived flag, last push and licence per owner/repo, from the
+    app's GitHub metadata store (read-only). Empty when it is not there."""
+    path = os.path.join(RESHELF_HOME, "database", "opensource-shelf.sqlite")
+    if not os.path.exists(path):
+        return {}
+    try:
+        db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        rows = db.execute("""SELECT lower(r.full_name), m.primary_language, m.archived, m.pushed_at,
+                             m.license_spdx FROM repositories r
+                             JOIN repository_metadata m ON m.repository_id = r.id""").fetchall()
+    except sqlite3.Error:
+        return {}
+    return {k: dict(language=lang or "", archived=bool(arch), pushed=_iso_seconds(pushed) or None,
+                    license=lic or "") for k, lang, arch, pushed, lic in rows}
+
+
+def _passes(filters, repo, p, facts):
+    """The app's FitFilters.allows, for one catalog row."""
+    f = facts.get(p["key"], {})
+    if filters["same_language"] and repo.get("language") and \
+            (f.get("language") or "").lower() != repo["language"].lower():
+        return False
+    if filters["hide_archived"] and f.get("archived"):
+        return False
+    lic = (p["license"] or f.get("license") or "").upper()
+    if filters["hide_gpl"] and "GPL" in lic and "LGPL" not in lic:
+        return False
+    if filters["months"]:
+        when = p.get("updated") or f.get("pushed")
+        if not when or when < time.time() - filters["months"] * 30.44 * 86400:
+            return False
+    return True
+
+
+def _shown_fits(repo, by_key, filters=None, facts=None):
+    """(fit, catalog row) pairs shown for a repo, best fit first (the app lists
+    them by fit, whichever shelf), and how many the Fits filters leave out.
+    Hidden by the user, gone from the catalog, or since moved to Yard Sale: out."""
+    shown, filtered = [], 0
+    for f in sorted(repo["fits"], key=lambda f: f["rank"]):
         p = by_key.get(f["key"])
-        if f["hidden"] or not p or p["status"] not in groups:
+        if f["hidden"] or not p or p["status"] not in ("topShelf", "collector"):
             continue
-        groups[p["status"]].append((f, p))
-    return groups
+        if filters and not _passes(filters, repo, dict(p, key=f["key"]), facts or {}):
+            filtered += 1
+            continue
+        shown.append((f, p))
+    return shown, filtered
 
 
 def cmd_fits(args):
@@ -384,10 +453,10 @@ def cmd_fits(args):
     if not here and not wanted:
         print(f"My Repos: {len(repos)}   (source: {source})\n")
         by_key = _catalog_by_key()
+        filters, facts = _fit_filters(), _repo_facts()
         for r in repos:
-            groups = _shown_fits(r, by_key)
-            shown = len(groups["topShelf"]) + len(groups["collector"])
-            print(f"- {r['full']}   last run {_day_time(r['last'])}   {shown} fit(s)")
+            shown, _ = _shown_fits(r, by_key, filters, facts)
+            print(f"- {r['full']}   last run {_day_time(r['last'])}   {len(shown)} fit(s)")
             if r["summary"]:
                 print(f"    {r['summary'][:140]}")
         print("\nNext: shelf.py fits <repo>   (or --here inside a clone of one of them)")
@@ -421,28 +490,29 @@ def cmd_fits(args):
     by_key = _catalog_by_key()
     index = clone_index(clone_root())
     hidden = sum(1 for f in repo["fits"] if f["hidden"])
-    groups = _shown_fits(repo, by_key)
+    shown, filtered = _shown_fits(repo, by_key, _fit_filters(), _repo_facts())
 
-    total = len(groups["topShelf"]) + len(groups["collector"])
-    print(f"Fits for {repo['full']}: {total}   last run {_day_time(repo['last'])}   (source: {source})")
+    print(f"Fits for {repo['full']}: {len(shown)}, best fit first   last run {_day_time(repo['last'])}"
+          f"   (source: {source})")
     if repo["note"]:
         print(f"  note: {repo['note']}")
-    if total == 0:
+    if not shown:
         print("\nNothing on the shelf fit it on the last run.")
-    for status, label in (("topShelf", "Top Shelf"), ("collector", "The Collector")):
-        if not groups[status]:
-            continue
-        print(f"\n{label}:")
-        for f, p in groups[status]:
-            path = clone_path(p, index)
-            print(f"- {p['name']}  [{p['category'] or 'no category'}]  "
-                  f"{'CLONED' if path else 'not cloned'}{'  NEW since the run before' if f['new'] else ''}")
-            if f["why"]:
-                print(f"    why: {f['why'][:200]}")
-            print(f"    {path if path else p['url']}")
-            print(f"    license: {license_note(p['license'])}")
+    else:
+        print()
+    shelf_names = {"topShelf": "Top Shelf", "collector": "The Collector"}
+    for f, p in shown:
+        path = clone_path(p, index)
+        print(f"- {p['name']}  [{shelf_names[p['status']]} · {p['category'] or 'no category'}]  "
+              f"{'CLONED' if path else 'not cloned'}{'  NEW since the run before' if f['new'] else ''}")
+        if f["why"]:
+            print(f"    why: {f['why'][:200]}")
+        print(f"    {path if path else p['url']}")
+        print(f"    license: {license_note(p['license'])}")
     if hidden:
         print(f"\n({hidden} hidden by the user from this list; not shown)")
+    if filtered:
+        print(f"({filtered} left out by the user's Fits filters in reshelf Settings; not shown)")
     print("\nThese were saved by the app when the user last pressed Find Fits; they are not refreshed here.")
 
 

@@ -19,12 +19,13 @@ for (name, link, shelf, license) in [
 let sift = MyRepo(fullName: "kika/Sift", githubURL: "https://github.com/kika/Sift", summary: "Scores Mac apps", sortIndex: 0)
 sift.lastRunAt = Date(timeIntervalSince1970: 1_762_790_400)
 sift.lastRunNote = "GitHub's limit was reached: 3 repos used saved info."
+sift.language = "Swift"
 ctx.insert(sift)
 let fresh = MyRepo(fullName: "kika/Kartina", githubURL: "https://github.com/kika/Kartina", sortIndex: 1)
 ctx.insert(fresh)
 for (key, rank, why, new, hidden) in [
-    ("tw93/mole", 0, "Finds leftover files after an uninstall", false, false),
-    ("x/uninstally", 1, "Dry run before removing", true, false),
+    ("x/uninstally", 0, "Dry run before removing", true, false),
+    ("tw93/mole", 1, "Finds leftover files after an uninstall", false, false),
     ("x/gone", 2, "moved to Yard Sale after the run", false, false),
     ("x/hiddenone", 3, "hidden by her", false, true),
     ("x/deleted", 4, "row deleted from the catalog", false, false),

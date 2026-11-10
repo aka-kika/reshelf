@@ -38,9 +38,10 @@ bash    $S/shelf-map.sh ["<Category>" | --all]   # browse what's on disk by cate
 ```
 
 `fits` reads what the app saved the last time the user pressed **Find Fits** for one of
-their own repos (My Repos in the sidebar): Top Shelf first, a why line per repo, `NEW`
-for fits new since the run before. Repos they hid stay out. It never runs a match: only
-the user does that, in the app.
+their own repos (My Repos in the sidebar): best fit first, each row naming its shelf, a
+why line per repo, `NEW` for fits new since the run before. Repos they hid, and repos
+their Fits filters in reshelf Settings leave out (language, last update, GPL/AGPL,
+archived), stay out. It never runs a match: only the user does that, in the app.
 
 `find` prints, per repo: category, the **date it was added**, `CLONED` + path or
 `not cloned` + GitHub URL, a **license note**, and tags. It reads the app's catalog

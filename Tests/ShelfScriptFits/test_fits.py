@@ -16,8 +16,9 @@ def fail(msg):
     print("FAIL:", msg)
 
 
-def run(home, *args, cwd=None):
-    env = dict(os.environ, RESHELF_HOME=home, RESHELF_CLONE_ROOT=os.path.join(home, "repos"), HOME=work)
+def run(home, *args, cwd=None, filters="{}"):
+    env = dict(os.environ, RESHELF_HOME=home, RESHELF_CLONE_ROOT=os.path.join(home, "repos"), HOME=work,
+               RESHELF_FITS_FILTERS=filters)
     return subprocess.run([sys.executable, "-I", script, *args], env=env, cwd=cwd,
                           capture_output=True, text=True)
 
@@ -31,13 +32,16 @@ if "kika/Sift" not in out or "kika/Kartina" not in out:
 if "2 fit(s)" not in out:
     fail("list counts shown fits only (hidden left out): " + out)
 
-# 2. One repo: Top Shelf first, why lines, NEW, license; hidden, Yard Sale and deleted out.
+# 2. One repo: best fit first whichever shelf (round 2), the shelf named per
+#    row, why lines, NEW, license; hidden, Yard Sale and deleted out.
 r = run(live, "fits", "Sift")
 out = r.stdout
 if r.returncode != 0:
     fail("fits Sift failed: " + r.stderr)
-if out.find("Top Shelf:") < 0 or out.find("The Collector:") < out.find("Top Shelf:"):
-    fail("Top Shelf before The Collector: " + out)
+if not (0 <= out.find("- uninstally") < out.find("- Mole")):
+    fail("saved fit order, not shelf order: " + out)
+if "[Top Shelf · macOS]" not in out or "[The Collector · macOS]" not in out:
+    fail("shelf named on each row: " + out)
 for want in ("Mole", "why: Finds leftover files", "NEW since the run before", "GPL-3.0 - strong copyleft",
              "note: GitHub's limit", "(1 hidden by the user"):
     if want not in out:
@@ -47,6 +51,17 @@ for not_want in ("hiddenone", "gone", "deleted"):
         fail(f"'{not_want}' should be left out: " + out)
 if os.path.getmtime(store) != before:
     fail("the store was written to")
+
+# 2b. Settings > Fits filters apply to the saved list, and say how many.
+out = run(live, "fits", "Sift", filters='{"hideGPL": "1"}').stdout
+if "- Mole" in out or "- uninstally" not in out or "1 left out by the user's Fits filters" not in out:
+    fail("GPL filter: " + out)
+out = run(live, "fits", "Sift", filters='{"sameLanguage": "1"}').stdout
+if "- uninstally" in out or "2 left out" not in out:
+    fail("same language with no language known for the shelf repos leaves them out: " + out)
+out = run(live, "fits", filters='{"hideGPL": "1"}').stdout
+if "1 fit(s)" not in out:
+    fail("list count follows the filters: " + out)
 
 # 3. Never-run repo says so and does not match by itself.
 out = run(live, "fits", "kartina").stdout
