@@ -161,8 +161,8 @@ struct SidebarView: View {
                                 }
                                 .disabled(!hasClones(in: folder))
                                 Divider()
-                                Button("Rename…") { renameTarget = folder }
-                                Button("Delete Folder…") { deleteTarget = folder }
+                                Button("Rename") { renameTarget = folder }
+                                Button("Delete Folder") { deleteTarget = folder }
                             }
                         }
                     } header: {

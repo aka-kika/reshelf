@@ -372,7 +372,7 @@ struct InspectView: View {
                     Button("Reveal in Finder") { CatalogCloneService.revealInFinder(dest) }
                         .controlSize(.small)
                     let editors = CatalogCloneService.installedEditors()
-                    Menu("Open in…") {
+                    Menu("Open in") {
                         ForEach(editors, id: \.name) { editor in
                             Button(editor.name) { CatalogCloneService.open(dest, inEditorAt: editor.appURL) }
                         }

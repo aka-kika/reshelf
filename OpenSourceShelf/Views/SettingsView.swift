@@ -228,7 +228,7 @@ struct SettingsView: View {
                             Button("Reset") { cloneRootPath = "" }
                                 .help("Use the default location (~/reshelf/repos)")
                         }
-                        Button("Choose…") { chooseCloneFolder() }
+                        Button("Choose") { chooseCloneFolder() }
                     }
                 }
                 Text(CloneLocation.rootURL.path)
@@ -255,7 +255,7 @@ struct SettingsView: View {
             SettingsSection("Agent Skill") {
                 SettingsRow("reshelf skill for Claude Code",
                             detail: skillInstallStatus.isEmpty ? "Lets your agent use your shelf. Install again after updates." : skillInstallStatus) {
-                    Button("Install…") { installReshelfSkill() }
+                    Button("Install") { installReshelfSkill() }
                 }
             }
             SettingsDivider()
@@ -473,7 +473,7 @@ struct SettingsView: View {
             }
 
             VStack(spacing: 8) {
-                Button("Check for Updates…") { updater.checkForUpdates() }
+                Button("Check for Updates") { updater.checkForUpdates() }
                     .disabled(!updater.canCheckForUpdates)
                 Toggle("Automatically check for updates", isOn: $autoCheckForUpdates)
                     .toggleStyle(.checkbox)

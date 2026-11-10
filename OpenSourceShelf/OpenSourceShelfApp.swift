@@ -229,23 +229,61 @@ enum CatalogStoreLocation {
 /// level — and keep pruning, because SwiftUI rebuilds the main menu whenever the
 /// `commands` re-evaluate.
 final class FormatMenuPruner: NSObject, NSApplicationDelegate {
-    private var observer: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.prune()
-        observer = NotificationCenter.default.addObserver(
+        observers.append(NotificationCenter.default.addObserver(
             forName: NSApplication.didUpdateNotification,
             object: nil,
             queue: .main
         ) { _ in
             Self.prune()
+        })
+        // SwiftUI and AppKit fill some menus only as they open ("Settings…",
+        // "Start Dictation…"): retitle an item the moment it lands in the
+        // menu bar's menus.
+        for name in [NSMenu.didAddItemNotification, NSMenu.didChangeItemNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { note in
+                guard let menu = note.object as? NSMenu, Self.isInMainMenu(menu) else { return }
+                Self.stripEllipsis(menu, deep: false)
+            })
         }
     }
 
+    private static func isInMainMenu(_ menu: NSMenu) -> Bool {
+        var current: NSMenu? = menu
+        while let m = current {
+            if m === NSApp.mainMenu { return true }
+            current = m.supermenu
+        }
+        return false
+    }
+
     private static func prune() {
-        guard let menu = NSApp.mainMenu,
-              let format = menu.items.first(where: { $0.title == "Format" }) else { return }
-        menu.removeItem(format)
+        guard let menu = NSApp.mainMenu else { return }
+        if let format = menu.items.first(where: { $0.title == "Format" }) {
+            menu.removeItem(format)
+        }
+        // Kika's rule for every app: no "…" in menu items. The system adds
+        // some itself ("Settings…", "Start Dictation…"), so strip it here.
+        for item in menu.items { stripEllipsis(item.submenu) }
+    }
+
+    private static func stripEllipsis(_ menu: NSMenu?, deep: Bool = true) {
+        guard let menu else { return }
+        for item in menu.items {
+            if item.title == "Settings…" || item.title == "Settings...", item.isHidden == false {
+                item.isHidden = true
+                item.keyEquivalent = ""
+                continue
+            }
+            for suffix in ["…", "..."] where item.title.hasSuffix(suffix) {
+                item.title = String(item.title.dropLast(suffix.count))
+                    .trimmingCharacters(in: .whitespaces)
+            }
+            if deep { stripEllipsis(item.submenu) }
+        }
     }
 }
 
@@ -336,41 +374,49 @@ struct OpenSourceShelfApp: App {
                 Button("About reshelf") {
                     Self.showAboutPanel()
                 }
-                Button("Check for Updates…") {
+                Button("Check for Updates") {
                     updaterService.checkForUpdates()
                 }
                 .disabled(!updaterService.canCheckForUpdates)
             }
 
+            // Kika's rule: no "…" in menus. The system's own "Settings…"
+            // item cannot be retitled (SwiftUI sets it back), so this one
+            // stands in and FormatMenuPruner hides the system one.
+            CommandGroup(after: .appInfo) {
+                SettingsLink { Text("Settings") }
+                    .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandGroup(replacing: .newItem) {
                 // The manual "New Project" form was removed in 1.14.0: Quick
                 // Capture fills everything from GitHub, so it owns ⌘N now.
-                Button("Quick Capture…") {
+                Button("Quick Capture") {
                     NotificationCenter.default.post(name: .quickCapture, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: .command)
-                Button("Search…") {
+                Button("Search") {
                     NotificationCenter.default.post(name: .openCommandPalette, object: nil)
                 }
                 .keyboardShortcut("k", modifiers: .command)
 
                 Divider()
 
-                Button("Export Catalog as JSON…") {
+                Button("Export Catalog as JSON") {
                     NotificationCenter.default.post(name: .exportCatalog, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
 
-                Button("Import Catalog from JSON…") {
+                Button("Import Catalog from JSON") {
                     NotificationCenter.default.post(name: .importCatalog, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
 
-                Button("Import GitHub URLs…") {
+                Button("Import GitHub URLs") {
                     NotificationCenter.default.post(name: .importURLs, object: nil)
                 }
 
-                Button("Restore from Backup…") {
+                Button("Restore from Backup") {
                     NotificationCenter.default.post(name: .restoreBackup, object: nil)
                 }
 
@@ -386,7 +432,7 @@ struct OpenSourceShelfApp: App {
                 }
                 .keyboardShortcut("u", modifiers: .command)
 
-                Button("Remove Duplicate Repos…") {
+                Button("Remove Duplicate Repos") {
                     NotificationCenter.default.post(name: .removeDuplicateRepos, object: nil)
                 }
             }
@@ -454,7 +500,7 @@ struct OpenSourceShelfApp: App {
 
                 Divider()
 
-                Button("Move Repos Without a License to Yard Sale…") {
+                Button("Move Repos Without a License to Yard Sale") {
                     NotificationCenter.default.post(name: .yardSaleUnlicensed, object: nil)
                 }
 
@@ -485,7 +531,8 @@ struct OpenSourceShelfApp: App {
 
         }
 
-        // Standard macOS Settings — app-menu "Settings…" (⌘,).
+        // Standard macOS Settings — app-menu "Settings" (⌘,; its "…" is
+        // stripped by FormatMenuPruner).
         //
         // One fixed size for every tab (Kika's spec: 560pt wide, no resizing
         // per tab). A fixed frame with .contentSize also overrides an old saved

@@ -14,7 +14,9 @@ All notable changes to **reshelf** are documented here. This project follows
 - **Settings → Fits:** most fits (10, 15, 20, 25), same language only, updated lately, hide GPL and AGPL, hide archived. They apply to runs and to the saved lists at once.
 - **My Repos** shows the GitHub mark, and its first 5 with Show more / Show less.
 - **Settings tabs fit their content** (no more mostly empty window), and the Guide tab explains My Repos and Find Fits.
-- No "…" in the fits menu items. The skill's `shelf.py fits` follows the new order and the Fits filters.
+- **New Fits** (only repos new since the last run) and **Analyze All Fits** (the whole shelf) are the menu names (Kika's wording).
+- **No "…" in any menu item or button** (Kika's rule for all her apps): File, Shelf, right-click menus, Settings buttons, and the system's own Settings and Start Dictation items. Progress text like "Cloning…" stays.
+- The skill's `shelf.py fits` follows the new order and the Fits filters.
 
 ### Added
 - **My Repos and Project fits.** Add your own GitHub repos to the sidebar (the + next to My Repos: a popup lists your repos; without a token, your public ones by user name). Click one and the list shows the repos on your shelf that fit it: Top Shelf first, then The Collector, with a dot on fits that are new since the run before. The inspector shows **Why it fits** on top, one line written on your Mac by Apple Intelligence (the shared words when it is not available).

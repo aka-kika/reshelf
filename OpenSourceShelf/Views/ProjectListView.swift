@@ -493,7 +493,7 @@ struct ProjectListView: View {
         }
 
         Divider()
-        Button("Remove \(projects.count) from Catalog…", role: .destructive) {
+        Button("Remove \(projects.count) from Catalog", role: .destructive) {
             pendingBatchDelete = projects
         }
     }
@@ -548,7 +548,7 @@ struct ProjectListView: View {
                 Button("Reveal Clone in Finder") {
                     CatalogCloneService.revealInFinder(dest)
                 }
-                Button("Remove Local Clone…", role: .destructive) {
+                Button("Remove Local Clone", role: .destructive) {
                     pendingRemoveCloneProject = project
                 }
             } else if cloningProjectIDs.contains(project.id) {
@@ -561,7 +561,7 @@ struct ProjectListView: View {
         Divider()
 
         // — Catalog —
-        Button("Remove from Catalog…", role: .destructive) {
+        Button("Remove from Catalog", role: .destructive) {
             pendingDeleteProject = project
         }
     }
@@ -585,7 +585,7 @@ struct ProjectListView: View {
                 }
             }
             if !folders.isEmpty { Divider() }
-            Button("New Folder…") {
+            Button("New Folder") {
                 newFolderTargets = projects
                 newFolderName = ""
             }
