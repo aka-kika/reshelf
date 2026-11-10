@@ -37,7 +37,8 @@ python3 $S/shelf.py fits --here                  # the same for the repo you are
 bash    $S/shelf-map.sh ["<Category>" | --all]   # browse what's on disk by category
 ```
 
-`fits` reads what the app saved the last time the user pressed **Find Fits** for one of
+`fits` reads what the app saved the last time fits ran (**Find Fits**, **New Fits** or
+**Analyze All Fits**) for one of
 their own repos (My Repos in the sidebar): best fit first, each row naming its shelf, a
 why line per repo, `NEW` for fits new since the run before. Repos they hid, and repos
 the Fits filter leaves out (language, last update, GPL/AGPL, archived, how many), stay

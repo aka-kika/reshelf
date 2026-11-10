@@ -12,7 +12,8 @@
 
 Reads the reshelf app's catalog (live store, or the newest JSON backup) read-only.
 Yard Sale is always left out: those repos are on their way out.
-`fits` only reads what the app saved the last time the user pressed Find Fits; it
+`fits` only reads what the app saved the last time fits ran (Find Fits, New Fits or
+Analyze All Fits); it
 never runs a match itself, and repos the user hid from a list stay out.
 Clones exactly like the app does: <clone root>/<Category>/<repo>, falling back to
 <owner>-<repo> on a name clash, full clone, git-lfs filters bypassed. A checkout
@@ -572,7 +573,8 @@ def cmd_fits(args):
         print(f"\n({hidden} hidden by the user from this list; not shown)")
     if filtered:
         print(f"({filtered} left out by the Fits filter above; not shown)")
-    print("\nThese were saved by the app when the user last pressed Find Fits; they are not refreshed here.")
+    print("\nSaved by the app the last time fits ran for this repo (New Fits or Analyze All Fits); "
+          "not refreshed here.")
 
 
 # --- clone ---------------------------------------------------------------------
