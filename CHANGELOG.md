@@ -7,7 +7,7 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
 
-### Changed in builds 36 to 40 (Kika's first look at build 35)
+### Changed in builds 36 to 41 (Kika's first look at build 35)
 - **Best fit first, real fits only.** No fixed 10 and no fixed Top Shelf slots: a list holds the repos that really fit, best first whichever shelf, up to the limit you pick. Top Shelf gets a small lift and wins a near tie; each row names its shelf instead of shelf headings.
 - **Specific fits win.** Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On Kika's shelf, repos listed for 3 or more of her 11 repos went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).
 - **New Fits looks only at what is new** (shelf repos saved or changed since the last run) and slots them into the saved list; with nothing new it says so without asking GitHub. **Analyze All Fits** looks at the whole shelf.
