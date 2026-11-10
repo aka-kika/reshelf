@@ -102,6 +102,25 @@ func run() throws {
           (generic?.score ?? 1) < (without.first { $0.candidate.name == "generic-md" }?.score ?? 0))
     check("the specific repo comes first", with.first?.candidate.name == "photos")
 
+    // 4c. Round 3: a GPL repo is pushed below an equal non-GPL one, and
+    //     older why lines are written again after a scoring version bump.
+    var gpl = candidate("gpl-twin", top: false, "uninstaller leftover caches preference files launch agents bundle")
+    gpl.isStrongCopyleft = true
+    let mit = candidate("mit-twin", top: false, "uninstaller leftover caches preference files launch agents bundle")
+    let twins = FitScorer.ordered(FitScorer.score(project: project, candidates: [gpl, mit] + cands))
+    let gplAt = twins.firstIndex { $0.candidate.name == "gpl-twin" } ?? -1
+    let mitAt = twins.firstIndex { $0.candidate.name == "mit-twin" } ?? -1
+    check("GPL ranks below an equal non-GPL fit", mitAt >= 0 && gplAt > mitAt
+          && twins[gplAt].score < twins[mitAt].score * 0.75)
+    check("GPL fit is still a fit (lowered, not removed)",
+          FitScorer.pick(twins, hidden: []).contains { $0.candidate.name == "gpl-twin" })
+    check("GPL and AGPL count, LGPL does not", FitFilters.isStrongCopyleft("GPL-3.0")
+          && FitFilters.isStrongCopyleft("AGPL-3.0") && !FitFilters.isStrongCopyleft("LGPL-2.1"))
+    check("why lines from an older version are written again",
+          !FitScorer.whyIsCurrent(runSignature: "v2 limit 15")
+            && FitScorer.whyIsCurrent(runSignature: FitScorer.runSignature(limit: 15))
+            && FitScorer.whyIsCurrent(runSignature: ""))
+
     // 5. Merge: hidden stay hidden, new gets the dot, gone ones drop, first run marks nothing.
     let prev = [FitMerge.Row(key: "a", rank: 0, why: "", isNew: false, isHidden: false),
                 FitMerge.Row(key: "h", rank: 1, why: "", isNew: false, isHidden: true),

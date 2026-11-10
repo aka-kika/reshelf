@@ -174,8 +174,10 @@ final class ProjectFitsRunner: ObservableObject {
         // scoring, limit and filters); otherwise the whole shelf.
         let top = Set(inputs.filter(\.isTopShelf).map(\.key))
         // The list as she sees it (not hidden, not pushed off last time).
+        // Why lines from an older scoring version are written again.
+        let keepWhy = FitScorer.whyIsCurrent(runSignature: repo.runSignature)
         let saved = ProjectFitsService.fits(for: repoID, in: context).filter { !$0.isHidden && !$0.isBumped }.map {
-            FitIncremental.Saved(key: $0.repoKey, why: $0.why, score: $0.score,
+            FitIncremental.Saved(key: $0.repoKey, why: keepWhy ? $0.why : "", score: $0.score,
                                  isTopShelf: top.contains($0.repoKey), isPinned: $0.isPinned)
         }
         var incremental: Incremental?
@@ -391,7 +393,9 @@ final class ProjectFitsRunner: ObservableObject {
             if let path = input.clonePath, let local = ProjectFitsGitHub.readmeOnDisk(at: path) {
                 text += "\n" + FitScorer.cleanReadme(local)
             }
-            return FitScorer.Candidate(key: input.key, name: input.name, isTopShelf: input.isTopShelf, text: text)
+            let license = input.license.isEmpty ? (input.facts?.license ?? "") : input.license
+            return FitScorer.Candidate(key: input.key, name: input.name, isTopShelf: input.isTopShelf, text: text,
+                                       isStrongCopyleft: FitFilters.isStrongCopyleft(license))
         }
         let first = FitScorer.ordered(FitScorer.score(project: projectText, others: ownTexts, candidates: candidates))
             .filter {
@@ -476,7 +480,10 @@ final class ProjectFitsRunner: ObservableObject {
                     \(String(fit.candidate.text.prefix(1500)))
 
                     Words both share: \(fit.sharedTerms.joined(separator: ", ")).
-                    In one sentence, what in the shelf repo helps her project?
+                    Which one concrete thing in the shelf repo (a feature, a technique, or a part of \
+                    its code) could her project borrow, and what would it do there? Use the shelf \
+                    repo's own words for it. If they only share general words, say plainly what the \
+                    shelf repo is and that the link is loose.
                     """
                 if let line = try? await AppleIntelligenceService.whyItFits(prompt: prompt), !line.isEmpty {
                     why = line

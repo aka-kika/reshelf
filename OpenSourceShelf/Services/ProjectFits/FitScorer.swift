@@ -14,7 +14,9 @@ import Foundation
 enum FitScorer {
     /// Bumped when the scoring changes, so the next New Fits checks
     /// the whole shelf instead of only what is new.
-    static let version = 2
+    /// 3 (round 3, 11 Nov): GPL and AGPL ranked lower, and why lines
+    /// written again with the clearer prompt.
+    static let version = 3
     /// How many fits at most (Settings > Fits). Only real fits are shown, so
     /// a list can be shorter.
     static let limitChoices = [10, 15, 20, 25]
@@ -47,6 +49,9 @@ enum FitScorer {
     static let breadthPenalty = 0.25
     /// Top Shelf's small lift (Kika: Top Shelf wins a tie, never fixed slots).
     static let topShelfLift = 1.08
+    /// GPL and AGPL are pushed down (Kika, 11 Nov: they can't ship in her App
+    /// Store apps). Not removed: Settings > Fits can hide them.
+    static let strongCopyleftDrop = 0.7
 
     /// One shelf repo as the scorer sees it.
     struct Candidate: Equatable {
@@ -54,6 +59,8 @@ enum FitScorer {
         let name: String
         let isTopShelf: Bool
         var text: String
+        /// GPL or AGPL (`FitFilters.isStrongCopyleft`).
+        var isStrongCopyleft = false
     }
 
     struct Scored: Equatable {
@@ -259,6 +266,7 @@ enum FitScorer {
             }
             var final = c.score / (1 + breadthPenalty * Double(breadth))
             if candidates[i].isTopShelf { final *= topShelfLift }
+            if candidates[i].isStrongCopyleft { final *= strongCopyleftDrop }
             return Scored(candidate: candidates[i], score: final, wordScore: c.score,
                           sharedTerms: c.shared, sharedCount: c.count, breadth: breadth)
         }
@@ -301,6 +309,12 @@ enum FitScorer {
     /// ones out, best first, at most `limit`. Fewer is fine.
     static func pick(_ scored: [Scored], hidden: Set<String>, limit: Int = defaultLimit) -> [Scored] {
         Array(ordered(scored.filter { fits($0) && !hidden.contains($0.candidate.key) }).prefix(limit))
+    }
+
+    /// Saved why lines from a run before `version` are written again (the
+    /// prompt changed with it). An empty signature means no run yet.
+    static func whyIsCurrent(runSignature: String) -> Bool {
+        runSignature.isEmpty || runSignature.hasPrefix("v\(version) ")
     }
 
     /// The plain why line when Apple Intelligence can't write one.

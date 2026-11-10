@@ -124,7 +124,8 @@ enum AppleIntelligenceService {
 
         let session = LanguageModelSession(instructions: """
             You help a developer see which open source repo from her saved shelf helps a project \
-            she is building. Use only the facts given. Write plain words, no hype, no emoji.
+            she is building. Use only the facts given. Be specific: name a real feature or part of \
+            the shelf repo. Write plain words, no hype, no emoji.
             """)
         do {
             let generated = try await session.respond(to: prompt, generating: WhyItFitsGeneration.self).content
@@ -169,7 +170,7 @@ private struct CaptureSuggestionGeneration {
 @available(macOS 26.0, *)
 @Generable
 private struct WhyItFitsGeneration {
-    @Guide(description: "One sentence, at most 20 words, naming what in the shelf repo helps the project. Start with a verb or a noun, not with the repo's name.")
+    @Guide(description: "One sentence, at most 22 words. Name the concrete feature, technique or piece of code in the shelf repo first, then what it would do in her project. No vague verbs like 'helps manage'. Do not start with the repo's name.")
     var why: String
 }
 #endif

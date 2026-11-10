@@ -1281,7 +1281,7 @@ struct ProjectRowView: View, Equatable {
     }
 
     static func contentKey(for project: ToolProject) -> String {
-        [project.name, project.shortDescription, project.category,
+        [project.name, project.shortDescription, project.category, project.license,
          project.iconData == nil ? "" : "icon"].joined(separator: "\u{1F}")
     }
 
@@ -1342,7 +1342,10 @@ struct ProjectRowView: View, Equatable {
 
     /// Category, and in a fits list the shelf in front of it.
     private var detailLine: String? {
+        // A GPL or AGPL fit says so (Kika, 11 Nov: can't ship in her App Store apps).
+        let copyleft = showsShelf && FitFilters.isStrongCopyleft(project.license)
         let parts = (showsShelf ? [project.status.displayName] : []) + [project.category]
+            + (copyleft ? ["\(project.license): not for App Store apps"] : [])
             + (hasLocalEdits ? ["local edits"] : [])
         let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
         return line.isEmpty ? nil : line
