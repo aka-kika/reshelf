@@ -168,6 +168,9 @@ struct AddMyReposSheet: View {
         let chosen = repos.filter { picked.contains($0.id) }
         let added = ProjectFitsService.add(
             chosen.map { ($0.fullName, $0.htmlUrl, $0.description ?? "") }, in: modelContext)
+        // Her repo's main language, for Settings > Fits > Same language.
+        let languages = Dictionary(chosen.map { ($0.id, $0.language ?? "") }, uniquingKeysWith: { a, _ in a })
+        for repo in added { repo.language = languages[repo.fullName.lowercased()] ?? "" }
         let ids = added.map(\.id)
         if !ids.isEmpty {
             ProjectFitsRunner.shared.run(ids, in: modelContext)

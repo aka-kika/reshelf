@@ -39,7 +39,7 @@ func run() async throws {
     let ctx = try makeContext()
     let rows = [
         ToolProject(name: "Mole", shortDescription: "Clean and uninstall Mac apps, find leftover files",
-                    githubURL: "https://github.com/tw93/Mole", status: .topShelf),
+                    githubURL: "https://github.com/tw93/Mole", status: .topShelf, license: "GPL-3.0"),
         ToolProject(name: "uninstally", shortDescription: "Native uninstaller that removes app leftovers",
                     githubURL: "https://github.com/x/uninstally", status: .collector),
         ToolProject(name: "notes", shortDescription: "Markdown notes", githubURL: "https://github.com/x/notes",
@@ -123,6 +123,20 @@ func run() async throws {
     ctx.delete(newRow)
     try ctx.save()
 
+    // 3e. Settings > Fits filters at run time: a GPL repo, another language.
+    let gplOff = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: inputs, hidden: [],
+                                                      filters: FitFilters(hideStrongCopyleft: true)) { _ in }
+    check("filter: GPL repo left out of the run (it fits without the filter)",
+          !gplOff.fits.map(\.key).contains("tw93/mole") && found.contains("tw93/mole"))
+    var withLanguage = inputs
+    for i in withLanguage.indices {
+        withLanguage[i].facts = RepoFacts(language: withLanguage[i].key == "tw93/mole" ? "Shell" : "Swift")
+    }
+    let swiftOnly = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: withLanguage,
+                                                         hidden: [], filters: FitFilters(sameLanguage: true),
+                                                         projectLanguage: "Swift") { _ in }
+    check("filter: other language left out", !swiftOnly.fits.map(\.key).contains("tw93/mole"))
+
     // 4. Hidden ones are never picked again.
     let again = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: inputs,
                                                      hidden: ["tw93/mole"]) { _ in }
@@ -165,6 +179,14 @@ func run() async throws {
     check("list: new since the run before marked", model.newIDs.count == 1
           && model.newIDs.contains(all.first { $0.name == "uninstally" }!.id))
     check("list: subtitle says how many and when", model.subtitle.hasPrefix("2 fits · last run"))
+    let filtered = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "",
+                                 filters: FitFilters(hideStrongCopyleft: true))
+    check("list: filters apply to the saved list, counted in the footer",
+          filtered.projects.map(\.name) == ["uninstally"] && filtered.filteredCount == 1
+          && filtered.footer.contains("1 left out by Fits filters"))
+    check("sidebar count matches the list",
+          FitsListModel.shown(fitsNow, byKey: FitsListModel.byKey(all), repo: sift,
+                              filters: FitFilters(hideStrongCopyleft: true), facts: [:]).count == 1)
     let searched = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "native")
     check("list: search narrows the fits", searched.projects.map(\.name) == ["uninstally"])
     all.first { $0.name == "uninstally" }!.status = .topShelf

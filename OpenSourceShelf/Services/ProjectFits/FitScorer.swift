@@ -381,3 +381,95 @@ struct RepoFacts: Equatable, Sendable {
     var license: String = ""
     var topics: [String] = []
 }
+
+/// Settings > Fits (Kika, round 2): the same filters for every one of her
+/// repos. They apply when Find Fits runs (so the limit fills with repos that
+/// pass) and to the saved list on screen (so turning one on works at once).
+struct FitFilters: Equatable, Sendable {
+    enum Updated: String, CaseIterable, Identifiable, Sendable {
+        case any, lastYear, sixMonths, threeMonths
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .any: return "Any time"
+            case .lastYear: return "Last year"
+            case .sixMonths: return "Last 6 months"
+            case .threeMonths: return "Last 3 months"
+            }
+        }
+        var months: Int? {
+            switch self {
+            case .any: return nil
+            case .lastYear: return 12
+            case .sixMonths: return 6
+            case .threeMonths: return 3
+            }
+        }
+    }
+
+    /// Only shelf repos in her repo's main language (each of her repos uses
+    /// its own, from GitHub).
+    var sameLanguage = false
+    var updated: Updated = .any
+    /// Leave out GPL and AGPL (strong copyleft). LGPL stays.
+    var hideStrongCopyleft = false
+    var hideArchived = false
+
+    static let sameLanguageKey = "reshelf.fits.sameLanguage"
+    static let updatedKey = "reshelf.fits.updated"
+    static let hideStrongCopyleftKey = "reshelf.fits.hideGPL"
+    static let hideArchivedKey = "reshelf.fits.hideArchived"
+
+    static func current(_ defaults: UserDefaults = .standard) -> FitFilters {
+        FitFilters(sameLanguage: defaults.bool(forKey: sameLanguageKey),
+                   updated: Updated(rawValue: defaults.string(forKey: updatedKey) ?? "") ?? .any,
+                   hideStrongCopyleft: defaults.bool(forKey: hideStrongCopyleftKey),
+                   hideArchived: defaults.bool(forKey: hideArchivedKey))
+    }
+
+    var isActive: Bool { self != FitFilters() }
+
+    /// For `FitScorer.runSignature`: empty when no filter is on.
+    var signature: String {
+        var parts: [String] = []
+        if sameLanguage { parts.append("same-language") }
+        if updated != .any { parts.append("updated-\(updated.rawValue)") }
+        if hideStrongCopyleft { parts.append("no-gpl") }
+        if hideArchived { parts.append("no-archived") }
+        return parts.joined(separator: " ")
+    }
+
+    /// GPL-2.0, GPL-3.0, AGPL-3.0 and their "-only"/"-or-later" forms; not LGPL.
+    static func isStrongCopyleft(_ license: String) -> Bool {
+        let upper = license.uppercased()
+        return upper.contains("GPL") && !upper.contains("LGPL")
+    }
+
+    /// Does a shelf repo pass? Unknown facts fail a filter that needs them
+    /// (no language or date known), except her own language: if GitHub names
+    /// none for her repo, the language filter has nothing to compare and lets
+    /// everything through.
+    func allows(projectLanguage: String, language: String, isArchived: Bool, license: String,
+                updated: Date?, now: Date = Date()) -> Bool {
+        if sameLanguage, !projectLanguage.isEmpty,
+           language.caseInsensitiveCompare(projectLanguage) != .orderedSame { return false }
+        if hideArchived, isArchived { return false }
+        if hideStrongCopyleft, Self.isStrongCopyleft(license) { return false }
+        if let months = self.updated.months {
+            guard let updated,
+                  let cutoff = Calendar(identifier: .gregorian).date(byAdding: .month, value: -months, to: now),
+                  updated >= cutoff else { return false }
+        }
+        return true
+    }
+
+    /// The same check for a shelf repo, from what reshelf stores about it.
+    func allows(projectLanguage: String, facts: RepoFacts?, license: String, lastUpdated: Date?,
+                now: Date = Date()) -> Bool {
+        allows(projectLanguage: projectLanguage, language: facts?.language ?? "",
+               isArchived: facts?.isArchived ?? false,
+               license: license.isEmpty ? (facts?.license ?? "") : license,
+               updated: lastUpdated ?? facts?.pushedAt, now: now)
+    }
+}

@@ -60,7 +60,8 @@ enum ProjectFitsService {
     /// hidden, new ones get the dot) and stamps the run time. `found` is in
     /// list order, best fit first.
     static func applyRun(repoID: UUID, found: [(key: String, why: String)], scores: [String: Double] = [:],
-                         matchText: String? = nil, signature: String? = nil, note: String,
+                         matchText: String? = nil, signature: String? = nil, language: String? = nil,
+                         note: String,
                          at date: Date = Date(), in context: ModelContext) {
         guard let repo = repo(repoID, in: context) else { return }
         let saved = fits(for: repoID, in: context)
@@ -77,6 +78,7 @@ enum ProjectFitsService {
         }
         if let matchText { repo.matchText = matchText }
         if let signature { repo.runSignature = signature }
+        if let language, !language.isEmpty { repo.language = language }
         repo.previousRunAt = repo.lastRunAt
         repo.lastRunAt = date
         repo.lastRunNote = note
@@ -126,7 +128,8 @@ enum ProjectFitsService {
                                       githubURL: row?.githubURL ?? "", shelf: row?.statusRaw ?? "",
                                       rank: fit.rank, why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden,
                                       score: fit.score)
-                })
+                },
+                language: repo.language)
         }
     }
 
@@ -145,6 +148,7 @@ enum ProjectFitsService {
             repo.lastRunAt = row.lastRunAt
             repo.previousRunAt = row.previousRunAt
             repo.lastRunNote = row.lastRunNote
+            repo.language = row.language ?? ""
             context.insert(repo)
             for fit in row.fits {
                 context.insert(RepoFit(myRepoID: repo.id, repoKey: fit.repo, rank: fit.rank,

@@ -208,6 +208,8 @@ struct MyRepoDTO: Codable, Equatable {
     var previousRunAt: Date?
     var lastRunNote: String
     var fits: [RepoFitDTO]
+    /// Nil in files from 1.17.0 (35).
+    var language: String? = nil
 }
 
 struct RepoFitDTO: Codable, Equatable {

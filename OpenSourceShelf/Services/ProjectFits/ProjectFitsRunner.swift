@@ -32,6 +32,14 @@ final class ProjectFitsRunner: ObservableObject {
     /// GitHub topics, language, licence, last push and archived flag per
     /// shelf repo (`dedupKey`), from reshelf's metadata store. Set at launch.
     static var factsSource: @MainActor () -> [String: RepoFacts] = { [:] }
+    private static var factsCache: [String: RepoFacts]?
+
+    /// The facts, read once and again at every run (the list's filters use
+    /// them on every redraw).
+    static func facts(reload: Bool = false) -> [String: RepoFacts] {
+        if reload || factsCache == nil { factsCache = factsSource() }
+        return factsCache ?? [:]
+    }
 
     /// The most fits a run keeps (Settings > Fits).
     static var limit: Int {
@@ -62,14 +70,16 @@ final class ProjectFitsRunner: ObservableObject {
         let summary = repo.summary
         let projectKey = fullName.lowercased()
         let hidden = Set(ProjectFitsService.fits(for: repoID, in: context).filter(\.isHidden).map(\.repoKey))
-        let inputs = Self.candidateInputs(in: context, excluding: projectKey, facts: Self.factsSource())
+        let inputs = Self.candidateInputs(in: context, excluding: projectKey, facts: Self.facts(reload: true))
         let others = ProjectFitsService.repos(in: context)
             .filter { $0.id != repoID && $0.fullName.lowercased() != projectKey }
             .map { OtherRepo(id: $0.id, fullName: $0.fullName,
                              text: $0.matchText.isEmpty ? $0.summary : $0.matchText,
                              needsReadme: $0.matchText.isEmpty) }
         let limit = Self.limit
-        let signature = FitScorer.runSignature(limit: limit)
+        let filters = FitFilters.current()
+        let projectLanguage = repo.language
+        let signature = FitScorer.runSignature(limit: limit, filters: filters.signature)
         // Only new repos when the saved list was made the same way (same
         // scoring, limit and filters); otherwise the whole shelf.
         var incremental: Incremental?
@@ -90,14 +100,17 @@ final class ProjectFitsRunner: ObservableObject {
             do {
                 let outcome = try await Self.findFits(fullName: fullName, summary: summary, inputs: inputs,
                                                       hidden: hidden, others: others,
-                                                      limit: limit, incremental: incremental) { [weak self] step in
+                                                      limit: limit, filters: filters,
+                                                      projectLanguage: projectLanguage,
+                                                      incremental: incremental) { [weak self] step in
                     self?.progress[repoID] = step
                 }
                 guard !Task.isCancelled else { return }
                 ProjectFitsService.saveMatchTexts(outcome.otherTexts, in: context)
                 ProjectFitsService.applyRun(repoID: repoID, found: outcome.fits.map { ($0.key, $0.why) },
                                             scores: outcome.scores, matchText: outcome.projectText,
-                                            signature: signature, note: outcome.note, in: context)
+                                            signature: signature, language: outcome.language,
+                                            note: outcome.note, in: context)
             } catch is CancellationError {
                 // Stopped: the saved list stays as it was.
             } catch {
@@ -121,6 +134,7 @@ final class ProjectFitsRunner: ObservableObject {
         let summary: String
         let clonePath: URL?
         var facts: RepoFacts? = nil
+        var license: String = ""
         /// When it came onto the shelf, and when it last changed upstream as
         /// far as reshelf knows (Find Fits Again looks at what is newer).
         var added: Date = .distantPast
@@ -165,7 +179,8 @@ final class ProjectFitsRunner: ObservableObject {
                 fullName: parsed.fullName, storedText: text,
                 summary: project.shortDescription.isEmpty ? project.longDescription : project.shortDescription,
                 clonePath: CatalogCloneService.isCloned(project) ? CatalogCloneService.existingClone(for: project) : nil,
-                facts: known, added: project.addedDate, updated: project.lastUpdatedDate))
+                facts: known, license: project.license, added: project.addedDate,
+                updated: project.lastUpdatedDate))
         }
         return out
     }
@@ -181,6 +196,8 @@ final class ProjectFitsRunner: ObservableObject {
         var projectText: String = ""
         /// Other repos of hers whose README this run read for the first time.
         var otherTexts: [UUID: String] = [:]
+        /// Her repo's language when this run read it ("" otherwise).
+        var language: String = ""
     }
 
     enum RunError: LocalizedError {
@@ -199,11 +216,23 @@ final class ProjectFitsRunner: ObservableObject {
 
     nonisolated static func findFits(fullName: String, summary: String, inputs: [CandidateInput],
                                      hidden: Set<String>, others: [OtherRepo] = [],
-                                     limit: Int = FitScorer.defaultLimit, incremental: Incremental? = nil,
+                                     limit: Int = FitScorer.defaultLimit, filters: FitFilters = FitFilters(),
+                                     projectLanguage: String = "", incremental: Incremental? = nil,
                                      report: @escaping @MainActor (Progress) -> Void) async throws -> Outcome {
         guard !inputs.isEmpty else { throw RunError.emptyShelf }
         let name = fullName.split(separator: "/").last.map(String.init) ?? fullName
-        let onShelf = Set(inputs.map(\.key))
+
+        // Her repo's language, once (Settings > Fits > Same language).
+        var language = projectLanguage
+        var readLanguage = ""
+        if language.isEmpty, incremental == nil || filters.sameLanguage {
+            readLanguage = (try? await ProjectFitsGitHub.language(fullName: fullName)) ?? ""
+            language = readLanguage
+        }
+        // Settings > Fits: only repos that pass take part (and stay listed).
+        let onShelf = Set(inputs.filter {
+            filters.allows(projectLanguage: language, facts: $0.facts, license: $0.license, lastUpdated: $0.updated)
+        }.map(\.key))
 
         // 1. Her repo, live (Find Fits Again keeps the text the saved list
         //    was matched against, so old and new scores compare).
@@ -223,7 +252,7 @@ final class ProjectFitsRunner: ObservableObject {
                                             limit: limit)
             return Outcome(fits: kept.map { ($0.key, $0.why) }, note: "Nothing new on your shelf since the last run.",
                            scores: Dictionary(kept.map { ($0.key, $0.score) }, uniquingKeysWith: { a, _ in a }),
-                           projectText: projectText)
+                           projectText: projectText, language: readLanguage)
         }
 
         // Her other repos: what they all share counts less. A README not read
@@ -258,7 +287,10 @@ final class ProjectFitsRunner: ObservableObject {
             return FitScorer.Candidate(key: input.key, name: input.name, isTopShelf: input.isTopShelf, text: text)
         }
         let first = FitScorer.ordered(FitScorer.score(project: projectText, others: ownTexts, candidates: candidates))
-            .filter { !hidden.contains($0.candidate.key) && (incremental?.changed.contains($0.candidate.key) ?? true) }
+            .filter {
+                onShelf.contains($0.candidate.key) && !hidden.contains($0.candidate.key)
+                    && (incremental?.changed.contains($0.candidate.key) ?? true)
+            }
         try Task.checkCancellation()
 
         // 3. Today's README for the best few.
@@ -342,6 +374,6 @@ final class ProjectFitsRunner: ObservableObject {
         }
         return Outcome(fits: fits, note: note,
                        scores: Dictionary(final.map { ($0.key, $0.score) }, uniquingKeysWith: { a, _ in a }),
-                       projectText: projectText, otherTexts: otherTexts)
+                       projectText: projectText, otherTexts: otherTexts, language: readLanguage)
     }
 }

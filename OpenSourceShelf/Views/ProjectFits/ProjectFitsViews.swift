@@ -11,26 +11,47 @@ struct FitsListModel {
     let projects: [ToolProject]
     let newIDs: Set<UUID>
     let hiddenCount: Int
+    /// Saved fits that Settings > Fits leaves out right now.
+    let filteredCount: Int
 
-    init(repo: MyRepo, fits: [RepoFit], allProjects: [ToolProject], search: String) {
+    init(repo: MyRepo, fits: [RepoFit], allProjects: [ToolProject], search: String,
+         filters: FitFilters = FitFilters(), facts: [String: RepoFacts] = [:], now: Date = Date()) {
         self.repo = repo
-        var byKey: [String: ToolProject] = [:]
-        for project in allProjects where !project.githubURL.isEmpty {
-            byKey[GitHubRepositoryURL.dedupKey(for: project.githubURL)] = project
-        }
+        let byKey = Self.byKey(allProjects)
         let mine = fits.filter { $0.myRepoID == repo.id }
         hiddenCount = mine.filter(\.isHidden).count
-        let shown = mine.filter { !$0.isHidden }.sorted { $0.rank < $1.rank }
+        let passing = Self.shown(mine, byKey: byKey, repo: repo, filters: filters, facts: facts, now: now)
+        filteredCount = mine.filter { !$0.isHidden && byKey[$0.repoKey] != nil }.count - passing.count
         var rows: [ToolProject] = []
         var newIDs = Set<UUID>()
-        for fit in shown {
-            guard let project = byKey[fit.repoKey] else { continue }
+        for (fit, project) in passing {
             if !search.isEmpty, !project.matchesSearch(search) { continue }
             rows.append(project)
             if fit.isNew { newIDs.insert(project.id) }
         }
         projects = rows
         self.newIDs = newIDs
+    }
+
+    static func byKey(_ projects: [ToolProject]) -> [String: ToolProject] {
+        var out: [String: ToolProject] = [:]
+        for project in projects where !project.githubURL.isEmpty {
+            out[GitHubRepositoryURL.dedupKey(for: project.githubURL)] = project
+        }
+        return out
+    }
+
+    /// The fits shown for one repo, in list order: not hidden, still on the
+    /// catalog, passing Settings > Fits. The sidebar count uses it too.
+    static func shown(_ fits: [RepoFit], byKey: [String: ToolProject], repo: MyRepo, filters: FitFilters,
+                      facts: [String: RepoFacts], now: Date = Date()) -> [(RepoFit, ToolProject)] {
+        fits.filter { $0.myRepoID == repo.id && !$0.isHidden }.sorted { $0.rank < $1.rank }.compactMap { fit in
+            guard let project = byKey[fit.repoKey],
+                  filters.allows(projectLanguage: repo.language, facts: facts[fit.repoKey],
+                                 license: project.license, lastUpdated: project.lastUpdatedDate, now: now)
+            else { return nil }
+            return (fit, project)
+        }
     }
 
     /// "4 fits · last run 10 Nov, 18:40"
@@ -49,6 +70,7 @@ struct FitsListModel {
         var parts = [subtitle]
         if !newIDs.isEmpty { parts.append("\(newIDs.count) new since the run before") }
         if hiddenCount > 0 { parts.append("\(hiddenCount) hidden") }
+        if filteredCount > 0 { parts.append("\(filteredCount) left out by Fits filters") }
         if !repo.lastRunNote.isEmpty { parts.append(repo.lastRunNote) }
         return parts.joined(separator: " · ")
     }

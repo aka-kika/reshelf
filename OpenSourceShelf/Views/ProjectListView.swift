@@ -17,6 +17,16 @@ struct ProjectListView: View {
     @Query(sort: \MyRepo.sortIndex) private var myRepos: [MyRepo]
     @Query private var repoFits: [RepoFit]
     @ObservedObject private var fitsRunner = ProjectFitsRunner.shared
+    // Settings > Fits: read here so the list redraws when one changes.
+    @AppStorage(FitFilters.sameLanguageKey) private var fitsSameLanguage = false
+    @AppStorage(FitFilters.updatedKey) private var fitsUpdated = FitFilters.Updated.any.rawValue
+    @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
+    @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
+
+    private var fitFilters: FitFilters {
+        FitFilters(sameLanguage: fitsSameLanguage, updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
+                   hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived)
+    }
 
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
     /// The search text the list actually filters on. Trails `searchText` by a
@@ -1045,7 +1055,8 @@ struct ProjectListView: View {
     private var fitsModel: FitsListModel? {
         guard let id = sidebarSelection?.myRepoID,
               let repo = myRepos.first(where: { $0.id == id }) else { return nil }
-        return FitsListModel(repo: repo, fits: repoFits, allProjects: allProjects, search: debouncedSearchText)
+        return FitsListModel(repo: repo, fits: repoFits, allProjects: allProjects, search: debouncedSearchText,
+                             filters: fitFilters, facts: ProjectFitsRunner.facts())
     }
 
     private var filteredProjects: [ToolProject] {

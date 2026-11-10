@@ -14,6 +14,7 @@ enum ProjectFitsGitHub {
         let archived: Bool
         let pushedAt: String?
         let topics: [String]?
+        let language: String?
 
         var id: String { fullName.lowercased() }
         var name: String { fullName.split(separator: "/").last.map(String.init) ?? fullName }
@@ -23,7 +24,7 @@ enum ProjectFitsGitHub {
             case description
             case htmlUrl = "html_url"
             case isPrivate = "private"
-            case fork, archived, topics
+            case fork, archived, topics, language
             case pushedAt = "pushed_at"
         }
     }
@@ -76,6 +77,17 @@ enum ProjectFitsGitHub {
         } catch CaptureError.notFound {
             return nil
         }
+    }
+
+    /// A repo's main language as GitHub names it ("Swift"), or "" when it
+    /// names none. Used once per repo for Settings > Fits > Same language.
+    static func language(fullName: String) async throws -> String {
+        guard let parsed = GitHubRepositoryURL.parseFullName(fullName),
+              let url = URL(string: "https://api.github.com/repos/\(parsed.owner)/\(parsed.name)")
+        else { return "" }
+        struct Info: Decodable { let language: String? }
+        let data = try await QuickCaptureService.getJSON(from: url, context: fullName)
+        return (try? JSONDecoder().decode(Info.self, from: data))?.language ?? ""
     }
 
     /// The README of a local clone, when there is one on disk.

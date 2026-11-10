@@ -140,6 +140,47 @@ func run() throws {
     check("run signature names version and limit",
           FitScorer.runSignature(limit: 15) != FitScorer.runSignature(limit: 20))
 
+    // 5c. Settings > Fits filters.
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let monthsAgo = { (m: Int) in Calendar(identifier: .gregorian).date(byAdding: .month, value: -m, to: now)! }
+    var f = FitFilters()
+    check("no filter lets everything through",
+          f.allows(projectLanguage: "Swift", language: "", isArchived: true, license: "AGPL-3.0", updated: nil, now: now)
+          && !f.isActive && f.signature.isEmpty)
+    f.sameLanguage = true
+    check("same language: match passes, ignoring case",
+          f.allows(projectLanguage: "Swift", language: "swift", isArchived: false, license: "", updated: nil, now: now))
+    check("same language: other or unknown language left out",
+          !f.allows(projectLanguage: "Swift", language: "Rust", isArchived: false, license: "", updated: nil, now: now)
+          && !f.allows(projectLanguage: "Swift", language: "", isArchived: false, license: "", updated: nil, now: now))
+    check("same language: her repo has none, nothing to compare",
+          f.allows(projectLanguage: "", language: "Rust", isArchived: false, license: "", updated: nil, now: now))
+    f = FitFilters(hideStrongCopyleft: true)
+    check("GPL and AGPL hidden, LGPL and MIT kept",
+          !f.allows(projectLanguage: "", language: "", isArchived: false, license: "GPL-3.0", updated: nil, now: now)
+          && !f.allows(projectLanguage: "", language: "", isArchived: false, license: "AGPL-3.0", updated: nil, now: now)
+          && f.allows(projectLanguage: "", language: "", isArchived: false, license: "LGPL-3.0", updated: nil, now: now)
+          && f.allows(projectLanguage: "", language: "", isArchived: false, license: "MIT", updated: nil, now: now))
+    f = FitFilters(hideArchived: true)
+    check("archived hidden", !f.allows(projectLanguage: "", language: "", isArchived: true, license: "", updated: nil, now: now))
+    f = FitFilters(updated: .sixMonths)
+    check("updated in the last 6 months: 5 months ago passes, 7 and unknown do not",
+          f.allows(projectLanguage: "", language: "", isArchived: false, license: "", updated: monthsAgo(5), now: now)
+          && !f.allows(projectLanguage: "", language: "", isArchived: false, license: "", updated: monthsAgo(7), now: now)
+          && !f.allows(projectLanguage: "", language: "", isArchived: false, license: "", updated: nil, now: now))
+    check("stored facts fill in: licence and push date",
+          !FitFilters(updated: .threeMonths).allows(projectLanguage: "", facts: RepoFacts(pushedAt: monthsAgo(4)),
+                                                    license: "", lastUpdated: nil, now: now)
+          && !FitFilters(hideStrongCopyleft: true).allows(projectLanguage: "", facts: RepoFacts(license: "GPL-2.0"),
+                                                          license: "", lastUpdated: nil, now: now))
+    check("a filter changes the run signature",
+          FitScorer.runSignature(limit: 15, filters: FitFilters(hideArchived: true).signature)
+          != FitScorer.runSignature(limit: 15))
+    let suite = UserDefaults(suiteName: "reshelf-fits-test-\(UUID().uuidString)")!
+    suite.set(true, forKey: FitFilters.sameLanguageKey)
+    suite.set("lastYear", forKey: FitFilters.updatedKey)
+    check("filters read from settings", FitFilters.current(suite) == FitFilters(sameLanguage: true, updated: .lastYear))
+
     // 6. Saved fits in the store.
     let ctx = try makeContext()
     let shelfRow = ToolProject(name: "Cleaner", githubURL: "https://github.com/Test/Cleaner", status: .topShelf)

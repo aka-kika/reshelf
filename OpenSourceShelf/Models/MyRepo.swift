@@ -31,6 +31,9 @@ final class MyRepo {
     /// version, limit, filters). Find Fits Again looks only at new repos
     /// while this still matches; otherwise it checks the whole shelf.
     var runSignature: String = ""
+    /// Her repo's main language on GitHub ("Swift"), for Settings > Fits >
+    /// Same language. Read when added, or on the first run after 1.17.0.
+    var language: String = ""
 
     init(fullName: String, githubURL: String, summary: String = "", sortIndex: Int = 0) {
         self.id = UUID()

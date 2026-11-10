@@ -48,6 +48,16 @@ struct SidebarView: View {
     @Query(sort: \MyRepo.sortIndex) private var myRepos: [MyRepo]
     @Query private var repoFits: [RepoFit]
     @ObservedObject private var fitsRunner = ProjectFitsRunner.shared
+    // Settings > Fits: read here so the list redraws when one changes.
+    @AppStorage(FitFilters.sameLanguageKey) private var fitsSameLanguage = false
+    @AppStorage(FitFilters.updatedKey) private var fitsUpdated = FitFilters.Updated.any.rawValue
+    @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
+    @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
+
+    private var fitFilters: FitFilters {
+        FitFilters(sameLanguage: fitsSameLanguage, updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
+                   hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived)
+    }
 
     @State private var renameTarget: CatalogFolder?
     @State private var deleteTarget: CatalogFolder?
@@ -82,6 +92,7 @@ struct SidebarView: View {
            let picked = SidebarTagRanking.tag(forKey: key, in: allProjects) {
             tags.append(picked)
         }
+        let fitsByKey = myRepos.isEmpty ? [:] : FitsListModel.byKey(allProjects)
         return VStack(spacing: 0) {
             // Leading inset clears the traffic lights, which share this row now
             // that the header is the title bar.
@@ -104,7 +115,7 @@ struct SidebarView: View {
                     ForEach(myRepos) { repo in
                         MyRepoSidebarRow(
                             repo: repo,
-                            count: visibleFitCount(of: repo),
+                            count: visibleFitCount(of: repo, byKey: fitsByKey),
                             isRunning: fitsRunner.isRunning(repo.id)
                         )
                         .contextMenu { myRepoMenu(repo) }
@@ -270,8 +281,10 @@ struct SidebarView: View {
         return shown
     }
 
-    private func visibleFitCount(of repo: MyRepo) -> Int {
-        repoFits.filter { $0.myRepoID == repo.id && !$0.isHidden }.count
+    /// Same count as the list shows (hidden and filtered fits left out).
+    private func visibleFitCount(of repo: MyRepo, byKey: [String: ToolProject]) -> Int {
+        FitsListModel.shown(repoFits, byKey: byKey, repo: repo, filters: fitFilters,
+                            facts: ProjectFitsRunner.facts()).count
     }
 
     /// Right-click on one of her repos. Plain words, no "…" (Kika's rule for

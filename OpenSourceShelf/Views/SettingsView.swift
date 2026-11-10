@@ -16,6 +16,13 @@ struct SettingsView: View {
     @AppStorage(LicenseInfo.warnStorageKey) private var warnOnStrictLicense = true
     @AppStorage(SidebarTagRanking.modeKey) private var sidebarTagsMode: SidebarTagRanking.Mode = .top
 
+    // Settings > Fits (Project fits, round 2)
+    @AppStorage(FitScorer.limitKey) private var fitsLimit = FitScorer.defaultLimit
+    @AppStorage(FitFilters.sameLanguageKey) private var fitsSameLanguage = false
+    @AppStorage(FitFilters.updatedKey) private var fitsUpdated = FitFilters.Updated.any.rawValue
+    @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
+    @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
+
     // Capture Assist backfill of entries without use cases
     @State private var isBackfilling = false
     @State private var backfillStatus = ""
@@ -52,6 +59,8 @@ struct SettingsView: View {
                 .tabItem { Label("Capture", systemImage: "sparkles") }
             libraryTab
                 .tabItem { Label("Library", systemImage: "books.vertical") }
+            fitsTab
+                .tabItem { Label("Fits", systemImage: "line.3.horizontal.decrease.circle") }
             guideTab
                 .tabItem { Label("Guide", systemImage: "book") }
             aboutTab
@@ -287,6 +296,51 @@ struct SettingsView: View {
                             return true
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// How Find Fits picks for every repo under My Repos (Kika, round 2).
+    private var fitsTab: some View {
+        SettingsPage {
+            SettingsSection("Fits", detail: "For every repo under My Repos. The lists change at once; the next Find Fits Again checks your whole shelf.") {
+                SettingsRow("Most fits", detail: "Only real fits are listed, so a list can be shorter.") {
+                    Picker("Most fits", selection: $fitsLimit) {
+                        ForEach(FitScorer.limitChoices, id: \.self) { Text("\($0)").tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+            SettingsDivider()
+            SettingsSection("Filters") {
+                SettingsRow("Same language only", detail: "Only shelf repos in your repo's main language on GitHub.") {
+                    Toggle("Same language only", isOn: $fitsSameLanguage)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                SettingsRow("Updated", detail: "When the repo last changed on GitHub.") {
+                    Picker("Updated", selection: $fitsUpdated) {
+                        ForEach(FitFilters.Updated.allCases) { Text($0.title).tag($0.rawValue) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+                SettingsRow("Licenses", detail: "GPL and AGPL ask you to share your own code under the same license.") {
+                    Picker("Licenses", selection: $fitsHideCopyleft) {
+                        Text("All").tag(false)
+                        Text("Hide GPL and AGPL").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+                SettingsRow("Hide archived repos", detail: "Repos their owner stopped working on.") {
+                    Toggle("Hide archived repos", isOn: $fitsHideArchived)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
                 }
             }
         }
