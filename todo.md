@@ -4,7 +4,12 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## Open
 
-- [ ] **Release steps for My Repos and Project fits** (branch `project-fits-2026-11-10`), after the release is installed:
+- [ ] **Fits round 2 leftovers** (branch `project-fits-2-2026-11-10`, build 1.17.0 (41) installed privately 10 Nov; a review runs on the branch next):
+  - Settings → General → Sidebar: **Reset to Default** and drag-reorder were checked by tests only (on m1 the Reset button was not reachable by accessibility, drag was not driven). Try both by hand.
+  - **New Fits / Analyze All Fits for all repos** (My Repos heading, Shelf menu) is unit-tested only; run it once live with the GitHub token.
+  - The fits list **Sort** (Best Fit, `CatalogSortOrder`) has no test group (the enum lives in `ProjectListView.swift`).
+  - On macOS 27.2 the system Settings item's accessibility name still ends in "…" (it shows without on 27.3). Watch it after macOS updates.
+- [ ] **Release steps for My Repos and Project fits** (branches `project-fits-2026-11-10` and `project-fits-2-2026-11-10`), after the release is installed:
   1. Back up the live skill folder `_INFRA/Skills-collection/kika-skills/reshelf/` to `_INFRA/backups/`.
   2. Copy `extras/reshelf-skill/scripts/shelf.py` and `SKILL.md` into its `claude/` folder (`claude/scripts/shelf.py`, `claude/SKILL.md`).
   3. Add the three `fits` commands and the "fits --here first" line to `cursor/reshelf.mdc` and `general/reshelf.md`. Do **not** replace their `shelf.py`: those copies (20 Oct) are older than `claude/` and lack the clone marker rules (a checkout counts as cloned only with `.git/reshelf-clone`, written after a clone; old clones adopted by origin). Kika decides whether they get the new script.
