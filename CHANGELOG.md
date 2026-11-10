@@ -7,6 +7,15 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
 
+### Fixed in build 42 (review of build 41, 10 Nov)
+- **Crash:** Check Clones for Updates no longer crashes when a repo is removed while its check runs (the inspector had the same, rarer case).
+- **Backups:** fits activity (a run, Hide, Keep, a filter) replaces the newest routine backup instead of adding one, so it no longer pushes your shelf history out of the 30 routine backups. "Before …" backups are never replaced.
+- **Analyze All Fits keeps the why lines** already written; only fits new on the list get one.
+- **A failed run says so** above a saved list (it was silent), and the saved list stays. A search with no hits in a fits list says No search results, and the header counts matches ("1 of 5 fits match"), never "0 fits".
+- **Remove from Sidebar** removes nothing when its backup can't be written, and says so. **Stop** after adding several repos stops all of them, not only the first.
+- **New Fits** keeps a saved fit whose repo changed but was not looked at again this run (it used to drop off with no way back).
+- **Speed:** the clone watcher ignores git's own writes in a clone (git status, fetch); shelf keys are remembered instead of parsed on every redraw; a backup fetches the catalog once; the menu bar is checked only when it changes; a run over all your repos reads each shelf README once.
+
 ### Changed in builds 36 to 41 (Kika's first look at build 35)
 - **Best fit first, real fits only.** No fixed 10 and no fixed Top Shelf slots: a list holds the repos that really fit, best first whichever shelf, up to the limit you pick. Top Shelf gets a small lift and wins a near tie; each row names its shelf instead of shelf headings.
 - **Specific fits win.** Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On Kika's shelf, repos listed for 3 or more of her 11 repos went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).

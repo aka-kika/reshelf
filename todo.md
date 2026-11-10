@@ -9,6 +9,7 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
   - **New Fits / Analyze All Fits for all repos** (My Repos heading, Shelf menu) is unit-tested only; run it once live with the GitHub token.
   - The fits list **Sort** (Best Fit, `CatalogSortOrder`) has no test group (the enum lives in `ProjectListView.swift`).
   - On macOS 27.2 the system Settings item's accessibility name still ends in "…" (it shows without on 27.3). Watch it after macOS updates.
+  - Left from the build 41 review (low, not on the card): the clone watcher never starts when the clones folder does not exist yet (fresh install, unplugged drive) until the setting changes; Check Clones for Updates runs `git status` next to each `ls-remote` (134 processes for 67 clones); whether the saved fits list should stay visible while a run is going (Kika's call). Build 42 fixed the 7 card items.
 - [ ] **Release steps for My Repos and Project fits** (branches `project-fits-2026-11-10` and `project-fits-2-2026-11-10`), after the release is installed:
   1. Back up the live skill folder `_INFRA/Skills-collection/kika-skills/reshelf/` to `_INFRA/backups/`.
   2. Copy `extras/reshelf-skill/scripts/shelf.py` and `SKILL.md` into its `claude/` folder (`claude/scripts/shelf.py`, `claude/SKILL.md`).
