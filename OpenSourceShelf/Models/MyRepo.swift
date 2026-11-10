@@ -28,7 +28,7 @@ final class MyRepo {
     /// fits every one of them is pushed down (round 2, 10 Nov).
     var matchText: String = ""
     /// What the last full run was set to (`FitScorer.runSignature`: scoring
-    /// version, limit, filters). Find Fits Again looks only at new repos
+    /// version, limit, filters). New Fits looks only at new repos
     /// while this still matches; otherwise it checks the whole shelf.
     var runSignature: String = ""
     /// Her repo's main language on GitHub ("Swift"), for Settings > Fits >
@@ -70,7 +70,7 @@ final class RepoFit {
     var isHidden: Bool = false
     var foundAt: Date = Date()
     /// The fit score from its run (`FitScorer.Scored.score`): the list is
-    /// ordered by it, and Find Fits Again merges new fits in by it.
+    /// ordered by it, and New Fits merges new fits in by it.
     var score: Double = 0
 
     init(myRepoID: UUID, repoKey: String, rank: Int, why: String, isNew: Bool, isHidden: Bool,

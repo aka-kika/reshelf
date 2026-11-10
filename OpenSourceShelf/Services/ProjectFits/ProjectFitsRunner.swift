@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Runs Find Fits for one of Kika's repos, only when she asks (adding a repo,
-/// Find Fits Again). Nothing here starts on its own.
+/// New Fits). Nothing here starts on its own.
 ///
 /// 1. Her repo: today's README and description from GitHub.
 /// 2. First pass over every Top Shelf and Collector repo, from what reshelf
@@ -53,8 +53,8 @@ final class ProjectFitsRunner: ObservableObject {
         tasks[repoID]?.cancel()
     }
 
-    /// Find Fits Again looks only at shelf repos new or changed since the
-    /// last run; Check All Again (and a first run) looks at the whole shelf.
+    /// New Fits looks only at shelf repos new or changed since the
+    /// last run; Analyze All Fits (and a first run) looks at the whole shelf.
     enum Mode: Sendable { case newOnly, all }
 
     /// Runs Find Fits for each repo in turn (the Add popup adds several).
@@ -136,12 +136,12 @@ final class ProjectFitsRunner: ObservableObject {
         var facts: RepoFacts? = nil
         var license: String = ""
         /// When it came onto the shelf, and when it last changed upstream as
-        /// far as reshelf knows (Find Fits Again looks at what is newer).
+        /// far as reshelf knows (New Fits looks at what is newer).
         var added: Date = .distantPast
         var updated: Date? = nil
     }
 
-    /// Find Fits Again: her saved text and list, and which shelf repos are
+    /// New Fits: her saved text and list, and which shelf repos are
     /// new or changed since the last run.
     struct Incremental: Sendable {
         let projectText: String
@@ -234,7 +234,7 @@ final class ProjectFitsRunner: ObservableObject {
             filters.allows(projectLanguage: language, facts: $0.facts, license: $0.license, lastUpdated: $0.updated)
         }.map(\.key))
 
-        // 1. Her repo, live (Find Fits Again keeps the text the saved list
+        // 1. Her repo, live (New Fits keeps the text the saved list
         //    was matched against, so old and new scores compare).
         let projectText: String
         if let incremental {
@@ -323,7 +323,7 @@ final class ProjectFitsRunner: ObservableObject {
         let picked = FitScorer.pick(second, hidden: hidden, limit: limit)
         try Task.checkCancellation()
 
-        // Find Fits Again: the new fits join the saved list by score.
+        // New Fits: the new fits join the saved list by score.
         let final: [FitIncremental.Saved]
         let pickedSaved = picked.map {
             FitIncremental.Saved(key: $0.candidate.key, why: "", score: $0.score, isTopShelf: $0.candidate.isTopShelf)

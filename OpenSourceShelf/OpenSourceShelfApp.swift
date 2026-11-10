@@ -472,10 +472,10 @@ struct OpenSourceShelfApp: App {
 
                 // Project fits: runs only when asked, for the repo picked
                 // under My Repos. No "…" (Kika, round 2).
-                Button("Find Fits Again") {
+                Button("New Fits") {
                     NotificationCenter.default.post(name: .findFitsAgain, object: nil)
                 }
-                Button("Check All Again") {
+                Button("Analyze All Fits") {
                     NotificationCenter.default.post(name: .checkAllFitsAgain, object: nil)
                 }
                 Button("Add Your Repos to the Sidebar") {

@@ -370,8 +370,8 @@ struct SettingsView: View {
                          text: "The + next to My Repos lists your own GitHub repos. Pick the ones you work on.")
                 GuideRow(step: 2, title: "Find Fits",
                          text: "Reads its README and lists the shelf repos that fit it, best first, with a line on why. It runs only when you ask.")
-                GuideRow(step: 3, title: "Find Fits Again",
-                         text: "Looks only at repos saved or changed since the last run. Check All Again looks at your whole shelf.")
+                GuideRow(step: 3, title: "New Fits",
+                         text: "Looks only at repos saved or changed since the last run. Analyze All Fits looks at your whole shelf.")
                 GuideRow(symbol: "circle.fill", tint: .accentColor.opacity(0.7),
                          title: "New fit", text: "Not in the list the run before.")
                 GuideRow(symbol: "eye.slash", tint: nil, title: "Hide a fit",

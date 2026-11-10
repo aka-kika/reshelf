@@ -119,9 +119,9 @@ struct FitsEmptyState: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 280)
                 HStack(spacing: 8) {
-                    Button(repo.lastRunAt == nil ? "Find Fits" : "Find Fits Again", action: onFind)
+                    Button(repo.lastRunAt == nil ? "Find Fits" : "New Fits", action: onFind)
                     if repo.lastRunAt != nil, let onCheckAll {
-                        Button("Check All Again", action: onCheckAll)
+                        Button("Analyze All Fits", action: onCheckAll)
                     }
                 }
                 .controlSize(.small)

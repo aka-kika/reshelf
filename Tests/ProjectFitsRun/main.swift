@@ -92,7 +92,7 @@ func run() async throws {
     check("saved text not read again", withOthers.otherTexts[otherC] == nil
           && !FakeGitHub.requested.contains("/repos/kika/localpen/readme"))
 
-    // 3c. Find Fits Again with nothing new: the saved list stands, no calls.
+    // 3c. New Fits with nothing new: the saved list stands, no calls.
     FakeGitHub.requested = []
     let saved = outcome.fits.map { FitIncremental.Saved(key: $0.key, why: $0.why, score: outcome.scores[$0.key] ?? 0,
                                                         isTopShelf: $0.key == "tw93/mole") }
@@ -154,13 +154,13 @@ func run() async throws {
     // 6. The whole run through the shared runner saves the list with its time.
     let added = ProjectFitsService.add([("kika/Sift", "https://github.com/kika/Sift", "Scores Mac apps")], in: ctx)
     await ProjectFitsRunner.shared.run(added[0].id, mode: .newOnly, in: ctx)
-    check("run saved (Find Fits Again on a never-run repo checks all)", added[0].lastRunAt != nil
+    check("run saved (New Fits on a never-run repo checks all)", added[0].lastRunAt != nil
           && ProjectFitsService.fits(for: added[0].id, in: ctx).contains { $0.repoKey == "tw93/mole" })
     check("run saved its signature and text", added[0].runSignature == FitScorer.runSignature(limit: ProjectFitsRunner.limit)
           && !added[0].matchText.isEmpty)
     FakeGitHub.requested = []
     await ProjectFitsRunner.shared.run(added[0].id, mode: .newOnly, in: ctx)
-    check("Find Fits Again right after: no GitHub calls", FakeGitHub.requested.isEmpty
+    check("New Fits right after: no GitHub calls", FakeGitHub.requested.isEmpty
           && added[0].lastRunNote.contains("Nothing new"))
     check("runner idle afterwards", !ProjectFitsRunner.shared.isRunning(added[0].id))
 

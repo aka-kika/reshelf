@@ -307,12 +307,12 @@ struct SidebarView: View {
         if fitsRunner.isRunning(repo.id) {
             Button("Stop Finding Fits") { fitsRunner.stop(repo.id) }
         } else {
-            Button(repo.lastRunAt == nil ? "Find Fits" : "Find Fits Again") {
+            Button(repo.lastRunAt == nil ? "Find Fits" : "New Fits") {
                 NotificationCenter.default.post(name: .findFitsAgain, object: repo.id)
             }
             .help("Looks only at shelf repos new or changed since the last run")
             if repo.lastRunAt != nil {
-                Button("Check All Again") {
+                Button("Analyze All Fits") {
                     NotificationCenter.default.post(name: .checkAllFitsAgain, object: repo.id)
                 }
                 .help("Looks at your whole shelf again")

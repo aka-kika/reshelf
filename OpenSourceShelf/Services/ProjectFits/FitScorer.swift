@@ -12,7 +12,7 @@ import Foundation
 /// Nov) dropped Apple's sentence embedding: on her shelf it rated a Markdown
 /// notes app closer to Sift than the uninstallers that really fit.
 enum FitScorer {
-    /// Bumped when the scoring changes, so the next Find Fits Again checks
+    /// Bumped when the scoring changes, so the next New Fits checks
     /// the whole shelf instead of only what is new.
     static let version = 2
     /// How many fits at most (Settings > Fits). Only real fits are shown, so
@@ -23,7 +23,7 @@ enum FitScorer {
     /// How many candidates get today's README in the second pass: the limit
     /// plus room for the ones that drop out once their README is read.
     static func shortlistCount(for limit: Int) -> Int { limit + 10 }
-    /// What a saved list was made with. Find Fits Again only adds new repos
+    /// What a saved list was made with. New Fits only adds new repos
     /// to a list made the same way; any change means checking all again.
     static func runSignature(limit: Int, filters: String = "") -> String {
         "v\(version) limit \(limit)" + (filters.isEmpty ? "" : " " + filters)
@@ -310,7 +310,7 @@ enum FitScorer {
     }
 }
 
-/// Find Fits Again (round 2, Kika: "it should not reanalyze all, it should
+/// New Fits (round 2, Kika: "it should not reanalyze all, it should
 /// analyze the new reshelfs"): only shelf repos added or changed since the
 /// last run are scored, then merged into the saved list by score.
 enum FitIncremental {

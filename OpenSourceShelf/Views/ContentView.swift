@@ -759,7 +759,7 @@ private struct ProjectFitsHandlers: ViewModifier {
         guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else {
             NotificationCenter.default.post(
                 name: .catalogStatusNotice,
-                object: "Pick one of your repos under My Repos first, then Find Fits Again.")
+                object: "Pick one of your repos under My Repos first.")
             return
         }
         sidebarSelection = .myRepo(id)

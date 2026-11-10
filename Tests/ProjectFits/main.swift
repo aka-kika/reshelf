@@ -115,7 +115,7 @@ func run() throws {
     check("first run marks nothing new",
           FitMerge.merge(previous: [], found: [("a", ""), ("b", "")], isFirstRun: true).allSatisfy { !$0.isNew })
 
-    // 5b. Find Fits Again: only repos added or changed since the last run,
+    // 5b. New Fits: only repos added or changed since the last run,
     //     merged into the saved list by score.
     let lastRun = Date(timeIntervalSince1970: 1_000_000)
     let changed = FitIncremental.changed([
