@@ -492,7 +492,8 @@ struct OpenSourceShelfApp: App {
         // window size. Tabs taller than this (Guide) scroll.
         Settings {
             SettingsView()
-                .frame(width: 560, height: 620)
+                // Each tab sets its own height (SettingsPage).
+                .frame(width: 560)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
         .windowResizability(.contentSize)

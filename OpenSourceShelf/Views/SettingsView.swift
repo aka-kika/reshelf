@@ -304,7 +304,7 @@ struct SettingsView: View {
     /// How Find Fits picks for every repo under My Repos (Kika, round 2).
     private var fitsTab: some View {
         SettingsPage {
-            SettingsSection("Fits", detail: "For every repo under My Repos. The lists change at once; the next Find Fits Again checks your whole shelf.") {
+            SettingsSection("Fits", detail: "For every repo under My Repos. Lists update at once.") {
                 SettingsRow("Most fits", detail: "Only real fits are listed, so a list can be shorter.") {
                     Picker("Most fits", selection: $fitsLimit) {
                         ForEach(FitScorer.limitChoices, id: \.self) { Text("\($0)").tag($0) }
@@ -328,7 +328,7 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                SettingsRow("Licenses", detail: "GPL and AGPL ask you to share your own code under the same license.") {
+                SettingsRow("Licenses", detail: "GPL and AGPL ask you to share your code too.") {
                     Picker("Licenses", selection: $fitsHideCopyleft) {
                         Text("All").tag(false)
                         Text("Hide GPL and AGPL").tag(true)
@@ -365,6 +365,21 @@ struct SettingsView: View {
                          title: "No clear license", text: "Study it, but don't copy its code.")
             }
             SettingsDivider()
+            SettingsSection("My Repos and Fits") {
+                GuideRow(step: 1, title: "Add your repos",
+                         text: "The + next to My Repos lists your own GitHub repos. Pick the ones you work on.")
+                GuideRow(step: 2, title: "Find Fits",
+                         text: "Reads its README and lists the shelf repos that fit it, best first, with a line on why. It runs only when you ask.")
+                GuideRow(step: 3, title: "Find Fits Again",
+                         text: "Looks only at repos saved or changed since the last run. Check All Again looks at your whole shelf.")
+                GuideRow(symbol: "circle.fill", tint: .accentColor.opacity(0.7),
+                         title: "New fit", text: "Not in the list the run before.")
+                GuideRow(symbol: "eye.slash", tint: nil, title: "Hide a fit",
+                         text: "Right-click it. It stays hidden through later runs until Show Hidden Fits.")
+                GuideRow(symbol: "line.3.horizontal.decrease.circle", tint: nil, title: "Fits settings",
+                         text: "How many fits, and filters: language, last update, licenses, archived.")
+            }
+            SettingsDivider()
             SettingsSection("Keys") {
                 GuideRow(keys: "⌘N", title: "Quick Capture", text: "Save a repo from its GitHub link.")
                 GuideRow(keys: "⌘V", title: "Paste a link", text: "A copied GitHub link opens Quick Capture.")
@@ -377,6 +392,8 @@ struct SettingsView: View {
                 GuideRow(step: 2, title: "Ask about your shelf", text: "“Look at my shelf for a markdown editor.”")
                 GuideRow(step: 3, title: "It finds and clones",
                          text: "Top Shelf first, then The Collector. It warns about licenses and clones only after you say yes.")
+                GuideRow(step: 4, title: "Inside one of your repos",
+                         text: "It reads that repo's saved fits first. It never runs Find Fits itself.")
             }
         }
     }
@@ -489,7 +506,8 @@ struct SettingsView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.bottom, 18)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: 440)
     }
 
     private var appVersionString: String {
@@ -591,9 +609,14 @@ struct SettingsView: View {
 //
 // Semantic colors only (.primary / .secondary / .tertiary), so both appearances work.
 
-/// A scrolling tab page with the shared margins.
+/// A tab page with the shared margins, as tall as its content (Kika, round
+/// 2: "too much empty space in tabs"), so the window shrinks to a short tab
+/// and grows for a long one. Past `maxHeight` it scrolls.
 private struct SettingsPage<Content: View>: View {
     @ViewBuilder var content: Content
+    @State private var contentHeight: CGFloat = 0
+
+    static var maxHeight: CGFloat { 640 }
 
     var body: some View {
         ScrollView {
@@ -601,10 +624,21 @@ private struct SettingsPage<Content: View>: View {
                 content
             }
             .padding(.horizontal, 28)
-            .padding(.vertical, 22)
+            .padding(.vertical, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(GeometryReader { geometry in
+                Color.clear.preference(key: SettingsPageHeight.self, value: geometry.size.height)
+            })
         }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(height: min(max(contentHeight, 120), Self.maxHeight))
+        .onPreferenceChange(SettingsPageHeight.self) { contentHeight = $0 }
     }
+}
+
+private struct SettingsPageHeight: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// A quiet section title, optional one-line help, then its rows.
@@ -670,7 +704,7 @@ private struct SettingsRow<Control: View>: View {
 /// The one hairline between sections.
 private struct SettingsDivider: View {
     var body: some View {
-        Divider().padding(.vertical, 18)
+        Divider().padding(.vertical, 14)
     }
 }
 
