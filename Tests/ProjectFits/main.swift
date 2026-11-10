@@ -149,6 +149,12 @@ func run() throws {
     let pinnedChanged = FitIncremental.mergeLimited(saved: [s("p", 0.2, true), s("q", 0.5, false)], new: [],
                                                     changed: ["p", "q"], onShelf: ["p", "q"], limit: 5)
     check("a kept fit stays through New Fits even when it changed", pinnedChanged.list.map(\.key) == ["p"])
+    // 86ba: a changed saved fit outside the shortlist was not scored again,
+    // so it keeps its place; one scored again and not picked goes.
+    let outside = FitIncremental.mergeLimited(saved: [s("far", 0.3, false), s("near", 0.4, false)], new: [],
+                                              changed: ["far", "near"], onShelf: ["far", "near"], limit: 5,
+                                              rescored: ["near"])
+    check("86ba: a changed fit New Fits did not look at again stays", outside.list.map(\.key) == ["far"])
 
     check("run signature names version and limit",
           FitScorer.runSignature(limit: 15) != FitScorer.runSignature(limit: 20))

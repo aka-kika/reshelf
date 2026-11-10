@@ -367,12 +367,17 @@ enum FitIncremental {
         mergeLimited(saved: saved, new: new, changed: changed, onShelf: onShelf, limit: limit).list
     }
 
+    /// `rescored`: the changed repos this run scored again (the shortlist).
+    /// A changed saved fit outside it was not looked at, so it keeps its
+    /// saved place instead of dropping off with no way back (86ba). Nil:
+    /// every changed repo was scored again.
     static func mergeLimited(saved: [Saved], new: [Saved], changed: Set<String>, onShelf: Set<String>,
-                             limit: Int) -> Limited {
+                             limit: Int, rescored: Set<String>? = nil) -> Limited {
         let newKeys = Set(new.map(\.key))
         let pinned = Set(saved.filter(\.isPinned).map(\.key))
         let kept = saved.filter {
-            onShelf.contains($0.key) && !newKeys.contains($0.key) && (!changed.contains($0.key) || $0.isPinned)
+            onShelf.contains($0.key) && !newKeys.contains($0.key)
+                && (!changed.contains($0.key) || $0.isPinned || !(rescored?.contains($0.key) ?? true))
         }
         let fresh = new.map { item -> Saved in
             var copy = item

@@ -411,7 +411,8 @@ final class ProjectFitsRunner: ObservableObject {
         let limited: FitIncremental.Limited
         if let incremental {
             limited = FitIncremental.mergeLimited(saved: incremental.saved, new: pickedSaved,
-                                                  changed: incremental.changed, onShelf: onShelf, limit: limit)
+                                                  changed: incremental.changed, onShelf: onShelf, limit: limit,
+                                                  rescored: shortSet)
         } else {
             let pickedKeys = Set(pickedSaved.map(\.key))
             let keptStill = saved.filter { $0.isPinned && onShelf.contains($0.key) && !pickedKeys.contains($0.key) }
