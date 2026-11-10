@@ -394,8 +394,9 @@ struct QuickCaptureSheet: View {
     private var aiSuggestionsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.purple)
+                // Never the sparkle icon (Kika's rule for every app).
+                Image(systemName: "lightbulb")
+                    .foregroundStyle(.secondary)
                     .font(.system(size: 12))
                 Text("AI Suggestions")
                     .font(.system(size: 10, weight: .semibold))

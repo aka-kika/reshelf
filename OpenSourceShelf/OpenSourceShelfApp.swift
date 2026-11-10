@@ -273,11 +273,6 @@ final class FormatMenuPruner: NSObject, NSApplicationDelegate {
     private static func stripEllipsis(_ menu: NSMenu?, deep: Bool = true) {
         guard let menu else { return }
         for item in menu.items {
-            if item.title == "Settings…" || item.title == "Settings...", item.isHidden == false {
-                item.isHidden = true
-                item.keyEquivalent = ""
-                continue
-            }
             for suffix in ["…", "..."] where item.title.hasSuffix(suffix) {
                 item.title = String(item.title.dropLast(suffix.count))
                     .trimmingCharacters(in: .whitespaces)
@@ -378,14 +373,6 @@ struct OpenSourceShelfApp: App {
                     updaterService.checkForUpdates()
                 }
                 .disabled(!updaterService.canCheckForUpdates)
-            }
-
-            // Kika's rule: no "…" in menus. The system's own "Settings…"
-            // item cannot be retitled (SwiftUI sets it back), so this one
-            // stands in and FormatMenuPruner hides the system one.
-            CommandGroup(after: .appInfo) {
-                SettingsLink { Text("Settings") }
-                    .keyboardShortcut(",", modifiers: .command)
             }
 
             CommandGroup(replacing: .newItem) {
@@ -531,8 +518,8 @@ struct OpenSourceShelfApp: App {
 
         }
 
-        // Standard macOS Settings — app-menu "Settings" (⌘,; its "…" is
-        // stripped by FormatMenuPruner).
+        // Standard macOS Settings — the system's app-menu "Settings" (⌘,).
+        // Only this one item: a second one doubled it (Kika, build 37).
         //
         // One fixed size for every tab (Kika's spec: 560pt wide, no resizing
         // per tab). A fixed frame with .contentSize also overrides an old saved

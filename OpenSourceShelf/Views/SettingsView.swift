@@ -56,7 +56,7 @@ struct SettingsView: View {
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
             captureTab
-                .tabItem { Label("Capture", systemImage: "sparkles") }
+                .tabItem { Label("Capture", systemImage: "tray.and.arrow.down") }
             libraryTab
                 .tabItem { Label("Library", systemImage: "books.vertical") }
             fitsTab

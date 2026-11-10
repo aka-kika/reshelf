@@ -7,7 +7,7 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
 
-### Changed in builds 36 and 37 (Kika's first look at build 35)
+### Changed in builds 36 to 38 (Kika's first look at build 35)
 - **Best fit first, real fits only.** No fixed 10 and no fixed Top Shelf slots: a list holds the repos that really fit, best first whichever shelf, up to the limit you pick. Top Shelf gets a small lift and wins a near tie; each row names its shelf instead of shelf headings.
 - **Specific fits win.** Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On Kika's shelf, repos listed for 3 or more of her 11 repos went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).
 - **New Fits looks only at what is new** (shelf repos saved or changed since the last run) and slots them into the saved list; with nothing new it says so without asking GitHub. **Analyze All Fits** looks at the whole shelf.
@@ -15,7 +15,8 @@ All notable changes to **reshelf** are documented here. This project follows
 - **My Repos** shows the GitHub mark, and its first 5 with Show more / Show less.
 - **Settings tabs fit their content** (no more mostly empty window), and the Guide tab explains My Repos and Find Fits.
 - **New Fits** (only repos new since the last run) and **Analyze All Fits** (the whole shelf) are the menu names (Kika's wording).
-- **No "…" in any menu item or button** (Kika's rule for all her apps): File, Shelf, right-click menus, Settings buttons, and the system's own Settings and Start Dictation items. Progress text like "Cloning…" stays.
+- **No "…" in any menu item or button** (Kika's rule for all her apps): File, Shelf, right-click menus, Settings buttons, Start Dictation. The app menu keeps the system's one Settings item (⌘,). Progress text like "Cloning…" stays.
+- **No sparkle icons:** the Capture tab shows a tray, Quick Capture's AI Suggestions a lightbulb.
 - The skill's `shelf.py fits` follows the new order and the Fits filters.
 
 ### Added
