@@ -777,6 +777,11 @@ final class CloneFolderWatcher {
         stop()
         guard FileManager.default.fileExists(atPath: standardized.path) else { return }
         self.root = standardized
+        // The callback reads these on the watcher's queue (no race with main).
+        queue.sync {
+            queueRoot = standardized.path
+            seenMarked = []
+        }
         var context = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
                                            retain: nil, release: nil, copyDescription: nil)
         let callback: FSEventStreamCallback = { _, info, count, paths, _, _ in
@@ -804,8 +809,19 @@ final class CloneFolderWatcher {
         self.stream = nil
     }
 
+    /// Watcher-queue copies: the root being watched, and the `.git` folders
+    /// already seen with reshelf's marker.
+    private var queueRoot: String?
+    private var seenMarked: Set<String> = []
+
     private func received(_ paths: [String]) {
-        guard let root, paths.contains(where: { Self.isRelevant($0, root: root.path) }) else { return }
+        guard let root = queueRoot else { return }
+        // Every path, no early exit: a marker seen in this batch is recorded.
+        var relevant = false
+        for path in paths where Self.isRelevant(path, root: root) {
+            if countsGitWrite(at: path, root: root) { relevant = true }
+        }
+        guard relevant else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.pending?.cancel()
@@ -813,6 +829,25 @@ final class CloneFolderWatcher {
             self.pending = work
             DispatchQueue.main.asyncAfter(deadline: .now() + self.settle, execute: work)
         }
+    }
+
+    /// A change in a clone's `.git` matters only until its marker is there
+    /// and seen once: after that, `git status`, a fetch or an editor's git
+    /// writing there would rescan the whole root each time (d135). Paths of
+    /// other shapes always count. Runs on the watcher's queue.
+    private func countsGitWrite(at path: String, root: String) -> Bool {
+        let gitDir = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL
+        guard gitDir.lastPathComponent == ".git", gitDir.path != root else { return true }
+        return Self.countsGitWrite(gitDir: gitDir, seen: &seenMarked)
+    }
+
+    /// True while the clone has no marker (a clone in progress, or one a
+    /// scan may stamp), and once more when the marker first shows up.
+    static func countsGitWrite(gitDir: URL, seen: inout Set<String>) -> Bool {
+        let marked = FileManager.default.fileExists(
+            atPath: gitDir.appendingPathComponent(CatalogCloneService.cloneMarkerFileName).path)
+        guard marked else { return true }
+        return seen.insert(gitDir.path).inserted
     }
 
     /// The root, a category folder (a clone folder appeared or went), or a

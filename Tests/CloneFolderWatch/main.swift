@@ -45,6 +45,26 @@ waitFor(6) { calls > 0 }
 check("a new clone folder gives a rescan", calls >= 1)
 waitFor(1.5) { false }
 check("a burst of writes gives one rescan, not twenty", calls <= 2)
+// d135: once the marker is there and seen, git status, a fetch or an editor
+// writing in .git do not rescan the whole root again.
+let settled = calls
+for i in 0..<5 {
+    try! "x".write(to: clone.appendingPathComponent("index"), atomically: true, encoding: .utf8)
+    try! "y\(i)".write(to: clone.appendingPathComponent("FETCH_HEAD"), atomically: false, encoding: .utf8)
+    waitFor(0.4) { false }
+}
+waitFor(2.0) { false }
+check("d135: writes in a marked clone's .git give no rescan", calls == settled)
+var seen = Set<String>()
+let unmarked = base.appendingPathComponent("plain/.git")
+try! fm.createDirectory(at: unmarked, withIntermediateDirectories: true)
+check("d135: an unmarked clone's .git always counts",
+      CloneFolderWatcher.countsGitWrite(gitDir: unmarked, seen: &seen)
+      && CloneFolderWatcher.countsGitWrite(gitDir: unmarked, seen: &seen))
+try! "".write(to: unmarked.appendingPathComponent("reshelf-clone"), atomically: false, encoding: .utf8)
+check("d135: the marker counts once when it shows up",
+      CloneFolderWatcher.countsGitWrite(gitDir: unmarked, seen: &seen)
+      && !CloneFolderWatcher.countsGitWrite(gitDir: unmarked, seen: &seen))
 let before = calls
 try! fm.removeItem(at: root.appendingPathComponent("macOS/newrepo"))
 waitFor(6) { calls > before }
