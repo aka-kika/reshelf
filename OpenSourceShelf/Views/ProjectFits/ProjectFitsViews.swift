@@ -101,9 +101,15 @@ struct FitsEmptyState: View {
                 Button("Stop", action: onStop)
                     .controlSize(.small)
             } else {
-                Image(systemName: repo.lastRunAt == nil ? "hammer" : "line.3.horizontal.decrease.circle")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary.opacity(0.35))
+                Group {
+                    if repo.lastRunAt == nil {
+                        GitHubMarkIcon(size: 28)
+                    } else {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .font(.system(size: 28))
+                    }
+                }
+                .foregroundStyle(.secondary.opacity(0.35))
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -218,5 +224,32 @@ enum SidebarFold {
         guard !showAll, items.count > limit else { return items }
         let shown = Array(items.prefix(limit))
         return shown + items.dropFirst(limit).filter(keep).prefix(1)
+    }
+}
+
+/// The GitHub mark for her own repos (Kika, round 2: "lets use the github
+/// icon instead of hammer"). The same bundled mono PDF the About tab uses,
+/// as a template image so it takes the sidebar's grey like the SF Symbols.
+struct GitHubMarkIcon: View {
+    var size: CGFloat = 13
+
+    private static let image: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "social-github", withExtension: "pdf", subdirectory: "SocialIcons"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.isTemplate = true
+        return image
+    }()
+
+    var body: some View {
+        if let image = Self.image {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+        } else {
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                .font(.system(size: size - 1))
+        }
     }
 }

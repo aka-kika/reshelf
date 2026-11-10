@@ -473,9 +473,8 @@ private struct MyRepoSidebarRow: View {
 
     var body: some View {
         HStack {
-            Image(systemName: "hammer")
+            GitHubMarkIcon(size: 13)
                 .frame(width: 20)
-                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             Text(repo.displayName)
                 .font(.system(size: 13))
