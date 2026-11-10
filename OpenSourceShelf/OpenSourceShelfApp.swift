@@ -278,7 +278,10 @@ struct OpenSourceShelfApp: App {
         }
 
         do {
-            let schema = Schema([ToolProject.self, AppSettings.self, CatalogFolder.self])
+            // MyRepo and RepoFit (Project fits) are new tables: SwiftData adds
+            // them to an existing store by itself.
+            let schema = Schema([ToolProject.self, AppSettings.self, CatalogFolder.self,
+                                 MyRepo.self, RepoFit.self])
             // Use an app-specific store under ~/reshelf instead of the shared,
             // non-namespaced ~/Library/Application Support/default.store. The shared
             // store is dangerous for a non-sandboxed app: any other SwiftData app or
@@ -302,6 +305,17 @@ struct OpenSourceShelfApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+
+        // Backups and restores carry My Repos and their fits.
+        CatalogBackupService.myReposSource = { context in
+            if let context { ProjectFitsService.refreshSnapshot(in: context) }
+            return ProjectFitsService.latestSnapshot
+        }
+        CatalogBackupService.myReposRestorer = { rows, context in
+            guard !rows.isEmpty else { return }
+            ProjectFitsService.merge(rows, in: context)
+        }
+        ProjectFitsService.refreshSnapshot(in: container.mainContext)
     }
 
     var body: some Scene {
