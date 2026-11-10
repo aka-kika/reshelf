@@ -511,6 +511,12 @@ struct OpenSourceShelfApp: App {
                 Button("Analyze All Fits") {
                     NotificationCenter.default.post(name: .checkAllFitsAgain, object: nil)
                 }
+                Button("New Fits for All My Repos") {
+                    NotificationCenter.default.post(name: .fitsForAllRepos, object: "new")
+                }
+                Button("Analyze All Fits for All My Repos") {
+                    NotificationCenter.default.post(name: .fitsForAllRepos, object: "all")
+                }
                 Button("Add Your Repos to the Sidebar") {
                     NotificationCenter.default.post(name: .addMyRepos, object: nil)
                 }
@@ -658,6 +664,9 @@ extension Notification.Name {
     static let findFitsAgain = Notification.Name("findFitsAgain")
     /// The same, but over the whole shelf instead of only what is new.
     static let checkAllFitsAgain = Notification.Name("checkAllFitsAgain")
+    /// New Fits or Analyze All Fits for every repo under My Repos, one after
+    /// another (object: "new" or "all").
+    static let fitsForAllRepos = Notification.Name("fitsForAllRepos")
     /// Show the hidden fits of one of her repos (object: its UUID).
     static let showHiddenFits = Notification.Name("showHiddenFits")
     /// Hide one fit from one of her repos (object: the catalog row's UUID).

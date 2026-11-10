@@ -15,12 +15,14 @@ struct FitsListModel {
     let filteredCount: Int
 
     init(repo: MyRepo, fits: [RepoFit], allProjects: [ToolProject], search: String,
-         filters: FitFilters = FitFilters(), facts: [String: RepoFacts] = [:], now: Date = Date()) {
+         filters: FitFilters = FitFilters(), limit: Int = .max, facts: [String: RepoFacts] = [:],
+         now: Date = Date()) {
         self.repo = repo
         let byKey = Self.byKey(allProjects)
         let mine = fits.filter { $0.myRepoID == repo.id }
         hiddenCount = mine.filter(\.isHidden).count
-        let passing = Self.shown(mine, byKey: byKey, repo: repo, filters: filters, facts: facts, now: now)
+        let passing = Self.shown(mine, byKey: byKey, repo: repo, filters: filters, limit: limit, facts: facts,
+                                 now: now)
         filteredCount = mine.filter { !$0.isHidden && byKey[$0.repoKey] != nil }.count - passing.count
         var rows: [ToolProject] = []
         var newIDs = Set<UUID>()
@@ -44,14 +46,17 @@ struct FitsListModel {
     /// The fits shown for one repo, in list order: not hidden, still on the
     /// catalog, passing Settings > Fits. The sidebar count uses it too.
     static func shown(_ fits: [RepoFit], byKey: [String: ToolProject], repo: MyRepo, filters: FitFilters,
-                      facts: [String: RepoFacts], now: Date = Date()) -> [(RepoFit, ToolProject)] {
-        fits.filter { $0.myRepoID == repo.id && !$0.isHidden }.sorted { $0.rank < $1.rank }.compactMap { fit in
-            guard let project = byKey[fit.repoKey],
-                  filters.allows(projectLanguage: repo.language, facts: facts[fit.repoKey],
-                                 license: project.license, lastUpdated: project.lastUpdatedDate, now: now)
-            else { return nil }
-            return (fit, project)
-        }
+                      limit: Int = .max, facts: [String: RepoFacts], now: Date = Date()) -> [(RepoFit, ToolProject)] {
+        let passing = fits.filter { $0.myRepoID == repo.id && !$0.isHidden }.sorted { $0.rank < $1.rank }
+            .compactMap { fit -> (RepoFit, ToolProject)? in
+                guard let project = byKey[fit.repoKey],
+                      filters.allows(projectLanguage: repo.language, facts: facts[fit.repoKey],
+                                     license: project.license, lastUpdated: project.lastUpdatedDate, now: now)
+                else { return nil }
+                return (fit, project)
+            }
+        // A lower limit shows at once; a higher one fills on the next run.
+        return Array(passing.prefix(limit))
     }
 
     /// "4 fits · last run 10 Nov, 18:40"

@@ -309,8 +309,9 @@ def load_my_repos():
                 repos = []
                 cols = {c[1] for c in db.execute("PRAGMA table_info(ZMYREPO)")}
                 language = "ZLANGUAGE" if "ZLANGUAGE" in cols else "''"
+                own = "ZFITSETTINGSJSON" if "ZFITSETTINGSJSON" in cols else "''"
                 for r in db.execute(f"""SELECT ZID, ZFULLNAME, ZGITHUBURL, ZSUMMARY, ZLASTRUNAT,
-                                       ZLASTRUNNOTE, ZSORTINDEX, {language} AS LANGUAGE
+                                       ZLASTRUNNOTE, ZSORTINDEX, {language} AS LANGUAGE, {own} AS OWNFILTER
                                        FROM ZMYREPO ORDER BY ZSORTINDEX, ZFULLNAME"""):
                     fits = [dict(key=f["ZREPOKEY"] or "", rank=f["ZRANK"] or 0, why=f["ZWHY"] or "",
                                  new=bool(f["ZISNEW"]), hidden=bool(f["ZISHIDDEN"]))
@@ -320,7 +321,7 @@ def load_my_repos():
                     repos.append(dict(full=r["ZFULLNAME"] or "", url=r["ZGITHUBURL"] or "",
                                       summary=r["ZSUMMARY"] or "", last=_apple_time(r["ZLASTRUNAT"]),
                                       note=r["ZLASTRUNNOTE"] or "", language=r["LANGUAGE"] or "",
-                                      fits=fits))
+                                      own_filter=r["OWNFILTER"] or "", fits=fits))
                 return "live catalog", repos
             if "ZTOOLPROJECT" in tables:
                 return "live catalog", []
@@ -338,7 +339,7 @@ def load_my_repos():
         repos.append(dict(
             full=r.get("fullName", ""), url=r.get("githubURL", ""), summary=r.get("summary", ""),
             last=_iso_seconds(last) if last else None, note=r.get("lastRunNote", ""),
-            language=r.get("language") or "",
+            language=r.get("language") or "", own_filter=r.get("fitSettings") or "",
             fits=[dict(key=f.get("repo", ""), rank=f.get("rank", 0), why=f.get("why", ""),
                        new=bool(f.get("isNew")), hidden=bool(f.get("isHidden")))
                   for f in sorted(r.get("fits", []), key=lambda f: f.get("rank", 0))]))
@@ -372,7 +373,8 @@ def _fit_filters():
     """The user's Settings > Fits filters in the app (same for every repo).
     RESHELF_FITS_FILTERS (JSON) is for tests: it keeps the app's settings out."""
     keys = {"sameLanguage": "reshelf.fits.sameLanguage", "updated": "reshelf.fits.updated",
-            "hideGPL": "reshelf.fits.hideGPL", "hideArchived": "reshelf.fits.hideArchived"}
+            "hideGPL": "reshelf.fits.hideGPL", "hideArchived": "reshelf.fits.hideArchived",
+            "limit": "reshelf.fits.limit"}
     if os.environ.get("RESHELF_FITS_FILTERS"):
         raw = json.loads(os.environ["RESHELF_FITS_FILTERS"])
     else:
@@ -384,9 +386,47 @@ def _fit_filters():
             except OSError:
                 raw[name] = ""
     on = lambda v: str(v).lower() in ("1", "true", "yes")
-    months = {"lastYear": 12, "sixMonths": 6, "threeMonths": 3}.get(str(raw.get("updated", "")))
-    return dict(same_language=on(raw.get("sameLanguage")), months=months,
-                hide_gpl=on(raw.get("hideGPL")), hide_archived=on(raw.get("hideArchived")))
+    return _filter_dict(on(raw.get("sameLanguage")), str(raw.get("updated", "")), on(raw.get("hideGPL")),
+                        on(raw.get("hideArchived")), raw.get("limit"))
+
+
+LIMITS = (10, 15, 20, 25)
+
+
+def _filter_dict(same_language, updated, hide_gpl, hide_archived, limit):
+    months = {"lastYear": 12, "sixMonths": 6, "threeMonths": 3}.get(updated)
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 15
+    return dict(same_language=bool(same_language), months=months, hide_gpl=bool(hide_gpl),
+                hide_archived=bool(hide_archived), limit=limit if limit in LIMITS else 15)
+
+
+def _own_filter(repo):
+    """A repo's own filter (right-click > Filter in the app), or None."""
+    try:
+        data = json.loads(repo.get("own_filter") or "")
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    f = data.get("filters") or {}
+    return _filter_dict(f.get("sameLanguage"), str(f.get("updated", "")), f.get("hideStrongCopyleft"),
+                        f.get("hideArchived"), data.get("limit"))
+
+
+def _filter_summary(f):
+    parts = []
+    if f["same_language"]:
+        parts.append("same language only")
+    if f["months"]:
+        parts.append("updated in the last year" if f["months"] == 12 else f"updated in the last {f['months']} months")
+    if f["hide_gpl"]:
+        parts.append("no GPL or AGPL")
+    if f["hide_archived"]:
+        parts.append("no archived repos")
+    return (", ".join(parts) or "no filters") + f", at most {f['limit']}"
 
 
 def _repo_facts():
@@ -437,6 +477,9 @@ def _shown_fits(repo, by_key, filters=None, facts=None):
             filtered += 1
             continue
         shown.append((f, p))
+    if filters and len(shown) > filters["limit"]:
+        filtered += len(shown) - filters["limit"]
+        shown = shown[:filters["limit"]]
     return shown, filtered
 
 
@@ -453,10 +496,12 @@ def cmd_fits(args):
     if not here and not wanted:
         print(f"My Repos: {len(repos)}   (source: {source})\n")
         by_key = _catalog_by_key()
-        filters, facts = _fit_filters(), _repo_facts()
+        main, facts = _fit_filters(), _repo_facts()
         for r in repos:
-            shown, _ = _shown_fits(r, by_key, filters, facts)
-            print(f"- {r['full']}   last run {_day_time(r['last'])}   {len(shown)} fit(s)")
+            own = _own_filter(r)
+            shown, _ = _shown_fits(r, by_key, own or main, facts)
+            print(f"- {r['full']}   last run {_day_time(r['last'])}   {len(shown)} fit(s)"
+                  f"{'   own filter' if own else ''}")
             if r["summary"]:
                 print(f"    {r['summary'][:140]}")
         print("\nNext: shelf.py fits <repo>   (or --here inside a clone of one of them)")
@@ -490,10 +535,13 @@ def cmd_fits(args):
     by_key = _catalog_by_key()
     index = clone_index(clone_root())
     hidden = sum(1 for f in repo["fits"] if f["hidden"])
-    shown, filtered = _shown_fits(repo, by_key, _fit_filters(), _repo_facts())
+    own = _own_filter(repo)
+    used = own or _fit_filters()
+    shown, filtered = _shown_fits(repo, by_key, used, _repo_facts())
 
     print(f"Fits for {repo['full']}: {len(shown)}, best fit first   last run {_day_time(repo['last'])}"
           f"   (source: {source})")
+    print(f"  filter: {'its own' if own else 'the main one (Settings > Fits)'}: {_filter_summary(used)}")
     if repo["note"]:
         print(f"  note: {repo['note']}")
     if not shown:
@@ -512,7 +560,7 @@ def cmd_fits(args):
     if hidden:
         print(f"\n({hidden} hidden by the user from this list; not shown)")
     if filtered:
-        print(f"({filtered} left out by the user's Fits filters in reshelf Settings; not shown)")
+        print(f"({filtered} left out by the Fits filter above; not shown)")
     print("\nThese were saved by the app when the user last pressed Find Fits; they are not refreshed here.")
 
 

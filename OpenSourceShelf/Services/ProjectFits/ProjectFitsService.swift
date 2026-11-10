@@ -85,6 +85,16 @@ enum ProjectFitsService {
         save(context)
     }
 
+    /// Right-click > Filter: gives the repo its own Fits settings, or (nil)
+    /// puts it back on the main ones.
+    static func setOwnSettings(_ settings: FitSettings?, for repoID: UUID, in context: ModelContext) {
+        guard let repo = repo(repoID, in: context) else { return }
+        let json = settings?.json ?? ""
+        guard repo.fitSettingsJSON != json else { return }
+        repo.fitSettingsJSON = json
+        save(context)
+    }
+
     /// Her other repos whose README a run read for the first time.
     static func saveMatchTexts(_ texts: [UUID: String], in context: ModelContext) {
         guard !texts.isEmpty else { return }
@@ -129,7 +139,8 @@ enum ProjectFitsService {
                                       rank: fit.rank, why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden,
                                       score: fit.score)
                 },
-                language: repo.language)
+                language: repo.language,
+                fitSettings: repo.fitSettingsJSON.isEmpty ? nil : repo.fitSettingsJSON)
         }
     }
 
@@ -149,6 +160,7 @@ enum ProjectFitsService {
             repo.previousRunAt = row.previousRunAt
             repo.lastRunNote = row.lastRunNote
             repo.language = row.language ?? ""
+            repo.fitSettingsJSON = row.fitSettings.flatMap { FitSettings.decode($0)?.json } ?? ""
             context.insert(repo)
             for fit in row.fits {
                 context.insert(RepoFit(myRepoID: repo.id, repoKey: fit.repo, rank: fit.rank,

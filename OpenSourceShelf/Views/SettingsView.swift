@@ -22,6 +22,10 @@ struct SettingsView: View {
     @AppStorage(FitFilters.updatedKey) private var fitsUpdated = FitFilters.Updated.any.rawValue
     @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
     @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
+    @Query(sort: \MyRepo.sortIndex) private var myRepos: [MyRepo]
+    /// The open tab; My Repos' heading > Filter opens Settings on "fits".
+    @AppStorage(SettingsView.tabKey) private var selectedTab = "general"
+    static let tabKey = "reshelf.settings.tab"
 
     // Capture Assist backfill of entries without use cases
     @State private var isBackfilling = false
@@ -52,19 +56,25 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag("general")
             captureTab
                 .tabItem { Label("Capture", systemImage: "tray.and.arrow.down") }
+                .tag("capture")
             libraryTab
                 .tabItem { Label("Library", systemImage: "books.vertical") }
+                .tag("library")
             fitsTab
                 .tabItem { Label("Fits", systemImage: "line.3.horizontal.decrease.circle") }
+                .tag("fits")
             guideTab
                 .tabItem { Label("Guide", systemImage: "book") }
+                .tag("guide")
             aboutTab
                 .tabItem { Label("About", systemImage: "info.circle") }
+                .tag("about")
         }
         .onAppear {
             settings = AppSettings.current(in: modelContext)
@@ -304,46 +314,48 @@ struct SettingsView: View {
     /// How Find Fits picks for every repo under My Repos (Kika, round 2).
     private var fitsTab: some View {
         SettingsPage {
-            SettingsSection("Fits", detail: "For every repo under My Repos. Lists update at once.") {
-                SettingsRow("Most fits", detail: "Only real fits are listed, so a list can be shorter.") {
-                    Picker("Most fits", selection: $fitsLimit) {
-                        ForEach(FitScorer.limitChoices, id: \.self) { Text("\($0)").tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                }
+            SettingsSection("Main filter", detail: "For every repo under My Repos without its own. Lists update at once.") {
+                FitSettingsForm(settings: mainFitSettingsBinding)
             }
             SettingsDivider()
-            SettingsSection("Filters") {
-                SettingsRow("Same language only", detail: "Only shelf repos in your repo's main language on GitHub.") {
-                    Toggle("Same language only", isOn: $fitsSameLanguage)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                }
-                SettingsRow("Updated", detail: "When the repo last changed on GitHub.") {
-                    Picker("Updated", selection: $fitsUpdated) {
-                        ForEach(FitFilters.Updated.allCases) { Text($0.title).tag($0.rawValue) }
+            SettingsSection("Repos with their own filter",
+                            detail: "Right-click a repo under My Repos, then Filter.") {
+                let own = myRepos.filter(\.hasOwnFitSettings)
+                if own.isEmpty {
+                    Text("None. Every repo uses the main filter.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(own) { repo in
+                        SettingsRow(repo.displayName,
+                                    detail: FitSettings.decode(repo.fitSettingsJSON)?.summary ?? "") {
+                            Button("Reset") {
+                                ProjectFitsService.setOwnSettings(nil, for: repo.id, in: modelContext)
+                            }
+                            .help("Use the main filter again")
+                        }
                     }
-                    .labelsHidden()
-                    .fixedSize()
-                }
-                SettingsRow("Licenses", detail: "GPL and AGPL ask you to share your code too.") {
-                    Picker("Licenses", selection: $fitsHideCopyleft) {
-                        Text("All").tag(false)
-                        Text("Hide GPL and AGPL").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                }
-                SettingsRow("Hide archived repos", detail: "Repos their owner stopped working on.") {
-                    Toggle("Hide archived repos", isOn: $fitsHideArchived)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
                 }
             }
         }
+    }
+
+    /// Settings > Fits' main filter, read and written through @AppStorage.
+    private var mainFitSettingsBinding: Binding<FitSettings> {
+        Binding(
+            get: {
+                FitSettings(filters: FitFilters(sameLanguage: fitsSameLanguage,
+                                                updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
+                                                hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived),
+                            limit: FitScorer.limitChoices.contains(fitsLimit) ? fitsLimit : FitScorer.defaultLimit)
+            },
+            set: { value in
+                fitsLimit = value.limit
+                fitsSameLanguage = value.filters.sameLanguage
+                fitsUpdated = value.filters.updated.rawValue
+                fitsHideCopyleft = value.filters.hideStrongCopyleft
+                fitsHideArchived = value.filters.hideArchived
+            })
     }
 
     /// What is what, in one screen: shelves, row icons, keys, and the agent skill.
@@ -850,5 +862,99 @@ private struct InspectorSectionRow: View {
         }
         .padding(.vertical, 5)
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Fits filter form
+
+/// The Fits filter and limit, one look in both places (Kika's same-feature-
+/// same-look rule): Settings > Fits (the main filter) and right-click a repo
+/// under My Repos > Filter (its own).
+struct FitSettingsForm: View {
+    @Binding var settings: FitSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SettingsRow("Most fits", detail: "Only real fits are listed, so a list can be shorter.") {
+                Picker("Most fits", selection: $settings.limit) {
+                    ForEach(FitScorer.limitChoices, id: \.self) { Text("\($0)").tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
+            SettingsRow("Same language only", detail: "Only shelf repos in your repo's main language on GitHub.") {
+                Toggle("Same language only", isOn: $settings.filters.sameLanguage)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+            SettingsRow("Updated", detail: "When the repo last changed on GitHub.") {
+                Picker("Updated", selection: $settings.filters.updated) {
+                    ForEach(FitFilters.Updated.allCases) { Text($0.title).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+            SettingsRow("Licenses", detail: "GPL and AGPL ask you to share your code too.") {
+                Picker("Licenses", selection: $settings.filters.hideStrongCopyleft) {
+                    Text("All").tag(false)
+                    Text("Hide GPL and AGPL").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
+            SettingsRow("Hide archived repos", detail: "Repos their owner stopped working on.") {
+                Toggle("Hide archived repos", isOn: $settings.filters.hideArchived)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+        }
+    }
+}
+
+/// Right-click a repo under My Repos > Filter: the same form, filled from the
+/// main filter. Any change gives the repo its own; Use Main Filter undoes it.
+struct RepoFitFilterPopover: View {
+    let repoID: UUID
+    @Environment(\.modelContext) private var modelContext
+    @Query private var repos: [MyRepo]
+    @AppStorage(FitScorer.limitKey) private var fitsLimit = FitScorer.defaultLimit
+    @AppStorage(FitFilters.sameLanguageKey) private var fitsSameLanguage = false
+    @AppStorage(FitFilters.updatedKey) private var fitsUpdated = FitFilters.Updated.any.rawValue
+    @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
+    @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
+
+    private var main: FitSettings {
+        FitSettings(filters: FitFilters(sameLanguage: fitsSameLanguage,
+                                        updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
+                                        hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived),
+                    limit: FitScorer.limitChoices.contains(fitsLimit) ? fitsLimit : FitScorer.defaultLimit)
+    }
+
+    var body: some View {
+        let repo = repos.first { $0.id == repoID }
+        let own = repo.flatMap { FitSettings.decode($0.fitSettingsJSON) }
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Filter for \(repo?.displayName ?? "this repo")")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(own == nil ? "Uses the main filter. A change gives it its own." : "Has its own filter.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            FitSettingsForm(settings: Binding(
+                get: { own ?? main },
+                set: { ProjectFitsService.setOwnSettings($0, for: repoID, in: modelContext) }))
+            HStack {
+                Spacer()
+                Button("Use Main Filter") {
+                    ProjectFitsService.setOwnSettings(nil, for: repoID, in: modelContext)
+                }
+                .disabled(own == nil)
+            }
+        }
+        .padding(18)
+        .frame(width: 460)
     }
 }

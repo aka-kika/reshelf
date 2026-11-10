@@ -54,14 +54,26 @@ if os.path.getmtime(store) != before:
 
 # 2b. Settings > Fits filters apply to the saved list, and say how many.
 out = run(live, "fits", "Sift", filters='{"hideGPL": "1"}').stdout
-if "- Mole" in out or "- uninstally" not in out or "1 left out by the user's Fits filters" not in out:
+if "- Mole" in out or "- uninstally" not in out or "1 left out by the Fits filter" not in out:
     fail("GPL filter: " + out)
+if "filter: the main one (Settings > Fits): no GPL or AGPL, at most 15" not in out:
+    fail("says which filter it used: " + out)
+out = run(live, "fits", "Sift", filters='{"limit": "10"}').stdout
+if "at most 10" not in out:
+    fail("main limit read: " + out)
 out = run(live, "fits", "Sift", filters='{"sameLanguage": "1"}').stdout
 if "- uninstally" in out or "2 left out" not in out:
     fail("same language with no language known for the shelf repos leaves them out: " + out)
 out = run(live, "fits", filters='{"hideGPL": "1"}').stdout
 if "1 fit(s)" not in out:
     fail("list count follows the filters: " + out)
+
+# 2c. A repo's own filter (right-click > Filter) wins over the main one.
+out = run(live, "fits", "Mocker").stdout
+if "- Mole" in out or "- uninstally" not in out or "filter: its own: no GPL or AGPL, at most 10" not in out:
+    fail("own filter used and named: " + out)
+if "own filter" not in run(live, "fits").stdout:
+    fail("list marks repos with their own filter")
 
 # 3. Never-run repo says so and does not match by itself.
 out = run(live, "fits", "kartina").stdout

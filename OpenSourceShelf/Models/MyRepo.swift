@@ -34,6 +34,10 @@ final class MyRepo {
     /// Her repo's main language on GitHub ("Swift"), for Settings > Fits >
     /// Same language. Read when added, or on the first run after 1.17.0.
     var language: String = ""
+    /// Its own Fits filter and limit (`FitSettings` JSON), set with
+    /// right-click > Filter. Empty: it uses the main one in Settings > Fits.
+    var fitSettingsJSON: String = ""
+    var hasOwnFitSettings: Bool { !fitSettingsJSON.isEmpty }
 
     init(fullName: String, githubURL: String, summary: String = "", sortIndex: Int = 0) {
         self.id = UUID()

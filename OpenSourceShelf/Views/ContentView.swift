@@ -740,6 +740,11 @@ private struct ProjectFitsHandlers: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: .checkAllFitsAgain)) { note in
                 run(note, mode: .all)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .fitsForAllRepos)) { note in
+                let ids = ProjectFitsService.repos(in: modelContext).map(\.id)
+                let mode: ProjectFitsRunner.Mode = (note.object as? String) == "all" ? .all : .newOnly
+                Task { await ProjectFitsRunner.shared.runAll(ids, mode: mode, in: modelContext) }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .showHiddenFits)) { note in
                 guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else { return }
                 presentSheetAfterEndingTextEditing { hiddenFitsFor = HiddenFitsRequest(id: id) }

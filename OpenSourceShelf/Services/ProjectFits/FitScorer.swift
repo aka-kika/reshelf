@@ -385,8 +385,8 @@ struct RepoFacts: Equatable, Sendable {
 /// Settings > Fits (Kika, round 2): the same filters for every one of her
 /// repos. They apply when Find Fits runs (so the limit fills with repos that
 /// pass) and to the saved list on screen (so turning one on works at once).
-struct FitFilters: Equatable, Sendable {
-    enum Updated: String, CaseIterable, Identifiable, Sendable {
+struct FitFilters: Codable, Equatable, Sendable {
+    enum Updated: String, Codable, CaseIterable, Identifiable, Sendable {
         case any, lastYear, sixMonths, threeMonths
 
         var id: String { rawValue }
@@ -415,6 +415,33 @@ struct FitFilters: Equatable, Sendable {
     /// Leave out GPL and AGPL (strong copyleft). LGPL stays.
     var hideStrongCopyleft = false
     var hideArchived = false
+
+    init(sameLanguage: Bool = false, updated: Updated = .any, hideStrongCopyleft: Bool = false,
+         hideArchived: Bool = false) {
+        self.sameLanguage = sameLanguage
+        self.updated = updated
+        self.hideStrongCopyleft = hideStrongCopyleft
+        self.hideArchived = hideArchived
+    }
+
+    /// Missing keys (a file from another version) read as off.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sameLanguage = try c.decodeIfPresent(Bool.self, forKey: .sameLanguage) ?? false
+        updated = (try? c.decodeIfPresent(Updated.self, forKey: .updated)) ?? .any
+        hideStrongCopyleft = try c.decodeIfPresent(Bool.self, forKey: .hideStrongCopyleft) ?? false
+        hideArchived = try c.decodeIfPresent(Bool.self, forKey: .hideArchived) ?? false
+    }
+
+    /// Plain words for the Settings list and the agents' fits command.
+    var summary: String {
+        var parts: [String] = []
+        if sameLanguage { parts.append("same language only") }
+        if let months = updated.months { parts.append(months == 12 ? "updated in the last year" : "updated in the last \(months) months") }
+        if hideStrongCopyleft { parts.append("no GPL or AGPL") }
+        if hideArchived { parts.append("no archived repos") }
+        return parts.isEmpty ? "no filters" : parts.joined(separator: ", ")
+    }
 
     static let sameLanguageKey = "reshelf.fits.sameLanguage"
     static let updatedKey = "reshelf.fits.updated"
@@ -472,4 +499,50 @@ struct FitFilters: Equatable, Sendable {
                license: license.isEmpty ? (facts?.license ?? "") : license,
                updated: lastUpdated ?? facts?.pushedAt, now: now)
     }
+}
+
+/// Everything Settings > Fits sets: the filters and the most fits. The main
+/// one lives in UserDefaults; one of her repos can have its own (right-click
+/// > Filter), saved as JSON in `MyRepo.fitSettingsJSON` (Kika, 10 Nov).
+struct FitSettings: Codable, Equatable, Sendable {
+    var filters = FitFilters()
+    var limit = FitScorer.defaultLimit
+
+    init(filters: FitFilters = FitFilters(), limit: Int = FitScorer.defaultLimit) {
+        self.filters = filters
+        self.limit = limit
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        filters = (try? c.decodeIfPresent(FitFilters.self, forKey: .filters)) ?? FitFilters()
+        let stored = (try? c.decodeIfPresent(Int.self, forKey: .limit)) ?? FitScorer.defaultLimit
+        limit = FitScorer.limitChoices.contains(stored) ? stored : FitScorer.defaultLimit
+    }
+
+    /// Settings > Fits.
+    static func main(_ defaults: UserDefaults = .standard) -> FitSettings {
+        let stored = defaults.integer(forKey: FitScorer.limitKey)
+        return FitSettings(filters: FitFilters.current(defaults),
+                           limit: FitScorer.limitChoices.contains(stored) ? stored : FitScorer.defaultLimit)
+    }
+
+    /// A repo's own settings, or nil when it uses the main ones ("" or unreadable).
+    static func decode(_ json: String) -> FitSettings? {
+        guard !json.isEmpty else { return nil }
+        return try? JSONDecoder().decode(FitSettings.self, from: Data(json.utf8))
+    }
+
+    var json: String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return (try? encoder.encode(self)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+    }
+
+    /// What one repo uses: its own settings, or the main ones.
+    static func resolved(ownJSON: String, main: FitSettings) -> FitSettings {
+        decode(ownJSON) ?? main
+    }
+
+    var summary: String { "\(filters.summary), at most \(limit)" }
 }

@@ -23,6 +23,12 @@ sift.language = "Swift"
 ctx.insert(sift)
 let fresh = MyRepo(fullName: "kika/Kartina", githubURL: "https://github.com/kika/Kartina", sortIndex: 1)
 ctx.insert(fresh)
+let mocker = MyRepo(fullName: "kika/Mocker", githubURL: "https://github.com/kika/Mocker", sortIndex: 2)
+mocker.lastRunAt = Date(timeIntervalSince1970: 1_762_790_400)
+mocker.fitSettingsJSON = #"{"filters":{"hideStrongCopyleft":true},"limit":10}"#
+ctx.insert(mocker)
+ctx.insert(RepoFit(myRepoID: mocker.id, repoKey: "tw93/mole", rank: 0, why: "gpl one", isNew: false, isHidden: false))
+ctx.insert(RepoFit(myRepoID: mocker.id, repoKey: "x/uninstally", rank: 1, why: "mit one", isNew: false, isHidden: false))
 for (key, rank, why, new, hidden) in [
     ("x/uninstally", 0, "Dry run before removing", true, false),
     ("tw93/mole", 1, "Finds leftover files after an uninstall", false, false),

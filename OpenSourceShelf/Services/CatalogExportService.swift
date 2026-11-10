@@ -210,6 +210,8 @@ struct MyRepoDTO: Codable, Equatable {
     var fits: [RepoFitDTO]
     /// Nil in files from 1.17.0 (35).
     var language: String? = nil
+    /// Its own Fits filter (`FitSettings` JSON); nil or empty = the main one.
+    var fitSettings: String? = nil
 }
 
 struct RepoFitDTO: Codable, Equatable {

@@ -181,6 +181,24 @@ func run() throws {
     suite.set("lastYear", forKey: FitFilters.updatedKey)
     check("filters read from settings", FitFilters.current(suite) == FitFilters(sameLanguage: true, updated: .lastYear))
 
+    // 5d. A repo's own filter (right-click > Filter): JSON round trip,
+    //     missing or odd values read safely, summary in plain words.
+    let own = FitSettings(filters: FitFilters(sameLanguage: true, hideStrongCopyleft: true), limit: 10)
+    check("own filter round trip", FitSettings.decode(own.json) == own)
+    check("empty means the main filter", FitSettings.decode("") == nil
+          && FitSettings.resolved(ownJSON: "", main: FitSettings(limit: 20)).limit == 20)
+    check("own filter wins over the main one", FitSettings.resolved(ownJSON: own.json, main: FitSettings()) == own)
+    check("odd limit and missing keys read as defaults",
+          FitSettings.decode(#"{"limit": 7, "filters": {"hideArchived": true}}"#)
+            == FitSettings(filters: FitFilters(hideArchived: true), limit: FitScorer.defaultLimit))
+    check("summary in plain words", own.summary == "same language only, no GPL or AGPL, at most 10"
+          && FitSettings().summary == "no filters, at most 15")
+    let mainSuite = UserDefaults(suiteName: "reshelf-fits-main-\(UUID().uuidString)")!
+    mainSuite.set(20, forKey: FitScorer.limitKey)
+    mainSuite.set(true, forKey: FitFilters.hideArchivedKey)
+    check("main filter read from settings",
+          FitSettings.main(mainSuite) == FitSettings(filters: FitFilters(hideArchived: true), limit: 20))
+
     // 6. Saved fits in the store.
     let ctx = try makeContext()
     let shelfRow = ToolProject(name: "Cleaner", githubURL: "https://github.com/Test/Cleaner", status: .topShelf)
@@ -206,6 +224,9 @@ func run() throws {
     check("second run remembers the first", sift.previousRunAt != nil)
     check("new fit after a re-run has the dot", after.first { $0.repoKey == "test/other" }?.isNew == true)
 
+    ProjectFitsService.setOwnSettings(own, for: sift.id, in: ctx)
+    check("own filter saved on the repo", sift.hasOwnFitSettings && FitSettings.decode(sift.fitSettingsJSON) == own)
+
     // 7. Backups carry My Repos; an old file without them still reads.
     CatalogBackupService.myReposSource = { context in
         if let context { ProjectFitsService.refreshSnapshot(in: context) }
@@ -218,6 +239,7 @@ func run() throws {
     let rows = (try? CatalogExportService.decodeMyRepos(data)) ?? []
     check("backup has the repo and both fits", rows.count == 1 && rows[0].fits.count == 2)
     check("backup carries the score", rows[0].fits.first { $0.repo == "test/cleaner" }?.score == 0.12)
+    check("backup carries the own filter", rows[0].fitSettings.flatMap(FitSettings.decode) == own)
     check("fit row names the shelf repo", rows[0].fits.first { $0.repo == "test/cleaner" }?.name == "Cleaner"
           && rows[0].fits.first { $0.repo == "test/cleaner" }?.shelf == "topShelf")
     let old = Data(#"{"exportedAt":"2026-01-01T00:00:00Z","app":"reshelf","version":1,"projectCount":0,"projects":[]}"#.utf8)
@@ -230,6 +252,9 @@ func run() throws {
     let restored = ProjectFitsService.repos(in: ctx2)
     check("restored repo has its fits and hidden one",
           restored.count == 1 && ProjectFitsService.fits(for: restored[0].id, in: ctx2).filter(\.isHidden).count == 1)
+    check("restored repo keeps its own filter", FitSettings.decode(restored[0].fitSettingsJSON) == own)
+    ProjectFitsService.setOwnSettings(nil, for: sift.id, in: ctx)
+    check("Use Main Filter clears it", !sift.hasOwnFitSettings)
     check("merge again adds nothing", ProjectFitsService.merge(rows, in: ctx2) == 0)
 
     // 9. Remove from Sidebar removes the fits, never the shelf repo.

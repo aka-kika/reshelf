@@ -23,9 +23,13 @@ struct ProjectListView: View {
     @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
     @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
 
-    private var fitFilters: FitFilters {
-        FitFilters(sameLanguage: fitsSameLanguage, updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
-                   hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived)
+    @AppStorage(FitScorer.limitKey) private var fitsLimit = FitScorer.defaultLimit
+
+    private var mainFitSettings: FitSettings {
+        FitSettings(filters: FitFilters(sameLanguage: fitsSameLanguage,
+                                        updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
+                                        hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived),
+                    limit: FitScorer.limitChoices.contains(fitsLimit) ? fitsLimit : FitScorer.defaultLimit)
     }
 
     @EnvironmentObject private var appRefreshStore: AppRefreshStore
@@ -1055,8 +1059,9 @@ struct ProjectListView: View {
     private var fitsModel: FitsListModel? {
         guard let id = sidebarSelection?.myRepoID,
               let repo = myRepos.first(where: { $0.id == id }) else { return nil }
+        let settings = FitSettings.resolved(ownJSON: repo.fitSettingsJSON, main: mainFitSettings)
         return FitsListModel(repo: repo, fits: repoFits, allProjects: allProjects, search: debouncedSearchText,
-                             filters: fitFilters, facts: ProjectFitsRunner.facts())
+                             filters: settings.filters, limit: settings.limit, facts: ProjectFitsRunner.facts())
     }
 
     private var filteredProjects: [ToolProject] {

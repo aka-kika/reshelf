@@ -164,6 +164,24 @@ func run() async throws {
           && added[0].lastRunNote.contains("Nothing new"))
     check("runner idle afterwards", !ProjectFitsRunner.shared.isRunning(added[0].id))
 
+    // 6b. A repo's own filter is used by its run (GPL hidden for it only),
+    //     and New Fits / Analyze All Fits for all repos runs each in turn.
+    ProjectFitsService.setOwnSettings(FitSettings(filters: FitFilters(hideStrongCopyleft: true), limit: 10),
+                                      for: added[0].id, in: ctx)
+    await ProjectFitsRunner.shared.run(added[0].id, mode: .all, in: ctx)
+    check("own filter used by the run", !ProjectFitsService.fits(for: added[0].id, in: ctx)
+          .contains { $0.repoKey == "tw93/mole" && !$0.isHidden })
+    check("own filter in the run signature", added[0].runSignature.contains("no-gpl")
+          && added[0].runSignature.contains("limit 10"))
+    ProjectFitsService.setOwnSettings(nil, for: added[0].id, in: ctx)
+    let second = ProjectFitsService.add([("kika/Kartina", "https://github.com/kika/Kartina", "Image library")], in: ctx)
+    FakeGitHub.pages["/repos/kika/kartina/readme"] = .body("Image library with tags, uninstall leftover caches")
+    let before = added[0].lastRunAt
+    await ProjectFitsRunner.shared.runAll([added[0].id, second[0].id], mode: .all, in: ctx)
+    check("all repos: each ran", second[0].lastRunAt != nil && added[0].lastRunAt != before)
+    check("all repos: progress cleared afterwards", ProjectFitsRunner.shared.batch == nil)
+    ProjectFitsService.remove(second[0], in: ctx)
+
     // 7. The list for one of her repos: Top Shelf heading first, new dot,
     //    hidden left out but counted, search narrows, a shelf move regroups.
     let sift = added[0]
@@ -187,6 +205,8 @@ func run() async throws {
     check("sidebar count matches the list",
           FitsListModel.shown(fitsNow, byKey: FitsListModel.byKey(all), repo: sift,
                               filters: FitFilters(hideStrongCopyleft: true), facts: [:]).count == 1)
+    let capped = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "", limit: 1)
+    check("list: a lower limit shows at once", capped.projects.count == 1)
     let searched = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "native")
     check("list: search narrows the fits", searched.projects.map(\.name) == ["uninstally"])
     all.first { $0.name == "uninstally" }!.status = .topShelf

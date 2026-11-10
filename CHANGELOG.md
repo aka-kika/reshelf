@@ -16,6 +16,8 @@ All notable changes to **reshelf** are documented here. This project follows
 - **Settings tabs fit their content** (no more mostly empty window), and the Guide tab explains My Repos and Find Fits.
 - **New Fits** (only repos new since the last run) and **Analyze All Fits** (the whole shelf) are the menu names (Kika's wording).
 - **No "…" in any menu item or button** (Kika's rule for all her apps): File, Shelf, right-click menus, Settings buttons, Start Dictation. The app menu keeps the system's one Settings item (⌘,). Progress text like "Cloning…" stays.
+- **A filter per repo:** right-click a repo under My Repos → **Filter** (same form as Settings → Fits, in a popover); **Use Main Filter** goes back; Settings → Fits lists repos with their own filter, each with **Reset**. Saved in backups; the agents' `fits` says which filter a repo used.
+- **All repos at once:** right-click the My Repos heading → **New Fits** / **Analyze All Fits** (one after another, one progress line, Stop), and **Filter** to open Settings → Fits. Also in the Shelf menu.
 - **No sparkle icons:** the Capture tab shows a tray, Quick Capture's AI Suggestions a lightbulb.
 - The skill's `shelf.py fits` follows the new order and the Fits filters.
 

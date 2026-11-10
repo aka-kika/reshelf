@@ -54,12 +54,20 @@ struct SidebarView: View {
     @AppStorage(FitFilters.hideStrongCopyleftKey) private var fitsHideCopyleft = false
     @AppStorage(FitFilters.hideArchivedKey) private var fitsHideArchived = false
 
-    private var fitFilters: FitFilters {
-        FitFilters(sameLanguage: fitsSameLanguage, updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
-                   hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived)
+    @AppStorage(FitScorer.limitKey) private var fitsLimit = FitScorer.defaultLimit
+
+    private var mainFitSettings: FitSettings {
+        FitSettings(filters: FitFilters(sameLanguage: fitsSameLanguage,
+                                        updated: FitFilters.Updated(rawValue: fitsUpdated) ?? .any,
+                                        hideStrongCopyleft: fitsHideCopyleft, hideArchived: fitsHideArchived),
+                    limit: FitScorer.limitChoices.contains(fitsLimit) ? fitsLimit : FitScorer.defaultLimit)
     }
 
     @State private var renameTarget: CatalogFolder?
+    /// Right-click a repo under My Repos > Filter: its popover.
+    @State private var filterPopoverFor: UUID?
+    @Environment(\.openSettings) private var openSettings
+    @AppStorage(SettingsView.tabKey) private var settingsTab = "general"
     @State private var deleteTarget: CatalogFolder?
     @State private var draftName = ""
     /// Collapsed/expanded per section, remembered across launches.
@@ -116,6 +124,9 @@ struct SidebarView: View {
                 // Her own repos (Project fits). Always shown: the + in its
                 // heading is where she adds the first one.
                 Section(isExpanded: $myReposExpanded) {
+                    if let batch = fitsRunner.batch {
+                        FitsBatchRow(batch: batch) { fitsRunner.stopAll() }
+                    }
                     ForEach(visibleMyRepos) { repo in
                         MyRepoSidebarRow(
                             repo: repo,
@@ -123,6 +134,11 @@ struct SidebarView: View {
                             isRunning: fitsRunner.isRunning(repo.id)
                         )
                         .contextMenu { myRepoMenu(repo) }
+                        .popover(isPresented: Binding(
+                            get: { filterPopoverFor == repo.id },
+                            set: { if !$0 { filterPopoverFor = nil } }), arrowEdge: .trailing) {
+                            RepoFitFilterPopover(repoID: repo.id)
+                        }
                     }
                     if myRepos.count > Self.myReposShownFolded {
                         ShowMoreTagsRow(hidden: myRepos.count - Self.myReposShownFolded, showsAll: $showAllMyRepos)
@@ -130,6 +146,7 @@ struct SidebarView: View {
                 } header: {
                     HStack {
                         collapsibleHeader(.myRepos, isExpanded: $myReposExpanded)
+                            .contextMenu { myReposHeadingMenu }
                         Spacer()
                         Button {
                             NotificationCenter.default.post(name: .addMyRepos, object: nil)
@@ -296,8 +313,9 @@ struct SidebarView: View {
 
     /// Same count as the list shows (hidden and filtered fits left out).
     private func visibleFitCount(of repo: MyRepo, byKey: [String: ToolProject]) -> Int {
-        FitsListModel.shown(repoFits, byKey: byKey, repo: repo, filters: fitFilters,
-                            facts: ProjectFitsRunner.facts()).count
+        let settings = FitSettings.resolved(ownJSON: repo.fitSettingsJSON, main: mainFitSettings)
+        return FitsListModel.shown(repoFits, byKey: byKey, repo: repo, filters: settings.filters,
+                                   limit: settings.limit, facts: ProjectFitsRunner.facts()).count
     }
 
     /// Right-click on one of her repos. Plain words, no "…" (Kika's rule for
@@ -318,6 +336,8 @@ struct SidebarView: View {
                 .help("Looks at your whole shelf again")
             }
         }
+        Button("Filter") { filterPopoverFor = repo.id }
+            .help("This repo's own Fits filter")
         Button("Show Hidden Fits") {
             NotificationCenter.default.post(name: .showHiddenFits, object: repo.id)
         }
@@ -333,6 +353,28 @@ struct SidebarView: View {
             CatalogBackupService.writeSnapshot(from: modelContext,
                                                reason: "Before removing \(repo.displayName) from My Repos")
             ProjectFitsService.remove(repo, in: modelContext)
+        }
+    }
+
+    /// Right-click the My Repos heading: the same words, for all her repos.
+    @ViewBuilder
+    private var myReposHeadingMenu: some View {
+        if fitsRunner.batch != nil {
+            Button("Stop Finding Fits") { fitsRunner.stopAll() }
+        } else {
+            Button("New Fits") {
+                NotificationCenter.default.post(name: .fitsForAllRepos, object: "new")
+            }
+            .disabled(myRepos.isEmpty)
+            Button("Analyze All Fits") {
+                NotificationCenter.default.post(name: .fitsForAllRepos, object: "all")
+            }
+            .disabled(myRepos.isEmpty)
+        }
+        Divider()
+        Button("Filter") {
+            settingsTab = "fits"
+            openSettings()
         }
     }
 
@@ -480,6 +522,13 @@ private struct MyRepoSidebarRow: View {
                 .font(.system(size: 13))
                 .lineLimit(1)
             Spacer()
+            if repo.hasOwnFitSettings {
+                // Quiet mark: this repo has its own Fits filter.
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .help("Its own Fits filter")
+            }
             if isRunning {
                 ProgressView()
                     .controlSize(.mini)
@@ -613,5 +662,29 @@ private extension View {
                         .ignoresSafeArea()
                 }
         }
+    }
+}
+
+/// "Finding fits: 3 of 11 · kartina" with Stop, while New Fits or Analyze All
+/// Fits runs for every repo under My Repos.
+private struct FitsBatchRow: View {
+    let batch: ProjectFitsRunner.Batch
+    let onStop: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ProgressView().controlSize(.mini)
+            Text("Finding fits: \(min(batch.done + 1, batch.total)) of \(batch.total)"
+                 + (batch.current.isEmpty ? "" : " · \(batch.current)"))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer()
+            Button("Stop", action: onStop)
+                .buttonStyle(.borderless)
+                .font(.system(size: 11))
+        }
+        .padding(.leading, 4)
+        .selectionDisabled()
     }
 }

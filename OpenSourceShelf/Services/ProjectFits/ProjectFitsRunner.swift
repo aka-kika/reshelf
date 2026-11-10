@@ -64,6 +64,43 @@ final class ProjectFitsRunner: ObservableObject {
         }
     }
 
+    /// One run over all her repos (right-click the My Repos heading): one
+    /// after another, each with its own filter, one progress line.
+    struct Batch: Equatable {
+        var done: Int
+        var total: Int
+        var current: String
+    }
+    @Published private(set) var batch: Batch?
+    private var batchTask: Task<Void, Never>?
+    private var batchCurrent: UUID?
+
+    func runAll(_ repoIDs: [UUID], mode: Mode, in context: ModelContext) async {
+        guard batch == nil, !repoIDs.isEmpty else { return }
+        batch = Batch(done: 0, total: repoIDs.count, current: "")
+        let task = Task { @MainActor [self] in
+            for (index, id) in repoIDs.enumerated() {
+                if Task.isCancelled { break }
+                batchCurrent = id
+                batch = Batch(done: index, total: repoIDs.count,
+                              current: ProjectFitsService.repo(id, in: context)?.displayName ?? "")
+                await run(id, mode: mode, in: context)
+            }
+        }
+        batchTask = task
+        await task.value
+        batchTask = nil
+        batchCurrent = nil
+        batch = nil
+    }
+
+    /// Stop for the whole run: the repo in progress stops too and keeps its
+    /// saved list; the ones not reached yet are left as they were.
+    func stopAll() {
+        batchTask?.cancel()
+        if let id = batchCurrent { stop(id) }
+    }
+
     func run(_ repoID: UUID, mode: Mode = .all, in context: ModelContext) async {
         guard tasks[repoID] == nil, let repo = ProjectFitsService.repo(repoID, in: context) else { return }
         let fullName = repo.fullName
@@ -76,8 +113,10 @@ final class ProjectFitsRunner: ObservableObject {
             .map { OtherRepo(id: $0.id, fullName: $0.fullName,
                              text: $0.matchText.isEmpty ? $0.summary : $0.matchText,
                              needsReadme: $0.matchText.isEmpty) }
-        let limit = Self.limit
-        let filters = FitFilters.current()
+        // Its own filter (right-click > Filter), or Settings > Fits.
+        let settings = FitSettings.resolved(ownJSON: repo.fitSettingsJSON, main: .main())
+        let limit = settings.limit
+        let filters = settings.filters
         let projectLanguage = repo.language
         let signature = FitScorer.runSignature(limit: limit, filters: filters.signature)
         // Only new repos when the saved list was made the same way (same
