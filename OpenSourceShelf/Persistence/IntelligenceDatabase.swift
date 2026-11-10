@@ -68,6 +68,32 @@ final class IntelligenceDatabase {
         try requireDatabaseQueue().write(updates)
     }
 
+    /// Language, archived flag, last push, licence and topics of every
+    /// repo with metadata, by `owner/repo` lowercased (Project fits: its
+    /// filters and the topic words it matches on). One read.
+    func fitFacts() -> [String: RepoFacts] {
+        let iso = ISO8601DateFormatter()
+        let rows = (try? read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT r.full_name, m.primary_language, m.archived, m.pushed_at, m.license_spdx, m.topics_json
+                FROM repositories r JOIN repository_metadata m ON m.repository_id = r.id
+                """)
+        }) ?? []
+        var out: [String: RepoFacts] = [:]
+        for row in rows {
+            let fullName: String = row[0] ?? ""
+            guard !fullName.isEmpty else { continue }
+            let topicsJSON: String = row[5] ?? "[]"
+            let topics = (try? JSONDecoder().decode([String].self, from: Data(topicsJSON.utf8))) ?? []
+            let pushed: String? = row[3]
+            out[fullName.lowercased()] = RepoFacts(
+                language: row[1] ?? "", isArchived: row[2] ?? false,
+                pushedAt: pushed.flatMap { iso.date(from: $0) },
+                license: row[4] ?? "", topics: topics)
+        }
+        return out
+    }
+
     func fetchRepository(fullName: String) throws -> RepositoryRecord? {
         try read { db in
             try RepositoryRecord

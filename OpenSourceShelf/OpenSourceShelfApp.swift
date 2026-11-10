@@ -316,6 +316,9 @@ struct OpenSourceShelfApp: App {
             ProjectFitsService.merge(rows, in: context)
         }
         ProjectFitsService.refreshSnapshot(in: container.mainContext)
+        ProjectFitsRunner.factsSource = {
+            (try? IntelligenceDatabase.shared.initialize()) == nil ? [:] : IntelligenceDatabase.shared.fitFacts()
+        }
     }
 
     var body: some Scene {

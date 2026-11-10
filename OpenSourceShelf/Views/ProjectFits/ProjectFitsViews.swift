@@ -5,12 +5,11 @@ import SwiftData
 /// Built once per list body from the loaded queries.
 struct FitsListModel {
     let repo: MyRepo
-    /// Shelf rows in list order: Top Shelf, then The Collector (then Yard
-    /// Sale, for a fit moved there after the run), each by rank.
+    /// Shelf rows in list order: best fit first, whichever shelf (Kika, round
+    /// 2: a better Collector fit beats a weaker Top Shelf one). Each row
+    /// names its shelf instead of a heading.
     let projects: [ToolProject]
     let newIDs: Set<UUID>
-    /// The first row of each shelf group, with the heading to show above it.
-    let groupHeadings: [UUID: String]
     let hiddenCount: Int
 
     init(repo: MyRepo, fits: [RepoFit], allProjects: [ToolProject], search: String) {
@@ -30,16 +29,8 @@ struct FitsListModel {
             rows.append(project)
             if fit.isNew { newIDs.insert(project.id) }
         }
-        let order: [ProjectStatus] = [.topShelf, .collector, .yardSale]
-        projects = order.flatMap { shelf in rows.filter { $0.status == shelf } }
+        projects = rows
         self.newIDs = newIDs
-        var headings: [UUID: String] = [:]
-        for shelf in order {
-            if let first = projects.first(where: { $0.status == shelf }) {
-                headings[first.id] = shelf.displayName.uppercased()
-            }
-        }
-        groupHeadings = headings
     }
 
     /// "4 fits · last run 10 Nov, 18:40"

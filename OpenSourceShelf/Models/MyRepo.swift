@@ -23,6 +23,10 @@ final class MyRepo {
     /// One line about the last run when it needs saying ("GitHub's limit was
     /// reached: 6 repos used saved info"). Empty when the run went normally.
     var lastRunNote: String = ""
+    /// The text the last run matched (description + cleaned README). Other
+    /// runs read it to tell what all her repos share, so a shelf repo that
+    /// fits every one of them is pushed down (round 2, 10 Nov).
+    var matchText: String = ""
 
     init(fullName: String, githubURL: String, summary: String = "", sortIndex: Int = 0) {
         self.id = UUID()
@@ -49,7 +53,7 @@ final class RepoFit {
     var myRepoID: UUID = UUID()
     /// `owner/repo`, lowercased.
     var repoKey: String = ""
-    /// Order in the list (0 first). Top Shelf fits come before The Collector's.
+    /// Order in the list (0 first): best fit first, whichever shelf.
     var rank: Int = 0
     /// One line on why it fits, from Apple Intelligence or the shared words.
     var why: String = ""
@@ -58,8 +62,12 @@ final class RepoFit {
     /// "Hide from <repo> Fits": stays hidden through later runs until shown again.
     var isHidden: Bool = false
     var foundAt: Date = Date()
+    /// The fit score from its run (`FitScorer.Scored.score`): the list is
+    /// ordered by it, and Find Fits Again merges new fits in by it.
+    var score: Double = 0
 
-    init(myRepoID: UUID, repoKey: String, rank: Int, why: String, isNew: Bool, isHidden: Bool) {
+    init(myRepoID: UUID, repoKey: String, rank: Int, why: String, isNew: Bool, isHidden: Bool,
+         score: Double = 0) {
         self.id = UUID()
         self.myRepoID = myRepoID
         self.repoKey = repoKey
@@ -68,5 +76,6 @@ final class RepoFit {
         self.isNew = isNew
         self.isHidden = isHidden
         self.foundAt = Date()
+        self.score = score
     }
 }

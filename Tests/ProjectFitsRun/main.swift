@@ -69,11 +69,28 @@ func run() async throws {
                                                        inputs: inputs, hidden: []) { steps.append($0.step) }
     let found = outcome.fits.map(\.key)
     check("fits found, unrelated left out", found.contains("tw93/mole") && !found.contains("x/notes"))
-    check("Top Shelf first", found.first == "tw93/mole")
+    check("every fit has a score", outcome.fits.allSatisfy { (outcome.scores[$0.key] ?? 0) > 0 })
+    check("her text kept for other runs", outcome.projectText.contains("leftover preference files"))
     check("every fit has a why line", outcome.fits.allSatisfy { !$0.why.isEmpty })
     check("rate limit is said, saved info used", outcome.note.contains("limit"))
     check("progress reported", steps.contains("Reading READMEs"))
     check("her README was read", FakeGitHub.requested.contains("/repos/kika/sift/readme"))
+
+    // 3b. Her other repos: a README not read before is read once and handed
+    //     back to save; a failed read is not saved (asked again next run).
+    FakeGitHub.pages["/repos/kika/kartina/readme"] = .body("Image library with tags")
+    FakeGitHub.pages["/repos/kika/mcpock/readme"] = .rateLimited
+    let otherA = UUID(), otherB = UUID(), otherC = UUID()
+    let withOthers = try await ProjectFitsRunner.findFits(
+        fullName: "kika/Sift", summary: "", inputs: inputs, hidden: [],
+        others: [.init(id: otherA, fullName: "kika/Kartina", text: "Kartina", needsReadme: true),
+                 .init(id: otherB, fullName: "kika/mcpock", text: "mcpock", needsReadme: true),
+                 .init(id: otherC, fullName: "kika/Localpen", text: "saved text", needsReadme: false)],
+        limit: 10) { _ in }
+    check("other repo's README read and handed back", withOthers.otherTexts[otherA]?.contains("Image library") == true)
+    check("failed read not saved", withOthers.otherTexts[otherB] == nil)
+    check("saved text not read again", withOthers.otherTexts[otherC] == nil
+          && !FakeGitHub.requested.contains("/repos/kika/localpen/readme"))
 
     // 4. Hidden ones are never picked again.
     let again = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: inputs,
@@ -106,9 +123,7 @@ func run() async throws {
     let all = (try? ctx.fetch(FetchDescriptor<ToolProject>())) ?? []
     let fitsNow = (try? ctx.fetch(FetchDescriptor<RepoFit>())) ?? []
     let model = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "")
-    check("list: Top Shelf first, hidden out", model.projects.map(\.name) == ["Mole", "uninstally"])
-    check("list: headings above each shelf group",
-          model.groupHeadings.count == 2 && model.groupHeadings.values.contains("TOP SHELF"))
+    check("list: in run order (best fit first), hidden out", model.projects.map(\.name) == ["uninstally", "Mole"])
     check("list: hidden counted in the footer", model.hiddenCount == 1 && model.footer.contains("1 hidden"))
     check("list: new since the run before marked", model.newIDs.count == 1
           && model.newIDs.contains(all.first { $0.name == "uninstally" }!.id))
@@ -117,7 +132,7 @@ func run() async throws {
     check("list: search narrows the fits", searched.projects.map(\.name) == ["uninstally"])
     all.first { $0.name == "uninstally" }!.status = .topShelf
     let moved = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "")
-    check("list: a fit moved to Top Shelf joins that group", moved.groupHeadings.count == 1)
+    check("list: a shelf move keeps the fit order", moved.projects.map(\.name) == ["uninstally", "Mole"])
 
     // 8. A clone's README on disk is read (README.md, any case).
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fits-readme-\(UUID().uuidString)")

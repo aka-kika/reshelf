@@ -4,18 +4,25 @@ import Foundation
 /// network so it can be tested on plain values.
 ///
 /// Two passes (Kika, 10 Nov): the first scores every Top Shelf and Collector
-/// repo against her project from what reshelf already stores; the best 25 get
-/// their README read live from GitHub and are scored again. Scoring is TF-IDF
-/// cosine over words (what the two texts share, weighted by how rare a word is
-/// on the shelf), optionally blended with Apple's on-device sentence
-/// embeddings by rank.
+/// repo against her project from what reshelf already stores; the best few
+/// (the fits limit plus 10) get their README read live from GitHub and are
+/// scored again. Scoring is TF-IDF cosine over words (what the two texts
+/// share, weighted by how rare a word is on the shelf and among her own
+/// repos), with repos that fit many of her repos pushed down. Round 2 (10
+/// Nov) dropped Apple's sentence embedding: on her shelf it rated a Markdown
+/// notes app closer to Sift than the uninstallers that really fit.
 enum FitScorer {
-    /// How many candidates get a live README in the second pass.
-    static let liveReadmeCount = 25
-    /// Most fits shown for one project. Top Shelf comes first (up to
-    /// `topShelfShare`), The Collector fills the rest.
-    static let maxFits = 10
-    static let topShelfShare = 6
+    /// Bumped when the scoring changes, so the next Find Fits Again checks
+    /// the whole shelf instead of only what is new.
+    static let version = 2
+    /// How many fits at most (Settings > Fits). Only real fits are shown, so
+    /// a list can be shorter.
+    static let limitChoices = [10, 15, 20, 25]
+    static let defaultLimit = 15
+    static let limitKey = "reshelf.fits.limit"
+    /// How many candidates get today's README in the second pass: the limit
+    /// plus room for the ones that drop out once their README is read.
+    static func shortlistCount(for limit: Int) -> Int { limit + 10 }
     /// Below this TF-IDF cosine a repo does not fit, however it ranks: an
     /// empty list beats padding (Kika: "If nothing fits, say so").
     /// Calibrated on Kika's shelf (10 Nov): real fits for Sift and Kartina
@@ -26,6 +33,15 @@ enum FitScorer {
     static let minSharedTerms = 2
     /// How many of the project's words the match uses.
     static let queryTermLimit = 40
+    /// How much less a word counts when every one of her repos uses it
+    /// (about half). Tuned on her shelf, 10 Nov: repos listed for 3 or more
+    /// of her 11 repos went from 11 to 2.
+    static let ownWordPenalty = 1.5
+    /// Each other repo of hers that a shelf repo also fits divides its score
+    /// by (1 + this).
+    static let breadthPenalty = 0.25
+    /// Top Shelf's small lift (Kika: Top Shelf wins a tie, never fixed slots).
+    static let topShelfLift = 1.08
 
     /// One shelf repo as the scorer sees it.
     struct Candidate: Equatable {
@@ -43,6 +59,20 @@ enum FitScorer {
         let sharedTerms: [String]
         /// How many of the project's words the repo shares in all.
         var sharedCount: Int = 0
+        /// The word score alone, before the lifts and push-downs.
+        var wordScore: Double = 0
+        /// How many of her other repos it also fits.
+        var breadth: Int = 0
+
+        init(candidate: Candidate, score: Double, wordScore: Double? = nil, sharedTerms: [String],
+             sharedCount: Int = 0, breadth: Int = 0) {
+            self.candidate = candidate
+            self.score = score
+            self.wordScore = wordScore ?? score
+            self.sharedTerms = sharedTerms
+            self.sharedCount = sharedCount
+            self.breadth = breadth
+        }
     }
 
     // MARK: - Text
@@ -136,43 +166,96 @@ enum FitScorer {
 
     // MARK: - Scoring
 
-    /// TF-IDF cosine of the project against every candidate. The document
-    /// frequencies come from the candidates themselves (the shelf), so a word
-    /// every repo uses ("swift" on a Swift-heavy shelf) weighs little.
-    static func score(project: String, candidates: [Candidate]) -> [Scored] {
-        guard !candidates.isEmpty else { return [] }
-        let docs = candidates.map { termCounts(tokens($0.text)) }
-        var df: [String: Int] = [:]
-        for doc in docs { for term in doc.keys { df[term, default: 0] += 1 } }
-        let n = Double(candidates.count)
-        func idf(_ term: String) -> Double { log((n + 1) / (Double(df[term] ?? 0) + 1)) + 1 }
+    /// One text's strongest words with their weights.
+    struct Query {
+        let weights: [String: Double]
+        let norm: Double
+    }
 
+    /// Word weights shared by every score in one run: how rare a word is on
+    /// the shelf, and how rare it is among her own repos. A word most of her
+    /// repos use ("agent", "markdown", "menu bar" for Kika) says little about
+    /// what makes this one different, so it counts less (round 2, 10 Nov).
+    struct Weights {
+        let docs: [[String: Double]]
+        let docNorms: [Double]
+        let shelfIDF: (String) -> Double
+        let ownIDF: (String) -> Double
+    }
+
+    static func weights(candidates: [Candidate], ownTexts: [String]) -> Weights {
+        let counts = candidates.map { termCounts(tokens($0.text)) }
+        var df: [String: Int] = [:]
+        for doc in counts { for term in doc.keys { df[term, default: 0] += 1 } }
+        let n = Double(candidates.count)
+        let shelfIDF: (String) -> Double = { log((n + 1) / (Double(df[$0] ?? 0) + 1)) + 1 }
+        var own: [String: Int] = [:]
+        for text in ownTexts { for term in Set(tokens(text)) { own[term, default: 0] += 1 } }
+        let m = Double(max(ownTexts.count, 1))
+        // 1 for a word only this repo has, falling towards 1/(1 + log 2) for
+        // one every repo of hers has.
+        let ownIDF: (String) -> Double = { term in
+            let share = Double(own[term] ?? 1)
+            return 1 / (1 + log(1 + (share - 1) / max(m - 1, 1)) * ownWordPenalty)
+        }
+        let docs = counts.map { weigh($0, idf: shelfIDF) }
+        return Weights(docs: docs, docNorms: docs.map(norm), shelfIDF: shelfIDF, ownIDF: ownIDF)
+    }
+
+    static func query(_ text: String, _ w: Weights) -> Query {
+        var all = weigh(termCounts(tokens(text)), idf: w.shelfIDF)
+        for (term, value) in all { all[term] = value * w.ownIDF(term) }
         // Only the project's strongest words: a long README otherwise lets
         // dozens of everyday words add up to a match.
-        let allQuery = weights(termCounts(tokens(project)), idf: idf)
-        let query = Dictionary(uniqueKeysWithValues: allQuery
+        let top = Dictionary(uniqueKeysWithValues: all
             .sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }
             .prefix(queryTermLimit).map { ($0.key, $0.value) })
-        let queryNorm = norm(query)
-        guard queryNorm > 0 else {
-            return candidates.map { Scored(candidate: $0, score: 0, sharedTerms: [], sharedCount: 0) }
+        return Query(weights: top, norm: norm(top))
+    }
+
+    /// TF-IDF cosine of one query against candidate `index`, with the words
+    /// that carried it.
+    static func cosine(_ q: Query, _ w: Weights, _ index: Int) -> (score: Double, shared: [String], count: Int) {
+        let doc = w.docs[index]
+        let docNorm = w.docNorms[index]
+        guard q.norm > 0, docNorm > 0 else { return (0, [], 0) }
+        var dot = 0.0
+        var contributions: [(String, Double)] = []
+        for (term, value) in q.weights {
+            if let d = doc[term] {
+                dot += value * d
+                contributions.append((term, value * d))
+            }
         }
-        return zip(candidates, docs).map { candidate, counts in
-            let doc = weights(counts, idf: idf)
-            let docNorm = norm(doc)
-            var dot = 0.0
-            var contributions: [(String, Double)] = []
-            for (term, q) in query {
-                if let d = doc[term] {
-                    dot += q * d
-                    contributions.append((term, q * d))
+        let shared = contributions.sorted { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 > $1.1 }.prefix(4).map(\.0)
+        return (dot / (q.norm * docNorm), Array(shared), contributions.count)
+    }
+
+    /// Scores every candidate against her project.
+    ///
+    /// - `others`: her other repos' texts. A shelf repo that fits many of
+    ///   them is generic for her (a Markdown notes app fits every repo of hers
+    ///   that mentions Markdown), so it is pushed down and the specific fits
+    ///   win. It is never removed for that alone.
+    /// - Top Shelf gets a small lift: it wins a near tie, never a fixed slot.
+    static func score(project: String, others: [String] = [], candidates: [Candidate]) -> [Scored] {
+        guard !candidates.isEmpty else { return [] }
+        let w = weights(candidates: candidates, ownTexts: [project] + others)
+        let q = query(project, w)
+        let otherQueries = others.map { query($0, w) }.filter { $0.norm > 0 }
+        return candidates.indices.map { i in
+            let c = cosine(q, w, i)
+            var breadth = 0
+            if c.score >= minScore {
+                for other in otherQueries {
+                    let o = cosine(other, w, i)
+                    if o.score >= minScore, o.count >= minSharedTerms { breadth += 1 }
                 }
             }
-            let cosine = docNorm > 0 ? dot / (queryNorm * docNorm) : 0
-            let shared = contributions.sorted { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 > $1.1 }
-                .prefix(4).map(\.0)
-            return Scored(candidate: candidate, score: cosine, sharedTerms: Array(shared),
-                          sharedCount: contributions.count)
+            var final = c.score / (1 + breadthPenalty * Double(breadth))
+            if candidates[i].isTopShelf { final *= topShelfLift }
+            return Scored(candidate: candidates[i], score: final, wordScore: c.score,
+                          sharedTerms: c.shared, sharedCount: c.count, breadth: breadth)
         }
     }
 
@@ -182,7 +265,7 @@ enum FitScorer {
         return counts
     }
 
-    private static func weights(_ counts: [String: Int], idf: (String) -> Double) -> [String: Double] {
+    private static func weigh(_ counts: [String: Int], idf: (String) -> Double) -> [String: Double] {
         var out: [String: Double] = [:]
         for (term, count) in counts {
             out[term] = (1 + log(Double(count))) * idf(term)
@@ -194,43 +277,25 @@ enum FitScorer {
         sqrt(v.values.reduce(0) { $0 + $1 * $1 })
     }
 
-    /// Orders by the word score, or — when sentence-embedding similarities
-    /// are given (same order as `scored`) — by reciprocal-rank fusion of the
-    /// two, so neither scale has to be calibrated against the other.
-    static func ordered(_ scored: [Scored], embedding: [Double]? = nil) -> [Scored] {
-        guard let embedding, embedding.count == scored.count else {
-            return scored.sorted { $0.score == $1.score ? $0.candidate.name < $1.candidate.name : $0.score > $1.score }
+    /// Best first by the final score; a tie goes to Top Shelf, then the name.
+    static func ordered(_ scored: [Scored]) -> [Scored] {
+        scored.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            if $0.candidate.isTopShelf != $1.candidate.isTopShelf { return $0.candidate.isTopShelf }
+            return $0.candidate.name < $1.candidate.name
         }
-        let k = 30.0
-        let wordRank = rankMap(scored.indices.map { scored[$0].score })
-        let embRank = rankMap(embedding)
-        let fused = scored.indices.map { i in 1 / (k + Double(wordRank[i])) + 1 / (k + Double(embRank[i])) }
-        return scored.indices.sorted {
-            fused[$0] == fused[$1] ? scored[$0].candidate.name < scored[$1].candidate.name : fused[$0] > fused[$1]
-        }.map { scored[$0] }
     }
 
-    /// Index → rank (0 = best) for a list of values, highest first.
-    private static func rankMap(_ values: [Double]) -> [Int] {
-        let order = values.indices.sorted { values[$0] > values[$1] }
-        var ranks = Array(repeating: 0, count: values.count)
-        for (rank, index) in order.enumerated() { ranks[index] = rank }
-        return ranks
+    /// Does this candidate fit at all? The word score must clear the cut and
+    /// share at least two strong words: one shared word is a coincidence.
+    static func fits(_ scored: Scored) -> Bool {
+        scored.wordScore >= minScore && scored.sharedCount >= minSharedTerms
     }
 
-    /// The fits shown: above `minScore`, hidden ones out, Top Shelf first
-    /// (up to `topShelfShare`, more when The Collector has fewer), then The
-    /// Collector, each in the order given.
-    static func pick(_ ordered: [Scored], hidden: Set<String>) -> [Scored] {
-        let eligible = ordered.filter {
-            $0.score >= minScore && $0.sharedCount >= minSharedTerms && !hidden.contains($0.candidate.key)
-        }
-        let top = eligible.filter(\.candidate.isTopShelf)
-        let collector = eligible.filter { !$0.candidate.isTopShelf }
-        let collectorRoom = maxFits - min(top.count, topShelfShare)
-        let collectorPart = Array(collector.prefix(collectorRoom))
-        let topPart = Array(top.prefix(maxFits - collectorPart.count))
-        return topPart + collectorPart
+    /// The fits shown: only real fits (an empty list beats padding), hidden
+    /// ones out, best first, at most `limit`. Fewer is fine.
+    static func pick(_ scored: [Scored], hidden: Set<String>, limit: Int = defaultLimit) -> [Scored] {
+        Array(ordered(scored.filter { fits($0) && !hidden.contains($0.candidate.key) }).prefix(limit))
     }
 
     /// The plain why line when Apple Intelligence can't write one.
@@ -249,6 +314,7 @@ enum FitMerge {
         var why: String
         var isNew: Bool
         var isHidden: Bool
+        var score: Double = 0
     }
 
     /// Hidden rows always stay (hidden). A fit is new when its repo was not in
@@ -266,4 +332,15 @@ enum FitMerge {
         }
         return rows + hidden
     }
+}
+
+/// What reshelf's GitHub metadata store knows about one shelf repo, by its
+/// `dedupKey`. The app fills it from `IntelligenceDatabase` at launch; tests
+/// set it by hand.
+struct RepoFacts: Equatable, Sendable {
+    var language: String = ""
+    var isArchived: Bool = false
+    var pushedAt: Date?
+    var license: String = ""
+    var topics: [String] = []
 }

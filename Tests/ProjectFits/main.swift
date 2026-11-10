@@ -63,7 +63,7 @@ func run() throws {
     let names = picked.map(\.candidate.name)
     check("unrelated repos left out", !names.contains("notes") && !names.contains("weather"))
     check("one shared word is not a fit", !names.contains("oneword"))
-    check("Top Shelf listed before The Collector", names == ["bundler", "cleaner"])
+    check("best fit first, whichever shelf (round 2)", names == ["cleaner", "bundler"])
     check("hidden repos never come back in a pick",
           !FitScorer.pick(ordered, hidden: ["test/cleaner"]).map(\.candidate.name).contains("cleaner"))
     check("nothing fits gives an empty list",
@@ -71,14 +71,36 @@ func run() throws {
                                                            candidates: cands)), hidden: []).isEmpty)
     check("fallback why names the shared words", FitScorer.fallbackWhy(ordered[0]).hasPrefix("Shares: "))
 
-    // 4. Top Shelf share: 6 Top Shelf at most while The Collector has more.
-    let many = (0..<9).map { candidate("t\($0)", top: true, "uninstaller leftover caches bundle \($0)") }
-        + (0..<9).map { candidate("c\($0)", top: false, "uninstaller leftover caches bundle \($0)") }
-    let pickedMany = FitScorer.pick(FitScorer.ordered(FitScorer.score(project: project, candidates: many)), hidden: [])
-    check("at most 10 fits", pickedMany.count == FitScorer.maxFits)
-    check("6 from Top Shelf, then 4 from The Collector",
-          pickedMany.prefix(6).allSatisfy(\.candidate.isTopShelf)
-          && pickedMany.dropFirst(6).allSatisfy { !$0.candidate.isTopShelf })
+    // 4. Round 2: no fixed slots. At most the limit; an equal fit goes to
+    //    Top Shelf; a better Collector fit beats a weaker Top Shelf one.
+    let many = (0..<20).map { candidate("t\($0)", top: true, "uninstaller leftover caches bundle \($0)") }
+        + (0..<20).map { candidate("c\($0)", top: false, "uninstaller leftover caches bundle \($0)") }
+    let scoredMany = FitScorer.score(project: project, candidates: many)
+    check("default limit is 15", FitScorer.pick(scoredMany, hidden: []).count == 15)
+    check("limit 25 keeps 25", FitScorer.pick(scoredMany, hidden: [], limit: 25).count == 25)
+    check("equal fits: Top Shelf first",
+          FitScorer.pick(scoredMany, hidden: [], limit: 20).allSatisfy(\.candidate.isTopShelf))
+    let weakTop = [candidate("weak-top", top: true, "uninstaller caches and a lot of unrelated words about weather maps music"),
+                   candidate("strong-collector", top: false, "uninstaller leftover caches preference files launch agents bundle")]
+    check("a better Collector fit beats a weaker Top Shelf one",
+          FitScorer.pick(FitScorer.score(project: project, candidates: weakTop + cands), hidden: [])
+            .first?.candidate.name == "strong-collector")
+    check("shortlist follows the limit", FitScorer.shortlistCount(for: 10) == 20
+          && FitScorer.shortlistCount(for: 25) == 35)
+
+    // 4b. A shelf repo that fits many of her repos is pushed down, so the
+    //     one specific to this project wins (round 2: imark, cortex in 5 of 11).
+    let pushProject = "markdown image library tags folders alt text photos"
+    let others = ["markdown editor with folders", "markdown editor for agents", "markdown library browser", "wiki"]
+    let push = [candidate("generic-md", top: false, "markdown notes editor library tags folders"),
+                candidate("photos", top: false, "image library photos tags alt text")]
+    let without = FitScorer.ordered(FitScorer.score(project: pushProject, candidates: push + cands))
+    let with = FitScorer.ordered(FitScorer.score(project: pushProject, others: others, candidates: push + cands))
+    let generic = with.first { $0.candidate.name == "generic-md" }
+    check("generic repo counts how many of her repos it fits", (generic?.breadth ?? 0) >= 2)
+    check("generic repo scores lower with her other repos known",
+          (generic?.score ?? 1) < (without.first { $0.candidate.name == "generic-md" }?.score ?? 0))
+    check("the specific repo comes first", with.first?.candidate.name == "photos")
 
     // 5. Merge: hidden stay hidden, new gets the dot, gone ones drop, first run marks nothing.
     let prev = [FitMerge.Row(key: "a", rank: 0, why: "", isNew: false, isHidden: false),
@@ -103,8 +125,11 @@ func run() throws {
     check("adding it again does nothing",
           ProjectFitsService.add([("KIKA/sift", "https://github.com/kika/Sift", "")], in: ctx).isEmpty)
     let sift = added[0]
-    ProjectFitsService.applyRun(repoID: sift.id, found: [("test/cleaner", "Finds leftovers")], note: "", in: ctx)
+    ProjectFitsService.applyRun(repoID: sift.id, found: [("test/cleaner", "Finds leftovers")],
+                                scores: ["test/cleaner": 0.12], matchText: "sift text", note: "", in: ctx)
     check("run saved with its time", sift.lastRunAt != nil && sift.previousRunAt == nil)
+    check("score and match text saved", ProjectFitsService.fits(for: sift.id, in: ctx).first?.score == 0.12
+          && sift.matchText == "sift text")
     check("fit saved", ProjectFitsService.fits(for: sift.id, in: ctx).map(\.repoKey) == ["test/cleaner"])
     ProjectFitsService.setHidden(true, repoKey: "test/cleaner", repoID: sift.id, in: ctx)
     ProjectFitsService.applyRun(repoID: sift.id, found: [("test/cleaner", "again"), ("test/other", "new")],
@@ -125,6 +150,7 @@ func run() throws {
           let data = try? Data(contentsOf: file) else { check("backup file", false); return }
     let rows = (try? CatalogExportService.decodeMyRepos(data)) ?? []
     check("backup has the repo and both fits", rows.count == 1 && rows[0].fits.count == 2)
+    check("backup carries the score", rows[0].fits.first { $0.repo == "test/cleaner" }?.score == 0.12)
     check("fit row names the shelf repo", rows[0].fits.first { $0.repo == "test/cleaner" }?.name == "Cleaner"
           && rows[0].fits.first { $0.repo == "test/cleaner" }?.shelf == "topShelf")
     let old = Data(#"{"exportedAt":"2026-01-01T00:00:00Z","app":"reshelf","version":1,"projectCount":0,"projects":[]}"#.utf8)

@@ -222,6 +222,8 @@ struct RepoFitDTO: Codable, Equatable {
     var why: String
     var isNew: Bool
     var isHidden: Bool
+    /// Nil in files from 1.17.0 (35), before fits had scores.
+    var score: Double? = nil
 }
 
 struct CatalogSnapshotDTO: Codable {

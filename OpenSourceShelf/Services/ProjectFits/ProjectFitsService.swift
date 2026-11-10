@@ -57,23 +57,35 @@ enum ProjectFitsService {
     }
 
     /// Saves one finished run: merges with the saved list (hidden ones stay
-    /// hidden, new ones get the dot) and stamps the run time.
-    static func applyRun(repoID: UUID, found: [(key: String, why: String)], note: String,
+    /// hidden, new ones get the dot) and stamps the run time. `found` is in
+    /// list order, best fit first.
+    static func applyRun(repoID: UUID, found: [(key: String, why: String)], scores: [String: Double] = [:],
+                         matchText: String? = nil, note: String,
                          at date: Date = Date(), in context: ModelContext) {
         guard let repo = repo(repoID, in: context) else { return }
         let saved = fits(for: repoID, in: context)
         let previous = saved.map {
-            FitMerge.Row(key: $0.repoKey, rank: $0.rank, why: $0.why, isNew: $0.isNew, isHidden: $0.isHidden)
+            FitMerge.Row(key: $0.repoKey, rank: $0.rank, why: $0.why, isNew: $0.isNew, isHidden: $0.isHidden,
+                         score: $0.score)
         }
         let merged = FitMerge.merge(previous: previous, found: found, isFirstRun: repo.lastRunAt == nil)
         for fit in saved { context.delete(fit) }
         for row in merged {
             context.insert(RepoFit(myRepoID: repoID, repoKey: row.key, rank: row.rank, why: row.why,
-                                   isNew: row.isNew, isHidden: row.isHidden))
+                                   isNew: row.isNew, isHidden: row.isHidden,
+                                   score: row.isHidden ? row.score : (scores[row.key] ?? row.score)))
         }
+        if let matchText { repo.matchText = matchText }
         repo.previousRunAt = repo.lastRunAt
         repo.lastRunAt = date
         repo.lastRunNote = note
+        save(context)
+    }
+
+    /// Her other repos whose README a run read for the first time.
+    static func saveMatchTexts(_ texts: [UUID: String], in context: ModelContext) {
+        guard !texts.isEmpty else { return }
+        for (id, text) in texts { repo(id, in: context)?.matchText = text }
         save(context)
     }
 
@@ -111,7 +123,8 @@ enum ProjectFitsService {
                     let row = byKey[fit.repoKey]
                     return RepoFitDTO(repo: fit.repoKey, name: row?.name ?? "",
                                       githubURL: row?.githubURL ?? "", shelf: row?.statusRaw ?? "",
-                                      rank: fit.rank, why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden)
+                                      rank: fit.rank, why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden,
+                                      score: fit.score)
                 })
         }
     }
@@ -134,7 +147,8 @@ enum ProjectFitsService {
             context.insert(repo)
             for fit in row.fits {
                 context.insert(RepoFit(myRepoID: repo.id, repoKey: fit.repo, rank: fit.rank,
-                                       why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden))
+                                       why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden,
+                                       score: fit.score ?? 0))
             }
             next += 1
             added += 1

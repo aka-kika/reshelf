@@ -98,7 +98,7 @@ struct ProjectListView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
                     Spacer()
-                    // Fits keep one order (Top Shelf first, best fit first).
+                    // Fits keep one order: best fit first.
                     if fits == nil { sortMenu }
                     HeaderChromeButton(systemImage: "magnifyingglass", help: "Search (⌘K)") {
                         NotificationCenter.default.post(name: .openCommandPalette, object: nil)
@@ -165,15 +165,6 @@ struct ProjectListView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(visibleProjects) { project in
-                                    if let heading = fits?.groupHeadings[project.id] {
-                                        Text(heading)
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(.secondary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.horizontal, 16)
-                                            .padding(.top, 10)
-                                            .padding(.bottom, 2)
-                                    }
                                     ProjectRowView(
                                         project: project,
                                         isSelected: listSelection?.projectID == project.id
@@ -184,6 +175,7 @@ struct ProjectListView: View {
                                         isBehind: behindProjectIDs.contains(project.id),
                                         hasNoClearLicense: project.hasNoClearLicense,
                                         isNewFit: fits?.newIDs.contains(project.id) ?? false,
+                                        showsShelf: fits != nil,
                                         contentKey: ProjectRowView.contentKey(for: project),
                                         onSelect: { selectProject(project, modifiers: $0) }
                                     )
@@ -1194,6 +1186,9 @@ struct ProjectRowView: View, Equatable {
     var hasNoClearLicense: Bool = false
     /// A fit of one of her repos that was not in the run before.
     var isNewFit: Bool = false
+    /// In a fits list the shelf is named on the row ("Top Shelf · macOS"):
+    /// the list is ordered by fit, so there are no shelf headings.
+    var showsShelf: Bool = false
     /// Captured text and icon presence, for the same reason as `statusKey`: an
     /// edit or a fetched icon changes the project but not the reference.
     var contentKey: String = ""
@@ -1211,6 +1206,7 @@ struct ProjectRowView: View, Equatable {
             && lhs.isBehind == rhs.isBehind
             && lhs.hasNoClearLicense == rhs.hasNoClearLicense
             && lhs.isNewFit == rhs.isNewFit
+            && lhs.showsShelf == rhs.showsShelf
             && lhs.isSelected == rhs.isSelected
             && lhs.contentKey == rhs.contentKey
     }
@@ -1240,8 +1236,8 @@ struct ProjectRowView: View, Equatable {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                if !project.category.isEmpty {
-                    Text(project.category)
+                if let detail = detailLine {
+                    Text(detail)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 }
@@ -1273,6 +1269,13 @@ struct ProjectRowView: View, Equatable {
             if flags.contains(.shift) { modifiers.insert(.shift) }
             onSelect?(modifiers)
         }
+    }
+
+    /// Category, and in a fits list the shelf in front of it.
+    private var detailLine: String? {
+        let parts = (showsShelf ? [project.status.displayName] : []) + [project.category]
+        let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
+        return line.isEmpty ? nil : line
     }
 
     @ViewBuilder
