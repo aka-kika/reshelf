@@ -383,6 +383,22 @@ await check("53d5: the async refresh fills the index and a newer invalidation wi
     try expect(CatalogCloneService.isCloned(tool), "lookup after a raced refresh finds nothing")
 }
 
+await check("local edits: a tracked change is noticed, untracked files and a clean clone are not") {
+    CatalogCloneService.invalidateCloneIndex()
+    let tool = try project("https://github.com/kika/tool", category: "AI Agent")
+    try expect(await CatalogCloneService.hasLocalEdits(for: tool) == false, "clean clone shows local edits")
+    try "scratch\n".write(to: aiTool.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
+    try expect(await CatalogCloneService.hasLocalEdits(for: tool) == false, "an untracked file counts as an edit")
+    try "changed\n".write(to: aiTool.appendingPathComponent("README"), atomically: true, encoding: .utf8)
+    try expect(await CloneEditsStore.shared.check(tool) == true, "a tracked edit is not noticed")
+    try expect(CloneEditsStore.shared.edited.contains(tool.id), "the store does not remember it")
+    try git(["checkout", "--", "README"], in: aiTool)
+    await CloneEditsStore.shared.check(tool)
+    try expect(!CloneEditsStore.shared.edited.contains(tool.id), "the mark stays after the edit is undone")
+    let notCloned = try project("https://github.com/kika/nowhere", category: "CLI")
+    try expect(await CatalogCloneService.hasLocalEdits(for: notCloned) == nil, "a repo with no clone has an answer")
+}
+
 if failures > 0 {
     print("\(failures) case(s) failed")
     exit(1)

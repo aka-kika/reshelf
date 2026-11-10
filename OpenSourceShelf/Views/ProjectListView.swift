@@ -17,6 +17,7 @@ struct ProjectListView: View {
     @Query(sort: \MyRepo.sortIndex) private var myRepos: [MyRepo]
     @Query private var repoFits: [RepoFit]
     @ObservedObject private var fitsRunner = ProjectFitsRunner.shared
+    @ObservedObject private var cloneEdits = CloneEditsStore.shared
     // Settings > Fits: read here so the list redraws when one changes.
     @AppStorage(FitFilters.sameLanguageKey) private var fitsSameLanguage = false
     @AppStorage(FitFilters.updatedKey) private var fitsUpdated = FitFilters.Updated.any.rawValue
@@ -203,6 +204,7 @@ struct ProjectListView: View {
                                         isCloning: cloningProjectIDs.contains(project.id),
                                         isClonedLocally: CatalogCloneService.isCloned(project),
                                         isBehind: behindProjectIDs.contains(project.id),
+                                        hasLocalEdits: cloneEdits.edited.contains(project.id),
                                         hasNoClearLicense: project.hasNoClearLicense,
                                         isNewFit: fits?.newIDs.contains(project.id) ?? false,
                                         showsShelf: fits != nil,
@@ -732,6 +734,8 @@ struct ProjectListView: View {
                 guard LiveProject.isAlive(project) else { continue }
                 let id = project.id, name = project.name
                 let status = await CatalogCloneService.updateStatus(for: project)
+                // The same pass notes clones with local edits (Pull skips them).
+                await CloneEditsStore.shared.check(project)
                 switch status {
                 case .updatesAvailable: behind.insert(id)
                 case .error(let message): unchecked.append(name); uncheckedReason = message
@@ -783,7 +787,10 @@ struct ProjectListView: View {
                     pulledIDs.insert(id)
                     announceCloneStatus(id, .upToDate)
                 } catch let error as GitClientError {
-                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(name) }
+                    if case .localChangesPresent = error {
+                        skipped += 1
+                        await MainActor.run { CloneEditsStore.shared.set(id, hasEdits: true) }
+                    } else { failed.append(name) }
                 } catch {
                     failed.append(name)
                 }
@@ -828,7 +835,10 @@ struct ProjectListView: View {
                     pulledIDs.insert(id)
                     announceCloneStatus(id, .upToDate)
                 } catch let error as GitClientError {
-                    if case .localChangesPresent = error { skipped += 1 } else { failed.append(name) }
+                    if case .localChangesPresent = error {
+                        skipped += 1
+                        await MainActor.run { CloneEditsStore.shared.set(id, hasEdits: true) }
+                    } else { failed.append(name) }
                 } catch {
                     failed.append(name)
                 }
@@ -1226,6 +1236,9 @@ struct ProjectRowView: View, Equatable {
     var isClonedLocally: Bool = false
     /// Local clone is behind its upstream (updates available to pull).
     var isBehind: Bool = false
+    /// The clone has tracked edits, so Pull will skip it (known only after a
+    /// check: selecting it, Check Clones for Updates, Pull).
+    var hasLocalEdits: Bool = false
     var hasNoClearLicense: Bool = false
     /// A fit of one of her repos that was not in the run before.
     var isNewFit: Bool = false
@@ -1247,6 +1260,7 @@ struct ProjectRowView: View, Equatable {
             && lhs.isCloning == rhs.isCloning
             && lhs.isClonedLocally == rhs.isClonedLocally
             && lhs.isBehind == rhs.isBehind
+            && lhs.hasLocalEdits == rhs.hasLocalEdits
             && lhs.hasNoClearLicense == rhs.hasNoClearLicense
             && lhs.isNewFit == rhs.isNewFit
             && lhs.showsShelf == rhs.showsShelf
@@ -1317,6 +1331,7 @@ struct ProjectRowView: View, Equatable {
     /// Category, and in a fits list the shelf in front of it.
     private var detailLine: String? {
         let parts = (showsShelf ? [project.status.displayName] : []) + [project.category]
+            + (hasLocalEdits ? ["local edits"] : [])
         let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
         return line.isEmpty ? nil : line
     }

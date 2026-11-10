@@ -27,6 +27,7 @@ struct InspectView: View {
     @State private var cloneUpdateStatus: CatalogCloneService.UpdateStatus?
     @State private var isCheckingUpdates = false
     @State private var isPulling = false
+    @ObservedObject private var cloneEdits = CloneEditsStore.shared
     @State private var isConfirmingDelete = false
 
     private var currentFolder: CatalogFolder? {
@@ -368,6 +369,14 @@ struct InspectView: View {
 
                 cloneUpdateRow
 
+                if cloneEdits.edited.contains(project.id) {
+                    Label("Local edits: Pull skips this clone until they are committed or undone.",
+                          systemImage: "pencil")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 HStack(spacing: 8) {
                     Button("Reveal in Finder") { CatalogCloneService.revealInFinder(dest) }
                         .controlSize(.small)
@@ -485,9 +494,14 @@ struct InspectView: View {
                     isPulling = false
                     cloneUpdateStatus = .upToDate
                     broadcastBehind(false, id: id) // clear the orange row dot now that it's current
+                    CloneEditsStore.shared.set(id, hasEdits: false)
                 }
             } catch {
-                await MainActor.run { isPulling = false; cloneUpdateStatus = .error(error.localizedDescription) }
+                await MainActor.run {
+                    isPulling = false
+                    cloneUpdateStatus = .error(error.localizedDescription)
+                    if case GitClientError.localChangesPresent = error { CloneEditsStore.shared.set(id, hasEdits: true) }
+                }
             }
         }
     }
@@ -504,8 +518,10 @@ struct InspectView: View {
     /// Reuses this session's last answer for the repo, so selecting it again
     /// doesn't hit the network; Check and Pull still ask afresh.
     private func autoCheckUpdatesIfCloned() async {
-        guard CatalogCloneService.isCloned(project),
-              cloneUpdateStatus == nil, !isCheckingUpdates else { return }
+        guard CatalogCloneService.isCloned(project) else { return }
+        // Local edits: one local git status when the repo is selected.
+        await CloneEditsStore.shared.check(project)
+        guard cloneUpdateStatus == nil, !isCheckingUpdates else { return }
         if let known = CatalogCloneService.cachedUpdateStatus(for: project.id) {
             cloneUpdateStatus = known
             return

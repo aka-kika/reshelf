@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import CoreServices
+import Combine
 
 /// Resolves the root folder where repositories are cloned. The user can override
 /// it in Settings; otherwise it defaults to `~/reshelf/repos`. Stored as a
@@ -823,5 +824,41 @@ final class CloneFolderWatcher {
         let rel = Array(parts.dropFirst(rootParts.count))
         if rel.count <= 1 { return true }
         return rel.count == 3 && rel[2] == ".git"
+    }
+}
+
+extension CatalogCloneService {
+    /// True when the clone has tracked edits (the same check Pull makes before
+    /// it refuses with `.localChangesPresent`); nil when it is not cloned or
+    /// git could not tell. One local `git status`, no network.
+    @MainActor
+    static func hasLocalEdits(for project: ToolProject) async -> Bool? {
+        guard let dir = existingClone(for: project) else { return nil }
+        guard let clean = try? await GitClient().workingTreeIsClean(repositoryURL: dir) else { return nil }
+        return !clean
+    }
+}
+
+/// Clones with local edits (Kika, 10 Nov; the idea from cortex, MIT, whose
+/// Repos page shows uncommitted files; no code taken from it). Filled only
+/// when asked: selecting a cloned repo, Check Clones for Updates, and Pull.
+/// Never a scan of every clone on its own. Session only.
+@MainActor
+final class CloneEditsStore: ObservableObject {
+    static let shared = CloneEditsStore()
+    @Published private(set) var edited: Set<UUID> = []
+
+    func set(_ id: UUID, hasEdits: Bool) {
+        if hasEdits { edited.insert(id) } else { edited.remove(id) }
+    }
+
+    /// Checks one clone and remembers the answer; an unknown answer leaves
+    /// the last one.
+    @discardableResult
+    func check(_ project: ToolProject) async -> Bool? {
+        let id = project.id
+        guard let edits = await CatalogCloneService.hasLocalEdits(for: project) else { return nil }
+        set(id, hasEdits: edits)
+        return edits
     }
 }
