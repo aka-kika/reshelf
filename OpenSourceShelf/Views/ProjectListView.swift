@@ -538,9 +538,15 @@ struct ProjectListView: View {
         // through later runs; Show Hidden Fits brings it back).
         if let repoID = sidebarSelection?.myRepoID,
            let repo = myRepos.first(where: { $0.id == repoID }) {
+            let key = GitHubRepositoryURL.dedupKey(for: project.githubURL)
+            if repoFits.contains(where: { $0.myRepoID == repoID && $0.repoKey == key && $0.isPinned }) {
+                // Kept with Keep: Unpin lets it compete like any fit next run.
+                Button("Unpin") {
+                    ProjectFitsService.setPinned(false, repoKey: key, repoID: repoID, in: modelContext)
+                }
+            }
             Button("Hide from \(repo.displayName) Fits") {
-                ProjectFitsService.setHidden(true, repoKey: GitHubRepositoryURL.dedupKey(for: project.githubURL),
-                                             repoID: repoID, in: modelContext)
+                ProjectFitsService.setHidden(true, repoKey: key, repoID: repoID, in: modelContext)
                 if listSelection?.projectID == project.id { listSelection = nil }
             }
             Divider()

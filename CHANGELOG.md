@@ -18,7 +18,7 @@ All notable changes to **reshelf** are documented here. This project follows
 - **No "…" in any menu item or button** (Kika's rule for all her apps): File, Shelf, right-click menus, Settings buttons, Start Dictation. The app menu keeps the system's one Settings item (⌘,). Progress text like "Cloning…" stays.
 - **A filter per repo:** right-click a repo under My Repos → **Filter** (same form as Settings → Fits, in a popover); **Use Main Filter** goes back; Settings → Fits lists repos with their own filter, each with **Reset**. Saved in backups; the agents' `fits` says which filter a repo used.
 - **All repos at once:** right-click the My Repos heading → **New Fits** / **Analyze All Fits** (one after another, one progress line, Stop), and **Filter** to open Settings → Fits. Also in the Shelf menu.
-- **Made room:** a run that pushes saved fits off because of the limit says so under the list ("2 older fits made room: … Show"); **Keep** puts one back for good and the weakest other fit goes instead.
+- **Made room:** a run that pushes saved fits off because of the limit says so under the list ("2 older fits made room: … Show"); **Keep** puts one back for good and the weakest other fit goes instead. Right-click a kept fit → **Unpin** undoes it.
 - **Sort in fits lists:** the same Sort button as every other list, with **Best Fit** first (and the start).
 - **No sparkle icons:** the Capture tab shows a tray, Quick Capture's AI Suggestions a lightbulb.
 - The skill's `shelf.py fits` follows the new order and the Fits filters.

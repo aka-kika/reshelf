@@ -254,6 +254,10 @@ func run() throws {
     check("Keep puts it back, pinned", oldFit?.isPinned == true && oldFit?.isBumped == false)
     check("the weakest other fit made room instead", nowFits.first { $0.repoKey == "test/b" }?.isBumped == true
           && nowFits.first { $0.repoKey == "test/a" }?.isBumped == false)
+    ProjectFitsService.setPinned(false, repoKey: "test/old", repoID: sift.id, in: ctx)
+    check("Unpin: still listed, no longer kept", ProjectFitsService.fits(for: sift.id, in: ctx)
+          .first { $0.repoKey == "test/old" }.map { !$0.isPinned && !$0.isBumped } == true)
+    ProjectFitsService.setPinned(true, repoKey: "test/old", repoID: sift.id, in: ctx)
     check("ranks follow the score", nowFits.filter { !$0.isBumped && !$0.isHidden }.sorted { $0.rank < $1.rank }
           .map(\.repoKey) == ["test/a", "test/old"])
 

@@ -131,6 +131,15 @@ enum ProjectFitsService {
         save(context)
     }
 
+    /// Unpin a kept fit: it stays on the list now and competes like any
+    /// other fit on the next run.
+    static func setPinned(_ pinned: Bool, repoKey: String, repoID: UUID, in context: ModelContext) {
+        guard let fit = fits(for: repoID, in: context).first(where: { $0.repoKey == repoKey }),
+              fit.isPinned != pinned else { return }
+        fit.isPinned = pinned
+        save(context)
+    }
+
     static func setHidden(_ hidden: Bool, repoKey: String, repoID: UUID, in context: ModelContext) {
         guard let fit = fits(for: repoID, in: context).first(where: { $0.repoKey == repoKey }) else { return }
         fit.isHidden = hidden
