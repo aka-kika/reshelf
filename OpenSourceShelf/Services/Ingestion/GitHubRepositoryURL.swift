@@ -94,6 +94,24 @@ struct GitHubRepositoryURL: Equatable {
     /// `owner/repo` lowercased — two links to the same repo give the same key
     /// (http/https, `www.`, trailing slash, `.git`, `/tree/…`, case). A
     /// non-GitHub link falls back to the trimmed, lowercased link.
+    /// `dedupKey(for:)`, remembered per link: the sidebar, the fits list and
+    /// every backup map the whole shelf by key, and parsing 800 links on
+    /// each redraw added up (d135). Safe from any thread.
+    static func cachedDedupKey(for url: String) -> String {
+        keyCacheLock.lock()
+        if let known = keyCache[url] { keyCacheLock.unlock(); return known }
+        keyCacheLock.unlock()
+        let key = dedupKey(for: url)
+        keyCacheLock.lock()
+        if keyCache.count > 20_000 { keyCache.removeAll() }
+        keyCache[url] = key
+        keyCacheLock.unlock()
+        return key
+    }
+
+    private static let keyCacheLock = NSLock()
+    nonisolated(unsafe) private static var keyCache: [String: String] = [:]
+
     static func dedupKey(for url: String) -> String {
         if let (owner, repo) = ownerAndRepo(from: url) {
             return "\(owner)/\(repo)".lowercased()

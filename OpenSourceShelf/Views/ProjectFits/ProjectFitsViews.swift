@@ -50,11 +50,7 @@ struct FitsListModel {
     }
 
     static func byKey(_ projects: [ToolProject]) -> [String: ToolProject] {
-        var out: [String: ToolProject] = [:]
-        for project in projects where !project.githubURL.isEmpty {
-            out[GitHubRepositoryURL.dedupKey(for: project.githubURL)] = project
-        }
-        return out
+        ProjectFitsService.byKey(projects)
     }
 
     /// The fits shown for one repo, in list order: not hidden, still on the

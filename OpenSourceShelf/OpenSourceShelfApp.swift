@@ -340,8 +340,8 @@ struct OpenSourceShelfApp: App {
         }
 
         // Backups and restores carry My Repos and their fits.
-        CatalogBackupService.myReposSource = { context in
-            if let context { ProjectFitsService.refreshSnapshot(in: context) }
+        CatalogBackupService.myReposSource = { context, projects in
+            if let context { ProjectFitsService.refreshSnapshot(in: context, projects: projects) }
             return ProjectFitsService.latestSnapshot
         }
         CatalogBackupService.myReposRestorer = { rows, context in

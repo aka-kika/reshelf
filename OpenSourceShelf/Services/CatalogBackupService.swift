@@ -27,8 +27,9 @@ enum CatalogBackupService {
     /// Kika's repos and their fits for the next snapshot. The app points this
     /// at `ProjectFitsService` at launch; tests leave it empty. Called on the
     /// main thread; given the store's context when one is at hand, so a
-    /// routine snapshot also picks up shelf moves of fitted repos.
-    @MainActor static var myReposSource: (ModelContext?) -> [MyRepoDTO] = { _ in [] }
+    /// routine snapshot also picks up shelf moves of fitted repos, and the
+    /// rows it already fetched so they are not fetched twice.
+    @MainActor static var myReposSource: (ModelContext?, [ToolProject]?) -> [MyRepoDTO] = { _, _ in [] }
     /// Puts a file's repos and fits back (only repos this Mac does not have).
     /// The app points this at `ProjectFitsService.merge`; tests leave it empty.
     @MainActor static var myReposRestorer: ([MyRepoDTO], ModelContext) -> Void = { _, _ in }
@@ -66,7 +67,7 @@ enum CatalogBackupService {
         // Copied on the caller's thread: models must not cross threads.
         let rows = projects.map(CatalogProjectDTO.init)
         let folderRows = folders.map(CatalogFolderDTO.init)
-        let myRepos = Thread.isMainThread ? MainActor.assumeIsolated { myReposSource(nil) } : []
+        let myRepos = Thread.isMainThread ? MainActor.assumeIsolated { myReposSource(nil, nil) } : []
         return writeQueue.sync { write(rows, folders: folderRows, myRepos: myRepos, reason: reason) }
     }
 
@@ -97,7 +98,7 @@ enum CatalogBackupService {
             let folders = (try? context.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
             let rows = projects.map(CatalogProjectDTO.init)
             let folderRows = folders.map(CatalogFolderDTO.init)
-            let myRepos = myReposSource(context)
+            let myRepos = myReposSource(context, projects)
             writeQueue.async { _ = write(rows, folders: folderRows, myRepos: myRepos, reason: nil) }
         }
     }

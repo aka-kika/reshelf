@@ -196,7 +196,7 @@ func run() async throws {
     let fitsDir = backups.appendingPathComponent("fits-only")
     CatalogBackupService.backupsDirectoryOverride = fitsDir
     var note = "run 0"
-    CatalogBackupService.myReposSource = { _ in
+    CatalogBackupService.myReposSource = { _, _ in
         [MyRepoDTO(fullName: "kika/app", githubURL: "https://github.com/kika/app", summary: "",
                    addedAt: Date(timeIntervalSince1970: 0), sortIndex: 0, lastRunAt: nil,
                    previousRunAt: nil, lastRunNote: note, fits: [])]
@@ -241,7 +241,7 @@ func run() async throws {
     await settle()
     check("a debounced fits-only snapshot also replaces the newest", files().count == 5
           && files().first.flatMap(myRepoNote) == "debounced run")
-    CatalogBackupService.myReposSource = { _ in [] }
+    CatalogBackupService.myReposSource = { _, _ in [] }
 }
 
 try await run()

@@ -521,6 +521,9 @@ struct FitFilters: Codable, Equatable, Sendable {
         return upper.contains("GPL") && !upper.contains("LGPL")
     }
 
+    /// One calendar for every check, not one per fit per redraw (d135).
+    private static let gregorian = Calendar(identifier: .gregorian)
+
     /// Does a shelf repo pass? Unknown facts fail a filter that needs them
     /// (no language or date known), except her own language: if GitHub names
     /// none for her repo, the language filter has nothing to compare and lets
@@ -533,7 +536,7 @@ struct FitFilters: Codable, Equatable, Sendable {
         if hideStrongCopyleft, Self.isStrongCopyleft(license) { return false }
         if let months = self.updated.months {
             guard let updated,
-                  let cutoff = Calendar(identifier: .gregorian).date(byAdding: .month, value: -months, to: now),
+                  let cutoff = Self.gregorian.date(byAdding: .month, value: -months, to: now),
                   updated >= cutoff else { return false }
         }
         return true

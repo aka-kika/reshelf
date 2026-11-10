@@ -268,7 +268,7 @@ func run() throws {
           .map(\.repoKey) == ["test/a", "test/old"])
 
     // 7. Backups carry My Repos; an old file without them still reads.
-    CatalogBackupService.myReposSource = { context in
+    CatalogBackupService.myReposSource = { context, _ in
         if let context { ProjectFitsService.refreshSnapshot(in: context) }
         return ProjectFitsService.latestSnapshot
     }

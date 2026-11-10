@@ -165,17 +165,29 @@ enum ProjectFitsService {
     /// Read and written on the main thread only.
     private(set) static var latestSnapshot: [MyRepoDTO] = []
 
-    static func refreshSnapshot(in context: ModelContext) {
-        latestSnapshot = snapshot(in: context)
+    /// Shelf rows by `dedupKey` (the key a fit names its repo by).
+    nonisolated static func byKey(_ projects: [ToolProject]) -> [String: ToolProject] {
+        var out: [String: ToolProject] = [:]
+        out.reserveCapacity(projects.count)
+        for project in projects where !project.githubURL.isEmpty {
+            out[GitHubRepositoryURL.cachedDedupKey(for: project.githubURL)] = project
+        }
+        return out
     }
 
-    static func snapshot(in context: ModelContext) -> [MyRepoDTO] {
-        let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
-        var byKey: [String: ToolProject] = [:]
-        for project in projects where !project.githubURL.isEmpty {
-            byKey[GitHubRepositoryURL.dedupKey(for: project.githubURL)] = project
-        }
-        return repos(in: context).map { repo in
+    /// `projects`: the catalog when the caller already fetched it (a routine
+    /// backup), so it is not fetched a second time.
+    static func refreshSnapshot(in context: ModelContext, projects: [ToolProject]? = nil) {
+        latestSnapshot = snapshot(in: context, projects: projects)
+    }
+
+    static func snapshot(in context: ModelContext, projects given: [ToolProject]? = nil) -> [MyRepoDTO] {
+        let repos = repos(in: context)
+        // No repos of hers: nothing to map, and no catalog fetch (d135).
+        guard !repos.isEmpty else { return [] }
+        let projects = given ?? (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
+        let byKey = Self.byKey(projects)
+        return repos.map { repo in
             MyRepoDTO(
                 fullName: repo.fullName, githubURL: repo.githubURL, summary: repo.summary,
                 addedAt: repo.addedAt, sortIndex: repo.sortIndex,
