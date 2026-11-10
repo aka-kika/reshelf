@@ -189,6 +189,59 @@ func run() async throws {
     let wrote = CatalogBackupService.writeSnapshot(all(ctx), reason: "Before removing one")
     check("a backup that cannot be written returns false", wrote == false)
     check("a failed backup writes no file", catalogFiles(in: backups) == beforeBlock)
+
+    // 10. c1c8: fits activity (a run, Hide, Keep, a filter) changes only her
+    //     repos. It replaces the newest routine file instead of adding one,
+    //     so it never pushes shelf history out of the 30 routine slots.
+    let fitsDir = backups.appendingPathComponent("fits-only")
+    CatalogBackupService.backupsDirectoryOverride = fitsDir
+    var note = "run 0"
+    CatalogBackupService.myReposSource = { _ in
+        [MyRepoDTO(fullName: "kika/app", githubURL: "https://github.com/kika/app", summary: "",
+                   addedAt: Date(timeIntervalSince1970: 0), sortIndex: 0, lastRunAt: nil,
+                   previousRunAt: nil, lastRunNote: note, fits: [])]
+    }
+    func myRepoNote(_ url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return (try? CatalogExportService.decodeMyRepos(data))?.first?.lastRunNote
+    }
+    all(ctx)[0].notes = "shelf state A"
+    _ = CatalogBackupService.writeSnapshot(all(ctx))
+    all(ctx)[0].notes = "shelf state B"
+    _ = CatalogBackupService.writeSnapshot(all(ctx))
+    check("two catalog changes, two routine files", files().count == 2)
+    for i in 1...40 {
+        note = "run \(i)"
+        _ = CatalogBackupService.writeSnapshot(all(ctx))
+    }
+    check("40 fits-only saves add no routine file", files().count == 2)
+    check("the newest file holds the latest fits", files().first.flatMap(myRepoNote) == "run 40")
+    check("the newest file still holds the current catalog",
+          CatalogBackupService.projects(in: files()[0]).contains { $0.notes == "shelf state B" })
+    check("the older shelf state is still there",
+          CatalogBackupService.projects(in: files()[1]).contains { $0.notes == "shelf state A" })
+    _ = CatalogBackupService.writeSnapshot(all(ctx))
+    check("an unchanged save writes nothing", files().count == 2)
+    // A labelled file is never the one replaced.
+    _ = CatalogBackupService.writeSnapshot(all(ctx), reason: "Before removing kika/app")
+    note = "after the labelled one"
+    _ = CatalogBackupService.writeSnapshot(all(ctx))
+    check("a fits-only save after a labelled backup adds a routine file", files().count == 4)
+    check("the labelled backup is kept",
+          files().contains { CatalogBackupService.reason(in: $0) == "Before removing kika/app" })
+    // A catalog change after fits activity is a new file again.
+    all(ctx)[0].notes = "shelf state C"
+    // With the folders, as the debounced path below copies them.
+    let folders = (try? ctx.fetch(FetchDescriptor<CatalogFolder>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? []
+    _ = CatalogBackupService.writeSnapshot(all(ctx), folders: folders)
+    check("a catalog change still adds a file", files().count == 5)
+    // Through the debounced path too (what CatalogSave.save schedules).
+    note = "debounced run"
+    CatalogBackupService.scheduleSnapshot(from: ctx)
+    await settle()
+    check("a debounced fits-only snapshot also replaces the newest", files().count == 5
+          && files().first.flatMap(myRepoNote) == "debounced run")
+    CatalogBackupService.myReposSource = { _ in [] }
 }
 
 try await run()

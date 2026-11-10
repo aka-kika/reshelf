@@ -129,20 +129,19 @@ enum CatalogBackupService {
         // Both sides go through the file format: it stores dates to the whole
         // second, so comparing against the live rows (sub-second dates) said
         // "changed" every time and filled the 30 slots with identical copies.
-        if reason == nil,
-           let newest = snapshotURLs().first,
-           let existing = try? Data(contentsOf: newest),
-           let existingRows = try? CatalogExportService.decode(existing),
-           let newRows = try? CatalogExportService.decode(data),
-           existingRows.count == newRows.count,
-           fingerprint(of: existingRows) == fingerprint(of: newRows),
-           // A new, renamed or reordered folder touches no project row.
-           folderFingerprint(of: (try? CatalogExportService.decodeFolders(existing)) ?? [])
-               == folderFingerprint(of: folders),
-           // A new run or a hidden fit touches no project row either.
-           ((try? CatalogExportService.decodeMyRepos(existing)) ?? [])
-               == ((try? CatalogExportService.decodeMyRepos(data)) ?? []) {
-            return true // unchanged since last snapshot
+        let newContents = SnapshotContents(data)
+        var replacing: URL?
+        if reason == nil, let newContents, let newest = snapshotURLs().first,
+           let existing = contents(of: newest) {
+            if existing == newContents { return true } // unchanged since last snapshot
+            // Only her repos or fits changed (a run, Hide, Keep, a filter):
+            // the catalog in the newest routine file is still current, so the
+            // new file takes its place instead of adding one. Fits activity
+            // would otherwise use up the 30 slots of shelf history (c1c8).
+            // A labelled "Before …" file is never replaced.
+            if existing.sameCatalog(as: newContents), !isLabelled(newest), existing.reason == nil {
+                replacing = newest
+            }
         }
 
         // Never reuse an existing snapshot's name. Two writes can land in the
@@ -165,6 +164,8 @@ enum CatalogBackupService {
         let url = backupsDirectory.appendingPathComponent("\(stem)\(suffix).json")
         do {
             try data.write(to: url, options: .atomic)
+            if let replacing { try? FileManager.default.removeItem(at: replacing) }
+            if let newContents { lastWritten = (url, newContents) }
             prune()
             return true
         } catch {
@@ -173,6 +174,46 @@ enum CatalogBackupService {
             #endif
             return false
         }
+    }
+
+    /// What a routine snapshot compares: the catalog (rows and folders) and
+    /// her repos with their fits. Read once per file, in one decode.
+    struct SnapshotContents: Equatable {
+        let rows: Int
+        let rowFingerprint: Int
+        let folders: [String]
+        let myRepos: [MyRepoDTO]
+        let reason: String?
+
+        init?(_ data: Data) {
+            guard let file = try? CatalogExportService.makeDecoder().decode(CatalogSnapshotDTO.self, from: data)
+            else { return nil }
+            rows = file.projects.count
+            rowFingerprint = CatalogBackupService.fingerprint(of: file.projects)
+            folders = CatalogBackupService.folderFingerprint(of: file.folders ?? [])
+            myRepos = file.myRepos ?? []
+            reason = file.reason
+        }
+
+        /// Same rows and folders; her repos and fits may differ.
+        func sameCatalog(as other: SnapshotContents) -> Bool {
+            rows == other.rows && rowFingerprint == other.rowFingerprint && folders == other.folders
+        }
+
+        static func == (a: SnapshotContents, b: SnapshotContents) -> Bool {
+            a.sameCatalog(as: b) && a.myRepos == b.myRepos
+        }
+    }
+
+    /// The file this app wrote last and what is in it, so the next routine
+    /// snapshot compares against memory instead of decoding the newest file
+    /// again. Read and written on `writeQueue` only.
+    private static var lastWritten: (url: URL, contents: SnapshotContents)?
+
+    private static func contents(of url: URL) -> SnapshotContents? {
+        if let lastWritten, lastWritten.url == url { return lastWritten.contents }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return SnapshotContents(data)
     }
 
     /// The same file `CatalogExportService.encode` writes, from rows already
@@ -393,7 +434,7 @@ enum CatalogBackupService {
 
     /// A content digest of the rows only — deliberately excludes the snapshot
     /// wrapper, whose `exportedAt` changes on every encode.
-    private static func fingerprint(of rows: [CatalogProjectDTO]) -> Int {
+    fileprivate static func fingerprint(of rows: [CatalogProjectDTO]) -> Int {
         var hasher = Hasher()
         for row in rows.sorted(by: { $0.id < $1.id }) {
             hasher.combine(row.id)
@@ -429,7 +470,7 @@ enum CatalogBackupService {
         return hasher.finalize()
     }
 
-    private static func folderFingerprint(of folders: [CatalogFolderDTO]) -> [String] {
+    fileprivate static func folderFingerprint(of folders: [CatalogFolderDTO]) -> [String] {
         folders.map { "\($0.id)|\($0.name)|\($0.sortIndex)" }.sorted()
     }
 
