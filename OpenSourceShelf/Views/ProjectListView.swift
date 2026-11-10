@@ -512,46 +512,24 @@ struct ProjectListView: View {
     }
 
     /// The batch actions, shared by the footer menu and the row context menu so
-    /// there is one definition of what a batch can do.
+    /// there is one definition of what a batch can do. Same shape as one
+    /// repo's menu (round 3): the icon row, Folder, clones, Remove last.
     @ViewBuilder
     private func batchActionMenu(for projects: [ToolProject]) -> some View {
-        Menu("Move \(projects.count) to") {
-            ForEach(ProjectStatus.allCases, id: \.self) { shelf in
-                Button {
-                    let moving = projects.filter { $0.status != shelf }
-                    guard !moving.isEmpty else {
-                        clearBatchSelection()
-                        return
-                    }
-                    let noun = moving.count == 1 ? "repo" : "repos"
-                    guard CatalogBackupService.writeSnapshot(
-                        allProjects, folders: folders,
-                        reason: "Before moving \(moving.count) \(noun) to \(shelf.displayName)") else {
-                        statusNotice = Self.backupFailedNotice
-                        return
-                    }
-                    for project in moving { project.status = shelf }
-                    CatalogSave.save(modelContext)
-                    statusNotice = "Moved \(moving.count) \(noun) to \(shelf.displayName). A backup was saved."
-                    clearBatchSelection()
-                } label: {
-                    Label(shelf.displayName, systemImage: shelf.sfSymbol)
-                }
-            }
-        }
-
+        markRow(for: projects)
+        Divider()
         folderMenu(for: projects)
 
         let cloned = projects.filter { CatalogCloneService.isCloned($0) }
         if !cloned.isEmpty {
             Divider()
-            Button("Remove \(cloned.count) Local Clone\(cloned.count == 1 ? "" : "s")…", role: .destructive) {
+            Button("Remove \(cloned.count) Local Clone\(cloned.count == 1 ? "" : "s")") {
                 pendingBatchRemoveClones = cloned
             }
         }
 
         Divider()
-        Button("Remove \(projects.count) from Catalog", role: .destructive) {
+        Button("Remove \(projects.count) from Catalog") {
             pendingBatchDelete = projects
         }
     }
@@ -569,13 +547,54 @@ struct ProjectListView: View {
         }
     }
 
+    /// The menu's top row, like Kartina's (round 3, Kika's pick A): the three
+    /// shelves in their sidebar colors, the current one lit, then the UI mark.
+    /// For a batch, a shelf is lit when every repo is on it.
+    @ViewBuilder
+    private func markRow(for projects: [ToolProject]) -> some View {
+        ControlGroup {
+            ForEach(ProjectStatus.allCases, id: \.self) { shelf in
+                Toggle(isOn: Binding(
+                    get: { !projects.isEmpty && projects.allSatisfy { $0.status == shelf } },
+                    set: { _ in moveToShelf(projects, shelf) })) {
+                    Label { Text(shelf.displayName) } icon: {
+                        Image(nsImage: MenuIcon.image(shelf.sfSymbol, color: shelf.menuTint))
+                    }
+                }
+                .help(projects.count == 1 ? shelf.displayName : "Move \(projects.count) to \(shelf.displayName)")
+            }
+            let allUI = !projects.isEmpty && projects.allSatisfy(\.likesUI)
+            Toggle(isOn: Binding(get: { allUI }, set: { _ in setLikesUI(!allUI, for: projects) })) {
+                Label { Text("UI") } icon: {
+                    Image(nsImage: MenuIcon.image(ReshelfMarks.uiSymbol, color: NSColor(ReshelfMarks.uiTint)))
+                }
+            }
+            .help(allUI ? "UI: you like its look (click to unmark)" : "UI: mark that you like its look")
+        }
+        .controlGroupStyle(.palette)
+    }
+
     @ViewBuilder
     private func singleProjectContextMenu(for project: ToolProject) -> some View {
-        // A fit of one of her repos: hide it from that list (it stays hidden
-        // through later runs; Show Hidden Fits brings it back).
+        markRow(for: [project])
+
+        // A fit of one of her repos: whether that repo already used it, and
+        // hide it from that list (it stays hidden through later runs; Show
+        // Hidden Fits brings it back).
         if let repoID = sidebarSelection?.myRepoID,
            let repo = myRepos.first(where: { $0.id == repoID }) {
+            Divider()
             let key = GitHubRepositoryURL.dedupKey(for: project.githubURL)
+            let used = project.isUsed(in: repo.displayName)
+            Button {
+                setReshelfed(!used, in: repo.displayName, for: project)
+            } label: {
+                if used {
+                    Label("Reshelfed in \(repo.displayName)", systemImage: "checkmark")
+                } else {
+                    Text("Reshelfed in \(repo.displayName)")
+                }
+            }
             if repoFits.contains(where: { $0.myRepoID == repoID && $0.repoKey == key && $0.isPinned }) {
                 // Kept with Keep: Unpin lets it compete like any fit next run.
                 Button("Unpin") {
@@ -586,22 +605,11 @@ struct ProjectListView: View {
                 ProjectFitsService.setHidden(true, repoKey: key, repoID: repoID, in: modelContext)
                 if listSelection?.projectID == project.id { listSelection = nil }
             }
-            Divider()
-        }
-        // Link actions (open / copy) live on the links in the inspector, not here.
-        // — Shelf — one-tap triage between shelves
-        Menu("Move to") {
-            ForEach(ProjectStatus.allCases.filter { $0 != project.status }, id: \.self) { shelf in
-                Button {
-                    setShelf(shelf, for: project)
-                } label: {
-                    Label(shelf.displayName, systemImage: shelf.sfSymbol)
-                }
-            }
         }
 
-        // — Folders — a user-made grouping ("everything I cloned for X"),
-        // orthogonal to both the shelf above and the fixed category taxonomy.
+        // Link actions (open / copy) live on the links in the inspector, not here.
+        // — Folders — a user-made grouping, orthogonal to shelf and category.
+        Divider()
         folderMenu(for: [project])
 
         // — Local copy — clone the repo to disk (no AI / intelligence needed)
@@ -612,29 +620,28 @@ struct ProjectListView: View {
                 Button("Reveal Clone in Finder") {
                     CatalogCloneService.revealInFinder(dest)
                 }
-                Button("Remove Local Clone", role: .destructive) {
+                Button("Remove Local Clone") {
                     pendingRemoveCloneProject = project
                 }
             } else if cloningProjectIDs.contains(project.id) {
-                Button("Cloning…") {}.disabled(true)
+                Button("Cloning") {}.disabled(true)
             } else {
                 Button("Clone Repository") { cloneProject(project) }
             }
         }
 
+        // — Catalog — last and alone (it asks first).
         Divider()
-
-        // — Catalog —
-        Button("Remove from Catalog", role: .destructive) {
+        Button("Remove from Catalog") {
             pendingDeleteProject = project
         }
     }
 
-    /// Takes an array rather than one project so the same menu serves a single
-    /// row and a multi-row selection.
+    /// Folder, with the folder list inside (ticked where it is). Takes an
+    /// array so the same menu serves a single row and a multi-row selection.
     @ViewBuilder
     private func folderMenu(for projects: [ToolProject]) -> some View {
-        Menu(projects.count == 1 ? "Add to Folder" : "Add \(projects.count) to Folder") {
+        Menu("Folder") {
             ForEach(folders) { folder in
                 Button {
                     assign(projects, to: folder)
@@ -660,6 +667,49 @@ struct ProjectListView: View {
                 }
             }
         }
+    }
+
+    /// One repo moves without a backup (one click undoes it); a batch writes a
+    /// labelled backup first, as before.
+    private func moveToShelf(_ projects: [ToolProject], _ shelf: ProjectStatus) {
+        let moving = projects.filter { $0.status != shelf }
+        guard !moving.isEmpty else { return }
+        if projects.count == 1 {
+            setShelf(shelf, for: projects[0])
+            return
+        }
+        let noun = moving.count == 1 ? "repo" : "repos"
+        guard CatalogBackupService.writeSnapshot(
+            allProjects, folders: folders,
+            reason: "Before moving \(moving.count) \(noun) to \(shelf.displayName)") else {
+            statusNotice = Self.backupFailedNotice
+            return
+        }
+        for project in moving { project.status = shelf }
+        CatalogSave.save(modelContext)
+        statusNotice = "Moved \(moving.count) \(noun) to \(shelf.displayName). A backup was saved."
+        clearBatchSelection()
+    }
+
+    private func setLikesUI(_ on: Bool, for projects: [ToolProject]) {
+        let changing = projects.filter { $0.likesUI != on }
+        guard !changing.isEmpty else { return }
+        for project in changing { project.likesUI = on }
+        CatalogSave.save(modelContext, "the UI mark")
+        if projects.count > 1 {
+            statusNotice = on ? "Marked UI on \(changing.count) repos." : "Took the UI mark off \(changing.count) repos."
+        }
+    }
+
+    /// By hand, from a fits list: the fit was (or was not) used in that repo.
+    private func setReshelfed(_ on: Bool, in repoName: String, for project: ToolProject) {
+        if on {
+            guard !project.isUsed(in: repoName) else { return }
+            project.usedIn.append(repoName)
+        } else {
+            project.usedIn.removeAll { $0.caseInsensitiveCompare(repoName) == .orderedSame }
+        }
+        CatalogSave.save(modelContext, "Reshelfed in \(repoName)")
     }
 
     private func assign(_ projects: [ToolProject], to folder: CatalogFolder?) {
@@ -1272,7 +1322,7 @@ struct ProjectListView: View {
             return "No projects match this filter yet. Capture more repos, or pick another sidebar filter."
         }
         if sidebarSelection?.folderID != nil {
-            return "Nothing is in this folder yet. Right-click a project and pick Add to Folder."
+            return "Nothing is in this folder yet. Right-click a project and pick Folder."
         }
         return "Capture a GitHub repo to start building your personal open-source shelf."
     }
