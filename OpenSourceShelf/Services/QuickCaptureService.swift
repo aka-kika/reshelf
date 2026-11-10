@@ -79,10 +79,12 @@ enum QuickCaptureService {
 
     /// Performs the request and maps GitHub's HTTP responses to clear `CaptureError`s.
     /// `context` (e.g. "owner/repo") is woven into user-facing messages.
-    private static func getJSON(from url: URL, context: String) async throws -> Data {
+    /// Project fits reads READMEs through here too (`accept` raw).
+    static func getJSON(from url: URL, context: String,
+                        accept: String = "application/vnd.github.v3+json") async throws -> Data {
         var request = URLRequest(url: url)
         request.timeoutInterval = 10
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
         GitHubAuth.authorize(&request)
 
         let data: Data
