@@ -443,6 +443,20 @@
 			path = "OpenSourceShelf/Services/LiveProject.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		LFMN1F001234567890ABCDE01 /* LanguageFilterMenu.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "LanguageFilterMenu.swift";
+			path = "OpenSourceShelf/Views/Components/LanguageFilterMenu.swift";
+			sourceTree = SOURCE_ROOT;
+		};
+		LFLT1F001234567890ABCDE01 /* ListFilter.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ListFilter.swift";
+			path = "OpenSourceShelf/Services/ListFilter.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		USIN1F001234567890ABCDE01 /* UsedInbox.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -602,6 +616,8 @@
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
 				ICR1REF01234567890ABCDEF01 /* IconRules.swift */,
 				LIVE1F001234567890ABCDE01 /* LiveProject.swift */,
+				LFMN1F001234567890ABCDE01 /* LanguageFilterMenu.swift */,
+				LFLT1F001234567890ABCDE01 /* ListFilter.swift */,
 				USIN1F001234567890ABCDE01 /* UsedInbox.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
@@ -892,6 +908,14 @@
 			isa = PBXBuildFile;
 			fileRef = LIVE1F001234567890ABCDE01;
 		};
+		LFMN1B001234567890ABCDE01 /* LanguageFilterMenu.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = LFMN1F001234567890ABCDE01;
+		};
+		LFLT1B001234567890ABCDE01 /* ListFilter.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = LFLT1F001234567890ABCDE01;
+		};
 		USIN1B001234567890ABCDE01 /* UsedInbox.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = USIN1F001234567890ABCDE01;
@@ -1062,6 +1086,8 @@
 				967CB7F565F1E5FFDFDAD3EA,
 				C5392DFC038F8A68E7A21263,
 				LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */,
+				LFMN1B001234567890ABCDE01 /* LanguageFilterMenu.swift in Sources */,
+				LFLT1B001234567890ABCDE01 /* ListFilter.swift in Sources */,
 				USIN1B001234567890ABCDE01 /* UsedInbox.swift in Sources */,
 				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
 				CSAV1B001234567890ABCDE01 /* CatalogSave.swift in Sources */,

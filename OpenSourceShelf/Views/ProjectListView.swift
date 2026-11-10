@@ -74,6 +74,14 @@ struct ProjectListView: View {
         let names: [String]
     }
     @AppStorage("reshelf.catalogSortOrder") private var sortOrderRaw = CatalogSortOrder.recentlyAdded.rawValue
+    // The Language filter next to Sort (round 3): one setting for every list.
+    @AppStorage(ListFilter.languageKey) private var listLanguage = ""
+    @AppStorage(ListFilter.uiOnlyKey) private var listUIOnly = false
+
+    private var listFilter: Binding<ListFilter> {
+        Binding(get: { ListFilter(language: listLanguage, uiOnly: listUIOnly) },
+                set: { listLanguage = $0.language; listUIOnly = $0.uiOnly })
+    }
 
     private var sortOrder: CatalogSortOrder {
         let order = CatalogSortOrder(rawValue: sortOrderRaw) ?? .recentlyAdded
@@ -92,7 +100,11 @@ struct ProjectListView: View {
         // read from the footer and from every batch row's context menu, which
         // re-sorted the whole catalog per row (multi-second hangs at ~950 repos).
         let fits = fitsModel
-        let visibleProjects = fits.map { fitsSortOrder.sorted($0.projects) } ?? filteredProjects
+        let facts = ProjectFitsRunner.facts()
+        let filter = listFilter.wrappedValue
+        // The list before the Language filter: its languages fill the menu.
+        let unfiltered = fits.map { fitsSortOrder.sorted($0.projects) } ?? sidebarAndSearchProjects
+        let visibleProjects = filter.apply(unfiltered, facts: facts)
         let batchProjects = batchSelection.isEmpty
             ? []
             : visibleProjects.filter { batchSelection.contains($0.id) }
@@ -121,7 +133,13 @@ struct ProjectListView: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
                     Spacer()
-                    // The same Sort button on every list; fits add Best Fit.
+                    // The same Language and Sort buttons on every list; fits add Best Fit.
+                    LanguageFilterMenu(
+                        filter: listFilter,
+                        languages: ListFilter.counts(ListFilter(uiOnly: filter.uiOnly).apply(unfiltered, facts: facts),
+                                                     facts: facts, keeping: filter.language),
+                        uiCount: ListFilter(language: filter.language).apply(unfiltered, facts: facts)
+                            .filter(\.likesUI).count)
                     if fits == nil {
                         sortMenu(selection: $sortOrderRaw, options: CatalogSortOrder.catalogChoices, current: sortOrder)
                     } else {
@@ -185,7 +203,7 @@ struct ProjectListView: View {
 
             Group {
                 // A search with no hits says so, not "Nothing on your shelf fits".
-                if let fits, (visibleProjects.isEmpty && !fits.isSearching) || fitsRunner.isRunning(fits.repo.id) {
+                if let fits, (unfiltered.isEmpty && !fits.isSearching) || fitsRunner.isRunning(fits.repo.id) {
                     FitsEmptyState(
                         repo: fits.repo,
                         progress: fitsRunner.progress[fits.repo.id],
@@ -197,6 +215,8 @@ struct ProjectListView: View {
                             NotificationCenter.default.post(name: .checkAllFitsAgain, object: fits.repo.id)
                         },
                         onStop: { fitsRunner.stop(fits.repo.id) })
+                } else if visibleProjects.isEmpty, filter.isActive, !unfiltered.isEmpty {
+                    filteredOutEmptyState(filter)
                 } else if visibleProjects.isEmpty {
                     catalogListEmptyState
                 } else {
@@ -252,7 +272,9 @@ struct ProjectListView: View {
 
             Divider()
             HStack {
-                Text(fits?.footer ?? "\(visibleProjects.count) project\(visibleProjects.count == 1 ? "" : "s")")
+                Text(filter.isActive
+                     ? "\(visibleProjects.count) of \(unfiltered.count) · \(filter.title)"
+                     : fits?.footer ?? "\(visibleProjects.count) project\(visibleProjects.count == 1 ? "" : "s")")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -281,6 +303,8 @@ struct ProjectListView: View {
         }
         .onChange(of: allProjects.count) { _, _ in
             IconFetcher.fetchAll(for: allProjects, in: modelContext)
+            // A new capture's language is in the metadata store now.
+            _ = ProjectFitsRunner.facts(reload: true)
         }
         .onChange(of: searchText) { _, _ in
             clearBatchSelection()
@@ -1112,13 +1136,34 @@ struct ProjectListView: View {
                              filters: settings.filters, limit: settings.limit, facts: ProjectFitsRunner.facts())
     }
 
+    /// What the list shows: sidebar, search (or a fits list), then the Language filter.
     private var filteredProjects: [ToolProject] {
-        if let fits = fitsModel { return fitsSortOrder.sorted(fits.projects) }
+        let base = fitsModel.map { fitsSortOrder.sorted($0.projects) } ?? sidebarAndSearchProjects
+        return listFilter.wrappedValue.apply(base, facts: ProjectFitsRunner.facts())
+    }
+
+    private var sidebarAndSearchProjects: [ToolProject] {
         let bySidebar = applySidebarFilter(allProjects)
         let bySearch = debouncedSearchText.isEmpty
             ? bySidebar
             : bySidebar.filter { $0.matchesSearch(debouncedSearchText) }
         return sortOrder.sorted(bySearch)
+    }
+
+    /// The list has repos, but none in the picked language (or with the UI mark).
+    private func filteredOutEmptyState(_ filter: ListFilter) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                .font(.system(size: 24))
+                .foregroundStyle(.secondary.opacity(0.35))
+            Text("No \(filter.title) repos here")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+            Button("Show All") { listFilter.wrappedValue = ListFilter() }
+                .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
     }
 
     /// Header control to pick how the list is ordered (Recently Added / Name / Stars).
