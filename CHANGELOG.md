@@ -5,6 +5,8 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
+
 ### Added
 - **My Repos and Project fits.** Add your own GitHub repos to the sidebar (the + next to My Repos: a popup lists your repos; without a token, your public ones by user name). Click one and the list shows the repos on your shelf that fit it: Top Shelf first, then The Collector, with a dot on fits that are new since the run before. The inspector shows **Why it fits** on top, one line written on your Mac by Apple Intelligence (the shared words when it is not available).
 - **Runs only when you ask.** Fits are found once when you add a repo, then only with **Find Fits Again** (right-click the repo, or the Shelf menu). It reads your repo's README, compares it with everything on Top Shelf and The Collector, reads today's README of the best 25, and saves the list with the time it ran. Nothing runs on open or in the background. **Stop** ends a run and keeps the saved list.
