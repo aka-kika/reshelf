@@ -50,6 +50,8 @@ Stored fields you can view and edit:
 
 **Tags** — the last sidebar section: 15 GitHub topics, the cross-cutting view — a repo has one category but many tags, so **swift** finds every Swift repo whatever its category. **Settings → General → Sidebar Tags** picks *Most used* (whole shelf) or *Recently added* (most common among the ~40 newest repos). Noise like open-source/awesome is left out, and spelling twins are merged (menu-bar / menubar). C, C++ and C# stay three tags. Counts always cover the whole shelf, so a row's number matches what clicking it shows.
 
+**My Repos** — your own GitHub repos, right under Library, with a **+** in the heading to add them. Clicking one shows its fits in the list. See [My Repos and Project fits](#my-repos-and-project-fits) below.
+
 **Folders** — a third section between Library and Categories, present only once you have a folder. See [Folders](#folders) below.
 
 **Settings** — opens as a standard macOS **Settings window** from the app menu (**reshelf → Settings…**, ⌘,), not an in-app panel.
@@ -105,6 +107,20 @@ Cloning and update-checking are plain `git` — no analysis pipeline, no AI, and
 - **Remove Local Clone** — right-click a cloned repo → **Remove Local Clone…** (confirm dialog) moves the cloned folder to the **Trash** (recoverable) and removes an emptied category folder. The catalog entry stays; you can clone again anytime. Deleting a clone folder yourself in Finder is also fine — the disk badge and Cloned count notice and update on their own.
 
 reshelf never executes anything on your behalf — clone, pull and update checks are the only git it runs, and a pull never touches edits or commits made in the clone.
+
+## My Repos and Project fits
+
+Which repos on your shelf help a project you are building? Add the project under **My Repos** and reshelf lists them (Kika's design, 10 Nov 2026).
+
+- **Add** — the **+** next to My Repos (or **Shelf → Add Your Repos to the Sidebar…**) lists your own GitHub repos, newest first, without forks and archived ones. With a token (Settings → Capture → GitHub) it lists private repos too; without one, type your GitHub user name to see the public ones. Tick and press Add.
+- **Only when you ask** — fits are found once when you add a repo, then only with **Find Fits Again** (right-click the repo, the Shelf menu, or the button in an empty list). Nothing runs on open or in the background. While it runs the list shows the step ("Reading READMEs: 12 of 25") and **Stop**.
+- **How it matches** — on your Mac: your repo's README and description against what reshelf stores for every Top Shelf and Collector repo (plus a clone's README on disk), by shared rare words and Apple's on-device sentence embeddings; then today's README of the best 25 from GitHub, scored again. Up to 10 fits: Top Shelf first (up to 6), then The Collector. Yard Sale and your own repo are never fits. If nothing comes close, it says so.
+- **The list** — the normal project list, under TOP SHELF / THE COLLECTOR headings, in that fixed order (no Sort menu there). Search, shelf moves and right-click work as everywhere. A dot marks a fit new since the run before; the header says how many and when it ran; the footer says what is new, what is hidden, and a note when GitHub's limit cut the README reads short.
+- **Why it fits** — the inspector shows one line on top of the usual parts, written by Apple Intelligence on your Mac (the shared words when it is not available).
+- **Hide** — right-click a fit → **Hide from <repo> Fits**. It stays hidden through later runs; right-click the repo → **Show Hidden Fits** → **Show Again**.
+- **Remove from Sidebar** — takes the repo and its list away after a labelled backup. The shelf repos are not touched.
+- **Saved and backed up** — each repo keeps its last list, hidden ones and run time (SwiftData tables `MyRepo`, `RepoFit`). Backups and exports carry them (`myRepos`); Restore and Import add the repos this Mac does not have.
+- **Agents** — the reshelf skill's `shelf.py fits`, `fits <repo>` and `fits --here` read the saved lists read-only. Agents never start a run.
 
 ## Folders
 

@@ -375,11 +375,13 @@ def cmd_fits(args):
     here = "--here" in args
     wanted = " ".join(a for a in args if not a.startswith("--")).strip()
     source, repos = load_my_repos()
+    if not repos:
+        # Also what an older reshelf (no My Repos tables yet) gives.
+        print(f"No My Repos yet   (source: {source}).\n"
+              "The user adds their own repos in reshelf (the + next to My Repos) and runs "
+              "Find Fits there. Nothing to read until then; do not run a match yourself.")
+        return
     if not here and not wanted:
-        if not repos:
-            print(f"No repos under My Repos yet   (source: {source}).\n"
-                  "The user adds them in the reshelf app with the + next to My Repos.")
-            return
         print(f"My Repos: {len(repos)}   (source: {source})\n")
         by_key = _catalog_by_key()
         for r in repos:

@@ -4,6 +4,12 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## Open
 
+- [ ] **Release steps for My Repos and Project fits** (branch `project-fits-2026-11-10`), after the release is installed:
+  1. Back up the live skill folder `_INFRA/Skills-collection/kika-skills/reshelf/` to `_INFRA/backups/`.
+  2. Copy `extras/reshelf-skill/scripts/shelf.py` and `SKILL.md` into its `claude/` folder (`claude/scripts/shelf.py`, `claude/SKILL.md`).
+  3. Add the three `fits` commands and the "fits --here first" line to `cursor/reshelf.mdc` and `general/reshelf.md`. Do **not** replace their `shelf.py`: those copies (20 Oct) are older than `claude/` and lack the clone marker rules (a checkout counts as cloned only with `.git/reshelf-clone`, written after a clone; old clones adopted by origin). Kika decides whether they get the new script.
+  4. Run the skill librarian's `librarian_reindex`.
+  5. Until a build with My Repos has run, `shelf.py fits` says "No My Repos yet" (the tables do not exist), so the order above matters only for agents' first answer.
 - [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
 - [ ] *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits using plain git so you can see what changed.
 - [ ] **Verify the folder import round-trip on both Macs** — export here, import there, confirm folders match by name rather than duplicating. The export half is proven (the app's own backup writes folders + memberships correctly); the import half has only been reasoned through, not exercised.

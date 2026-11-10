@@ -93,9 +93,10 @@ if "why: from the backup" not in out or "source: backup" not in out:
 home3 = os.path.join(work, "old-home")
 os.makedirs(os.path.join(home3, "backups"), exist_ok=True)
 json.dump({"projects": []}, open(os.path.join(home3, "backups", "catalog-2026-01-01.json"), "w"))
-r = run(home3, "fits")
-if r.returncode != 0 or "No repos under My Repos" not in r.stdout:
-    fail("old catalog: " + r.stdout + r.stderr)
+for args in (["fits"], ["fits", "Sift"], ["fits", "--here"]):
+    r = run(home3, *args, cwd=clone)
+    if r.returncode != 0 or "No My Repos yet" not in r.stdout or "Find Fits" not in r.stdout:
+        fail(f"old catalog, {args}: " + r.stdout + r.stderr)
 
 print("ShelfScriptFits: all passed" if failures == 0 else f"ShelfScriptFits: {failures} failed")
 sys.exit(1 if failures else 0)
