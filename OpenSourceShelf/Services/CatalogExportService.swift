@@ -228,6 +228,9 @@ struct RepoFitDTO: Codable, Equatable {
     var isHidden: Bool
     /// Nil in files from 1.17.0 (35), before fits had scores.
     var score: Double? = nil
+    /// Kept with Keep; pushed off by the last run ("made room"). Nil = false.
+    var isPinned: Bool? = nil
+    var isBumped: Bool? = nil
 }
 
 struct CatalogSnapshotDTO: Codable {

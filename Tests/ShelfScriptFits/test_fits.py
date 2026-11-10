@@ -74,6 +74,8 @@ if "- Mole" in out or "- uninstally" not in out or "filter: its own: no GPL or A
     fail("own filter used and named: " + out)
 if "own filter" not in run(live, "fits").stdout:
     fail("list marks repos with their own filter")
+if "KEPT by the user" not in out or "- hiddenone" in out or "1 older fit(s) made room in the last run, not listed: hiddenone" not in out:
+    fail("kept and made-room fits: " + out)
 
 # 3. Never-run repo says so and does not match by itself.
 out = run(live, "fits", "kartina").stdout

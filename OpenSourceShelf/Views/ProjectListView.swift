@@ -217,6 +217,10 @@ struct ProjectListView: View {
                             }
                             .padding(.top, 8)
                             .padding(.bottom, 4)
+                            if let fits, !fits.madeRoom.isEmpty {
+                                Divider().padding(.horizontal, 16)
+                                MadeRoomRow(repoID: fits.repo.id, projects: fits.madeRoom, limit: fits.limit)
+                            }
                         }
                         // A jump from outside the list (e.g. capturing a repo that's
                         // already shelved). Deferred a tick: the sidebar/search reset

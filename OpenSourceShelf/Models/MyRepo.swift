@@ -76,9 +76,15 @@ final class RepoFit {
     /// The fit score from its run (`FitScorer.Scored.score`): the list is
     /// ordered by it, and New Fits merges new fits in by it.
     var score: Double = 0
+    /// "Keep": a fit she put back after a run pushed it off; later runs keep
+    /// it on the list and let the weakest other fit go instead.
+    var isPinned: Bool = false
+    /// Pushed off the list by the limit in the last run ("2 older fits made
+    /// room"). Not in the list; kept until the next run so Show works.
+    var isBumped: Bool = false
 
     init(myRepoID: UUID, repoKey: String, rank: Int, why: String, isNew: Bool, isHidden: Bool,
-         score: Double = 0) {
+         score: Double = 0, isPinned: Bool = false, isBumped: Bool = false) {
         self.id = UUID()
         self.myRepoID = myRepoID
         self.repoKey = repoKey
@@ -88,5 +94,7 @@ final class RepoFit {
         self.isHidden = isHidden
         self.foundAt = Date()
         self.score = score
+        self.isPinned = isPinned
+        self.isBumped = isBumped
     }
 }

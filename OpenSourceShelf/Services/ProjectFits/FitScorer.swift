@@ -320,6 +320,37 @@ enum FitIncremental {
         let why: String
         let score: Double
         let isTopShelf: Bool
+        /// Kept with "Keep" after a run pushed it off: later runs keep it.
+        var isPinned: Bool = false
+    }
+
+    /// The list after the limit, and the saved fits it pushed off ("2 older
+    /// fits made room", Kika, 10 Nov).
+    struct Limited: Equatable {
+        let list: [Saved]
+        let madeRoom: [Saved]
+    }
+
+    static func ordered(_ items: [Saved]) -> [Saved] {
+        items.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            if $0.isTopShelf != $1.isTopShelf { return $0.isTopShelf }
+            return $0.key < $1.key
+        }
+    }
+
+    /// Kept fits stay first in line for a place; the best of the rest fill
+    /// up to `limit`. What was on the saved list (`previous`) and no longer
+    /// has a place made room.
+    static func applyLimit(_ candidates: [Saved], pinned: Set<String>, previous: Set<String>,
+                           limit: Int) -> Limited {
+        var seen = Set<String>()
+        let sorted = ordered(candidates).filter { seen.insert($0.key).inserted }
+        let kept = sorted.filter { pinned.contains($0.key) }
+        let room = max(limit - kept.count, 0)
+        let chosen = Set(kept.map(\.key) + sorted.filter { !pinned.contains($0.key) }.prefix(room).map(\.key))
+        return Limited(list: sorted.filter { chosen.contains($0.key) },
+                       madeRoom: sorted.filter { !chosen.contains($0.key) && previous.contains($0.key) })
     }
 
     /// Keys of shelf repos added to the shelf, or changed upstream as far as
@@ -328,17 +359,27 @@ enum FitIncremental {
         Set(items.filter { $0.added > since || ($0.updated ?? .distantPast) > since }.map(\.key))
     }
 
-    /// The saved fits that still stand (on the shelf, not re-scored this run)
-    /// plus the new ones, best first, at most `limit`. Ties: Top Shelf first.
+    /// The saved fits that still stand (on the shelf, not re-scored this run,
+    /// or kept with Keep) plus the new ones, best first, at most `limit`.
+    /// Ties: Top Shelf first.
     static func merge(saved: [Saved], new: [Saved], changed: Set<String>, onShelf: Set<String>,
                       limit: Int) -> [Saved] {
+        mergeLimited(saved: saved, new: new, changed: changed, onShelf: onShelf, limit: limit).list
+    }
+
+    static func mergeLimited(saved: [Saved], new: [Saved], changed: Set<String>, onShelf: Set<String>,
+                             limit: Int) -> Limited {
         let newKeys = Set(new.map(\.key))
-        let kept = saved.filter { onShelf.contains($0.key) && !changed.contains($0.key) && !newKeys.contains($0.key) }
-        return Array((kept + new).sorted {
-            if $0.score != $1.score { return $0.score > $1.score }
-            if $0.isTopShelf != $1.isTopShelf { return $0.isTopShelf }
-            return $0.key < $1.key
-        }.prefix(limit))
+        let pinned = Set(saved.filter(\.isPinned).map(\.key))
+        let kept = saved.filter {
+            onShelf.contains($0.key) && !newKeys.contains($0.key) && (!changed.contains($0.key) || $0.isPinned)
+        }
+        let fresh = new.map { item -> Saved in
+            var copy = item
+            copy.isPinned = pinned.contains(item.key)
+            return copy
+        }
+        return applyLimit(kept + fresh, pinned: pinned, previous: Set(saved.map(\.key)), limit: limit)
     }
 }
 
@@ -352,6 +393,8 @@ enum FitMerge {
         var isNew: Bool
         var isHidden: Bool
         var score: Double = 0
+        var isPinned: Bool = false
+        var isBumped: Bool = false
     }
 
     /// Hidden rows always stay (hidden). A fit is new when its repo was not in

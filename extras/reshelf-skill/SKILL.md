@@ -42,7 +42,8 @@ their own repos (My Repos in the sidebar): best fit first, each row naming its s
 why line per repo, `NEW` for fits new since the run before. Repos they hid, and repos
 the Fits filter leaves out (language, last update, GPL/AGPL, archived, how many), stay
 out. A `filter:` line says which filter the repo uses: its own (set in the app with
-right-click > Filter) or the main one (Settings > Fits). It never runs a match: only the user does that, in the app.
+right-click > Filter) or the main one (Settings > Fits). `KEPT by the user` marks a fit they kept; fits the last run's limit
+pushed off are named in one line at the end, not listed. It never runs a match: only the user does that, in the app.
 
 `find` prints, per repo: category, the **date it was added**, `CLONED` + path or
 `not cloned` + GitHub URL, a **license note**, and tags. It reads the app's catalog

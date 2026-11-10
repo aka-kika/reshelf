@@ -137,6 +137,19 @@ func run() throws {
           mergedRun.map(\.key) == ["a", "added", "tie"])
     check("tie goes to Top Shelf", FitIncremental.merge(saved: savedList, new: newList, changed: [],
                                                        onShelf: ["c"], limit: 5).map(\.key) == ["added", "tie", "c"])
+    // 5b2. The limit: kept (pinned) fits keep their place; saved fits that
+    //      lose theirs "made room" (only ones that were on the list before).
+    let s = { (k: String, sc: Double, pin: Bool) in FitIncremental.Saved(key: k, why: "", score: sc, isTopShelf: false, isPinned: pin) }
+    let lim = FitIncremental.applyLimit([s("a", 0.9, false), s("b", 0.8, false), s("weak", 0.1, true), s("new", 0.85, false)],
+                                        pinned: ["weak"], previous: ["a", "b", "weak"], limit: 3)
+    check("kept fit stays though weakest", lim.list.map(\.key) == ["a", "new", "weak"])
+    check("saved fit pushed off made room", lim.madeRoom.map(\.key) == ["b"])
+    let lim2 = FitIncremental.applyLimit([s("x", 0.5, false), s("y", 0.4, false)], pinned: [], previous: [], limit: 1)
+    check("a fit never listed before does not count as made room", lim2.madeRoom.isEmpty)
+    let pinnedChanged = FitIncremental.mergeLimited(saved: [s("p", 0.2, true), s("q", 0.5, false)], new: [],
+                                                    changed: ["p", "q"], onShelf: ["p", "q"], limit: 5)
+    check("a kept fit stays through New Fits even when it changed", pinnedChanged.list.map(\.key) == ["p"])
+
     check("run signature names version and limit",
           FitScorer.runSignature(limit: 15) != FitScorer.runSignature(limit: 20))
 
@@ -227,6 +240,23 @@ func run() throws {
     ProjectFitsService.setOwnSettings(own, for: sift.id, in: ctx)
     check("own filter saved on the repo", sift.hasOwnFitSettings && FitSettings.decode(sift.fitSettingsJSON) == own)
 
+    // 6b. Made room and Keep in the store.
+    ProjectFitsService.applyRun(repoID: sift.id, found: [("test/a", "a"), ("test/b", "b")],
+                                scores: ["test/a": 0.3, "test/b": 0.2],
+                                madeRoom: [FitIncremental.Saved(key: "test/old", why: "old why", score: 0.25, isTopShelf: false)],
+                                note: "", in: ctx)
+    var nowFits = ProjectFitsService.fits(for: sift.id, in: ctx)
+    check("made-room fit saved as pushed off", nowFits.first { $0.repoKey == "test/old" }?.isBumped == true
+          && nowFits.first { $0.repoKey == "test/old" }?.why == "old why")
+    ProjectFitsService.keep("test/old", repoID: sift.id, limit: 2, in: ctx)
+    nowFits = ProjectFitsService.fits(for: sift.id, in: ctx)
+    let oldFit = nowFits.first { $0.repoKey == "test/old" }
+    check("Keep puts it back, pinned", oldFit?.isPinned == true && oldFit?.isBumped == false)
+    check("the weakest other fit made room instead", nowFits.first { $0.repoKey == "test/b" }?.isBumped == true
+          && nowFits.first { $0.repoKey == "test/a" }?.isBumped == false)
+    check("ranks follow the score", nowFits.filter { !$0.isBumped && !$0.isHidden }.sorted { $0.rank < $1.rank }
+          .map(\.repoKey) == ["test/a", "test/old"])
+
     // 7. Backups carry My Repos; an old file without them still reads.
     CatalogBackupService.myReposSource = { context in
         if let context { ProjectFitsService.refreshSnapshot(in: context) }
@@ -237,8 +267,9 @@ func run() throws {
     guard let file = CatalogBackupService.snapshotURLs().first,
           let data = try? Data(contentsOf: file) else { check("backup file", false); return }
     let rows = (try? CatalogExportService.decodeMyRepos(data)) ?? []
-    check("backup has the repo and both fits", rows.count == 1 && rows[0].fits.count == 2)
-    check("backup carries the score", rows[0].fits.first { $0.repo == "test/cleaner" }?.score == 0.12)
+    check("backup has the repo and its fits (hidden, listed, kept, made room)", rows.count == 1 && rows[0].fits.count == 4)
+    check("backup carries kept and made-room fits", rows[0].fits.first { $0.repo == "test/old" }?.isPinned == true
+          && rows[0].fits.first { $0.repo == "test/b" }?.isBumped == true)
     check("backup carries the own filter", rows[0].fitSettings.flatMap(FitSettings.decode) == own)
     check("fit row names the shelf repo", rows[0].fits.first { $0.repo == "test/cleaner" }?.name == "Cleaner"
           && rows[0].fits.first { $0.repo == "test/cleaner" }?.shelf == "topShelf")
@@ -250,8 +281,9 @@ func run() throws {
     let ctx2 = try makeContext()
     check("merge adds the missing repo", ProjectFitsService.merge(rows, in: ctx2) == 1)
     let restored = ProjectFitsService.repos(in: ctx2)
-    check("restored repo has its fits and hidden one",
-          restored.count == 1 && ProjectFitsService.fits(for: restored[0].id, in: ctx2).filter(\.isHidden).count == 1)
+    check("restored repo has its fits, kept and made-room ones",
+          restored.count == 1 && ProjectFitsService.fits(for: restored[0].id, in: ctx2).contains { $0.isPinned }
+          && ProjectFitsService.fits(for: restored[0].id, in: ctx2).contains { $0.isBumped })
     check("restored repo keeps its own filter", FitSettings.decode(restored[0].fitSettingsJSON) == own)
     ProjectFitsService.setOwnSettings(nil, for: sift.id, in: ctx)
     check("Use Main Filter clears it", !sift.hasOwnFitSettings)

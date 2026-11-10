@@ -28,7 +28,10 @@ mocker.lastRunAt = Date(timeIntervalSince1970: 1_762_790_400)
 mocker.fitSettingsJSON = #"{"filters":{"hideStrongCopyleft":true},"limit":10}"#
 ctx.insert(mocker)
 ctx.insert(RepoFit(myRepoID: mocker.id, repoKey: "tw93/mole", rank: 0, why: "gpl one", isNew: false, isHidden: false))
-ctx.insert(RepoFit(myRepoID: mocker.id, repoKey: "x/uninstally", rank: 1, why: "mit one", isNew: false, isHidden: false))
+ctx.insert(RepoFit(myRepoID: mocker.id, repoKey: "x/uninstally", rank: 1, why: "mit one", isNew: false, isHidden: false,
+                   isPinned: true))
+ctx.insert(RepoFit(myRepoID: mocker.id, repoKey: "x/hiddenone", rank: 2, why: "pushed off", isNew: false, isHidden: false,
+                   isBumped: true))
 for (key, rank, why, new, hidden) in [
     ("x/uninstally", 0, "Dry run before removing", true, false),
     ("tw93/mole", 1, "Finds leftover files after an uninstall", false, false),

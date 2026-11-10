@@ -310,13 +310,18 @@ def load_my_repos():
                 cols = {c[1] for c in db.execute("PRAGMA table_info(ZMYREPO)")}
                 language = "ZLANGUAGE" if "ZLANGUAGE" in cols else "''"
                 own = "ZFITSETTINGSJSON" if "ZFITSETTINGSJSON" in cols else "''"
+                fit_cols = {c[1] for c in db.execute("PRAGMA table_info(ZREPOFIT)")}
+                kept = "ZISPINNED" if "ZISPINNED" in fit_cols else "0"
+                bumped = "ZISBUMPED" if "ZISBUMPED" in fit_cols else "0"
                 for r in db.execute(f"""SELECT ZID, ZFULLNAME, ZGITHUBURL, ZSUMMARY, ZLASTRUNAT,
                                        ZLASTRUNNOTE, ZSORTINDEX, {language} AS LANGUAGE, {own} AS OWNFILTER
                                        FROM ZMYREPO ORDER BY ZSORTINDEX, ZFULLNAME"""):
                     fits = [dict(key=f["ZREPOKEY"] or "", rank=f["ZRANK"] or 0, why=f["ZWHY"] or "",
-                                 new=bool(f["ZISNEW"]), hidden=bool(f["ZISHIDDEN"]))
-                            for f in db.execute("""SELECT ZREPOKEY, ZRANK, ZWHY, ZISNEW, ZISHIDDEN
-                                                   FROM ZREPOFIT WHERE ZMYREPOID = ? ORDER BY ZRANK""",
+                                 new=bool(f["ZISNEW"]), hidden=bool(f["ZISHIDDEN"]),
+                                 kept=bool(f["KEPT"]), made_room=bool(f["BUMPED"]))
+                            for f in db.execute(f"""SELECT ZREPOKEY, ZRANK, ZWHY, ZISNEW, ZISHIDDEN,
+                                                    {kept} AS KEPT, {bumped} AS BUMPED
+                                                    FROM ZREPOFIT WHERE ZMYREPOID = ? ORDER BY ZRANK""",
                                                 (r["ZID"],))]
                     repos.append(dict(full=r["ZFULLNAME"] or "", url=r["ZGITHUBURL"] or "",
                                       summary=r["ZSUMMARY"] or "", last=_apple_time(r["ZLASTRUNAT"]),
@@ -341,7 +346,8 @@ def load_my_repos():
             last=_iso_seconds(last) if last else None, note=r.get("lastRunNote", ""),
             language=r.get("language") or "", own_filter=r.get("fitSettings") or "",
             fits=[dict(key=f.get("repo", ""), rank=f.get("rank", 0), why=f.get("why", ""),
-                       new=bool(f.get("isNew")), hidden=bool(f.get("isHidden")))
+                       new=bool(f.get("isNew")), hidden=bool(f.get("isHidden")),
+                       kept=bool(f.get("isPinned")), made_room=bool(f.get("isBumped")))
                   for f in sorted(r.get("fits", []), key=lambda f: f.get("rank", 0))]))
     return f"backup {os.path.basename(backups[0])}", repos
 
@@ -471,7 +477,7 @@ def _shown_fits(repo, by_key, filters=None, facts=None):
     shown, filtered = [], 0
     for f in sorted(repo["fits"], key=lambda f: f["rank"]):
         p = by_key.get(f["key"])
-        if f["hidden"] or not p or p["status"] not in ("topShelf", "collector"):
+        if f["hidden"] or f.get("made_room") or not p or p["status"] not in ("topShelf", "collector"):
             continue
         if filters and not _passes(filters, repo, dict(p, key=f["key"]), facts or {}):
             filtered += 1
@@ -552,11 +558,16 @@ def cmd_fits(args):
     for f, p in shown:
         path = clone_path(p, index)
         print(f"- {p['name']}  [{shelf_names[p['status']]} · {p['category'] or 'no category'}]  "
-              f"{'CLONED' if path else 'not cloned'}{'  NEW since the run before' if f['new'] else ''}")
+              f"{'CLONED' if path else 'not cloned'}{'  NEW since the run before' if f['new'] else ''}"
+              f"{'  KEPT by the user' if f.get('kept') else ''}")
         if f["why"]:
             print(f"    why: {f['why'][:200]}")
         print(f"    {path if path else p['url']}")
         print(f"    license: {license_note(p['license'])}")
+    room = [by_key[f["key"]]["name"] for f in repo["fits"]
+            if f.get("made_room") and not f["hidden"] and f["key"] in by_key]
+    if room:
+        print(f"\n({len(room)} older fit(s) made room in the last run, not listed: {', '.join(room)})")
     if hidden:
         print(f"\n({hidden} hidden by the user from this list; not shown)")
     if filtered:

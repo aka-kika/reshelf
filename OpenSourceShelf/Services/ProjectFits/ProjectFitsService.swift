@@ -60,12 +60,15 @@ enum ProjectFitsService {
     /// hidden, new ones get the dot) and stamps the run time. `found` is in
     /// list order, best fit first.
     static func applyRun(repoID: UUID, found: [(key: String, why: String)], scores: [String: Double] = [:],
+                         madeRoom: [FitIncremental.Saved] = [], pinned: Set<String> = [],
                          matchText: String? = nil, signature: String? = nil, language: String? = nil,
                          note: String,
                          at date: Date = Date(), in context: ModelContext) {
         guard let repo = repo(repoID, in: context) else { return }
         let saved = fits(for: repoID, in: context)
-        let previous = saved.map {
+        // Fits pushed off by the run before are dropped now: "made room"
+        // lasts until the next run.
+        let previous = saved.filter { !$0.isBumped || $0.isHidden }.map {
             FitMerge.Row(key: $0.repoKey, rank: $0.rank, why: $0.why, isNew: $0.isNew, isHidden: $0.isHidden,
                          score: $0.score)
         }
@@ -74,7 +77,13 @@ enum ProjectFitsService {
         for row in merged {
             context.insert(RepoFit(myRepoID: repoID, repoKey: row.key, rank: row.rank, why: row.why,
                                    isNew: row.isNew, isHidden: row.isHidden,
-                                   score: row.isHidden ? row.score : (scores[row.key] ?? row.score)))
+                                   score: row.isHidden ? row.score : (scores[row.key] ?? row.score),
+                                   isPinned: !row.isHidden && pinned.contains(row.key)))
+        }
+        let listed = Set(merged.map(\.key))
+        for (offset, item) in madeRoom.enumerated() where !listed.contains(item.key) {
+            context.insert(RepoFit(myRepoID: repoID, repoKey: item.key, rank: merged.count + offset, why: item.why,
+                                   isNew: false, isHidden: false, score: item.score, isBumped: true))
         }
         if let matchText { repo.matchText = matchText }
         if let signature { repo.runSignature = signature }
@@ -99,6 +108,26 @@ enum ProjectFitsService {
     static func saveMatchTexts(_ texts: [UUID: String], in context: ModelContext) {
         guard !texts.isEmpty else { return }
         for (id, text) in texts { repo(id, in: context)?.matchText = text }
+        save(context)
+    }
+
+    /// "Keep" on a fit that made room: back on the list for good (pinned),
+    /// and the weakest fit not kept goes instead when the list is full.
+    static func keep(_ repoKey: String, repoID: UUID, limit: Int, in context: ModelContext) {
+        let all = fits(for: repoID, in: context)
+        guard let fit = all.first(where: { $0.repoKey == repoKey }) else { return }
+        fit.isBumped = false
+        fit.isPinned = true
+        fit.isHidden = false
+        let listed = all.filter { !$0.isHidden && !$0.isBumped }
+        if listed.count > limit,
+           let weakest = listed.filter({ !$0.isPinned }).min(by: { $0.score < $1.score }) {
+            weakest.isBumped = true
+        }
+        // Ranks follow the score again, the made-room ones after the list.
+        let order = all.filter { !$0.isHidden && !$0.isBumped }.sorted { $0.score > $1.score }
+            + all.filter { $0.isBumped }.sorted { $0.score > $1.score }
+        for (index, item) in order.enumerated() { item.rank = index }
         save(context)
     }
 
@@ -137,7 +166,8 @@ enum ProjectFitsService {
                     return RepoFitDTO(repo: fit.repoKey, name: row?.name ?? "",
                                       githubURL: row?.githubURL ?? "", shelf: row?.statusRaw ?? "",
                                       rank: fit.rank, why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden,
-                                      score: fit.score)
+                                      score: fit.score, isPinned: fit.isPinned ? true : nil,
+                                      isBumped: fit.isBumped ? true : nil)
                 },
                 language: repo.language,
                 fitSettings: repo.fitSettingsJSON.isEmpty ? nil : repo.fitSettingsJSON)
@@ -165,7 +195,8 @@ enum ProjectFitsService {
             for fit in row.fits {
                 context.insert(RepoFit(myRepoID: repo.id, repoKey: fit.repo, rank: fit.rank,
                                        why: fit.why, isNew: fit.isNew, isHidden: fit.isHidden,
-                                       score: fit.score ?? 0))
+                                       score: fit.score ?? 0, isPinned: fit.isPinned ?? false,
+                                       isBumped: fit.isBumped ?? false))
             }
             next += 1
             added += 1

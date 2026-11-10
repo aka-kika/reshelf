@@ -13,6 +13,10 @@ struct FitsListModel {
     let hiddenCount: Int
     /// Saved fits that Settings > Fits leaves out right now.
     let filteredCount: Int
+    /// Saved fits the last run pushed off to make room (best first).
+    let madeRoom: [ToolProject]
+    /// The limit this list uses (Keep needs it).
+    let limit: Int
 
     init(repo: MyRepo, fits: [RepoFit], allProjects: [ToolProject], search: String,
          filters: FitFilters = FitFilters(), limit: Int = .max, facts: [String: RepoFacts] = [:],
@@ -23,7 +27,11 @@ struct FitsListModel {
         hiddenCount = mine.filter(\.isHidden).count
         let passing = Self.shown(mine, byKey: byKey, repo: repo, filters: filters, limit: limit, facts: facts,
                                  now: now)
-        filteredCount = mine.filter { !$0.isHidden && byKey[$0.repoKey] != nil }.count - passing.count
+        filteredCount = mine.filter { !$0.isHidden && !$0.isBumped && byKey[$0.repoKey] != nil }.count
+            - passing.count
+        madeRoom = mine.filter { $0.isBumped && !$0.isHidden }.sorted { $0.score > $1.score }
+            .compactMap { byKey[$0.repoKey] }
+        self.limit = limit
         var rows: [ToolProject] = []
         var newIDs = Set<UUID>()
         for (fit, project) in passing {
@@ -47,7 +55,8 @@ struct FitsListModel {
     /// catalog, passing Settings > Fits. The sidebar count uses it too.
     static func shown(_ fits: [RepoFit], byKey: [String: ToolProject], repo: MyRepo, filters: FitFilters,
                       limit: Int = .max, facts: [String: RepoFacts], now: Date = Date()) -> [(RepoFit, ToolProject)] {
-        let passing = fits.filter { $0.myRepoID == repo.id && !$0.isHidden }.sorted { $0.rank < $1.rank }
+        let passing = fits.filter { $0.myRepoID == repo.id && !$0.isHidden && !$0.isBumped }
+            .sorted { $0.rank < $1.rank }
             .compactMap { fit -> (RepoFit, ToolProject)? in
                 guard let project = byKey[fit.repoKey],
                       filters.allows(projectLanguage: repo.language, facts: facts[fit.repoKey],
@@ -256,5 +265,58 @@ struct GitHubMarkIcon: View {
             Image(systemName: "chevron.left.forwardslash.chevron.right")
                 .font(.system(size: size - 1))
         }
+    }
+}
+
+/// Under a fits list after a run pushed saved fits off: "2 older fits made
+/// room: Mantis, Folio. Show". Show lists them in place, each with Keep.
+struct MadeRoomRow: View {
+    let repoID: UUID
+    let projects: [ToolProject]
+    let limit: Int
+    @Environment(\.modelContext) private var modelContext
+    @State private var isOpen = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Text(summary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Button(isOpen ? "Hide" : "Show") {
+                    withAnimation(.easeInOut(duration: 0.2)) { isOpen.toggle() }
+                }
+                .buttonStyle(.borderless)
+                .font(.system(size: 11))
+            }
+            if isOpen {
+                ForEach(projects) { project in
+                    HStack {
+                        Text(project.name)
+                            .font(.system(size: 12))
+                        Text(project.status.displayName)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                        Button("Keep") {
+                            ProjectFitsService.keep(GitHubRepositoryURL.dedupKey(for: project.githubURL),
+                                                    repoID: repoID, limit: limit, in: modelContext)
+                        }
+                        .controlSize(.small)
+                        .help("Back on the list for good; the weakest other fit makes room")
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private var summary: String {
+        let names = projects.prefix(3).map(\.name).joined(separator: ", ")
+        let more = projects.count > 3 ? " and \(projects.count - 3) more" : ""
+        return "\(projects.count) older fit\(projects.count == 1 ? "" : "s") made room: \(names)\(more)."
     }
 }

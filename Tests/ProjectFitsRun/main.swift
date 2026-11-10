@@ -182,6 +182,16 @@ func run() async throws {
     check("all repos: progress cleared afterwards", ProjectFitsRunner.shared.batch == nil)
     ProjectFitsService.remove(second[0], in: ctx)
 
+    // 6c. A run whose limit pushes a saved fit off says so (made room), and
+    //      the list shows it under the fits, not in them.
+    let savedTwo = [FitIncremental.Saved(key: "tw93/mole", why: "saved mole", score: 0.2, isTopShelf: true),
+                    FitIncremental.Saved(key: "x/notes", why: "kept", score: 0.001, isTopShelf: true, isPinned: true)]
+    let squeezed = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: inputs, hidden: [],
+                                                        limit: 1, saved: savedTwo) { _ in }
+    check("a kept fit keeps its place through Analyze All Fits", squeezed.fits.map(\.key) == ["x/notes"]
+          && squeezed.pinned == ["x/notes"])
+    check("the saved fit that lost its place made room", squeezed.madeRoom.map(\.key) == ["tw93/mole"])
+
     // 7. The list for one of her repos: Top Shelf heading first, new dot,
     //    hidden left out but counted, search narrows, a shelf move regroups.
     let sift = added[0]
@@ -205,6 +215,12 @@ func run() async throws {
     check("sidebar count matches the list",
           FitsListModel.shown(fitsNow, byKey: FitsListModel.byKey(all), repo: sift,
                               filters: FitFilters(hideStrongCopyleft: true), facts: [:]).count == 1)
+    let bumpedFit = RepoFit(myRepoID: sift.id, repoKey: "x/notes", rank: 9, why: "", isNew: false, isHidden: false,
+                            score: 0.3, isBumped: true)
+    let withBumped = FitsListModel(repo: sift, fits: fitsNow.filter { $0.repoKey != "x/notes" } + [bumpedFit],
+                                   allProjects: all, search: "")
+    check("list: made-room fit shown under the list, not in it",
+          withBumped.madeRoom.map(\.name) == ["notes"] && !withBumped.projects.map(\.name).contains("notes"))
     let capped = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "", limit: 1)
     check("list: a lower limit shows at once", capped.projects.count == 1)
     let searched = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "native")

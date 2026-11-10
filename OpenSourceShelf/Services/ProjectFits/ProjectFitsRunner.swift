@@ -121,16 +121,18 @@ final class ProjectFitsRunner: ObservableObject {
         let signature = FitScorer.runSignature(limit: limit, filters: filters.signature)
         // Only new repos when the saved list was made the same way (same
         // scoring, limit and filters); otherwise the whole shelf.
+        let top = Set(inputs.filter(\.isTopShelf).map(\.key))
+        // The list as she sees it (not hidden, not pushed off last time).
+        let saved = ProjectFitsService.fits(for: repoID, in: context).filter { !$0.isHidden && !$0.isBumped }.map {
+            FitIncremental.Saved(key: $0.repoKey, why: $0.why, score: $0.score,
+                                 isTopShelf: top.contains($0.repoKey), isPinned: $0.isPinned)
+        }
         var incremental: Incremental?
         if mode == .newOnly, let last = repo.lastRunAt, repo.runSignature == signature, !repo.matchText.isEmpty {
-            let top = Set(inputs.filter(\.isTopShelf).map(\.key))
             incremental = Incremental(
                 projectText: repo.matchText,
                 changed: FitIncremental.changed(inputs.map { ($0.key, $0.added, $0.updated) }, since: last),
-                saved: ProjectFitsService.fits(for: repoID, in: context).filter { !$0.isHidden }.map {
-                    FitIncremental.Saved(key: $0.repoKey, why: $0.why, score: $0.score,
-                                         isTopShelf: top.contains($0.repoKey))
-                })
+                saved: saved)
         }
         failure[repoID] = nil
         progress[repoID] = Progress(step: "Reading \(repo.displayName)", done: 0, total: 0)
@@ -141,13 +143,14 @@ final class ProjectFitsRunner: ObservableObject {
                                                       hidden: hidden, others: others,
                                                       limit: limit, filters: filters,
                                                       projectLanguage: projectLanguage,
-                                                      incremental: incremental) { [weak self] step in
+                                                      incremental: incremental, saved: saved) { [weak self] step in
                     self?.progress[repoID] = step
                 }
                 guard !Task.isCancelled else { return }
                 ProjectFitsService.saveMatchTexts(outcome.otherTexts, in: context)
                 ProjectFitsService.applyRun(repoID: repoID, found: outcome.fits.map { ($0.key, $0.why) },
-                                            scores: outcome.scores, matchText: outcome.projectText,
+                                            scores: outcome.scores, madeRoom: outcome.madeRoom,
+                                            pinned: outcome.pinned, matchText: outcome.projectText,
                                             signature: signature, language: outcome.language,
                                             note: outcome.note, in: context)
             } catch is CancellationError {
@@ -237,6 +240,9 @@ final class ProjectFitsRunner: ObservableObject {
         var otherTexts: [UUID: String] = [:]
         /// Her repo's language when this run read it ("" otherwise).
         var language: String = ""
+        /// Saved fits the limit pushed off this run, and the kept (pinned) keys.
+        var madeRoom: [FitIncremental.Saved] = []
+        var pinned: Set<String> = []
     }
 
     enum RunError: LocalizedError {
@@ -257,6 +263,7 @@ final class ProjectFitsRunner: ObservableObject {
                                      hidden: Set<String>, others: [OtherRepo] = [],
                                      limit: Int = FitScorer.defaultLimit, filters: FitFilters = FitFilters(),
                                      projectLanguage: String = "", incremental: Incremental? = nil,
+                                     saved: [FitIncremental.Saved] = [],
                                      report: @escaping @MainActor (Progress) -> Void) async throws -> Outcome {
         guard !inputs.isEmpty else { throw RunError.emptyShelf }
         let name = fullName.split(separator: "/").last.map(String.init) ?? fullName
@@ -286,12 +293,15 @@ final class ProjectFitsRunner: ObservableObject {
         try Task.checkCancellation()
 
         // Nothing new on the shelf: the saved list stands, no calls at all.
+        let pinned = Set((incremental?.saved ?? saved).filter(\.isPinned).map(\.key))
         if let incremental, incremental.changed.isEmpty {
-            let kept = FitIncremental.merge(saved: incremental.saved, new: [], changed: [], onShelf: onShelf,
-                                            limit: limit)
-            return Outcome(fits: kept.map { ($0.key, $0.why) }, note: "Nothing new on your shelf since the last run.",
-                           scores: Dictionary(kept.map { ($0.key, $0.score) }, uniquingKeysWith: { a, _ in a }),
-                           projectText: projectText, language: readLanguage)
+            let limited = FitIncremental.mergeLimited(saved: incremental.saved, new: [], changed: [],
+                                                      onShelf: onShelf, limit: limit)
+            return Outcome(fits: limited.list.map { ($0.key, $0.why) },
+                           note: "Nothing new on your shelf since the last run.",
+                           scores: Dictionary(limited.list.map { ($0.key, $0.score) }, uniquingKeysWith: { a, _ in a }),
+                           projectText: projectText, language: readLanguage, madeRoom: limited.madeRoom,
+                           pinned: pinned)
         }
 
         // Her other repos: what they all share counts less. A README not read
@@ -359,22 +369,36 @@ final class ProjectFitsRunner: ObservableObject {
         let shortSet = Set(shortlist)
         let second = FitScorer.score(project: projectText, others: ownTexts, candidates: candidates)
             .filter { shortSet.contains($0.candidate.key) }
-        let picked = FitScorer.pick(second, hidden: hidden, limit: limit)
+        // Every real fit first; the limit (and kept ones) decide below.
+        let picked = FitScorer.pick(second, hidden: hidden, limit: .max)
         try Task.checkCancellation()
 
-        // New Fits: the new fits join the saved list by score.
-        let final: [FitIncremental.Saved]
+        // New Fits: the new fits join the saved list by score. Analyze All
+        // Fits: the fresh list, plus fits she kept. Either way, saved fits
+        // the limit pushes off "made room".
         let pickedSaved = picked.map {
             FitIncremental.Saved(key: $0.candidate.key, why: "", score: $0.score, isTopShelf: $0.candidate.isTopShelf)
         }
+        let limited: FitIncremental.Limited
         if let incremental {
-            final = FitIncremental.merge(saved: incremental.saved, new: pickedSaved, changed: incremental.changed,
-                                         onShelf: onShelf, limit: limit)
+            limited = FitIncremental.mergeLimited(saved: incremental.saved, new: pickedSaved,
+                                                  changed: incremental.changed, onShelf: onShelf, limit: limit)
         } else {
-            final = pickedSaved
+            let pickedKeys = Set(pickedSaved.map(\.key))
+            let keptStill = saved.filter { $0.isPinned && onShelf.contains($0.key) && !pickedKeys.contains($0.key) }
+            let savedWhy = Dictionary(saved.map { ($0.key, $0.why) }, uniquingKeysWith: { a, _ in a })
+            let fresh = pickedSaved.map { item -> FitIncremental.Saved in
+                FitIncremental.Saved(key: item.key, why: savedWhy[item.key] ?? "", score: item.score,
+                                     isTopShelf: item.isTopShelf, isPinned: pinned.contains(item.key))
+            }
+            limited = FitIncremental.applyLimit(fresh + keptStill, pinned: pinned,
+                                                previous: Set(saved.map(\.key)), limit: limit)
         }
+        let final = limited.list
         let pickedByKey = Dictionary(picked.map { ($0.candidate.key, $0) }, uniquingKeysWith: { a, _ in a })
-        let toWrite = final.compactMap { pickedByKey[$0.key] }
+        // A why line is written for fits new on the list; saved ones keep theirs.
+        let savedKeys = Set((incremental?.saved ?? []).map(\.key))
+        let toWrite = final.filter { !savedKeys.contains($0.key) }.compactMap { pickedByKey[$0.key] }
 
         // 4. Why lines, for the fits this run found.
         var whyByKey: [String: String] = [:]
@@ -413,6 +437,7 @@ final class ProjectFitsRunner: ObservableObject {
         }
         return Outcome(fits: fits, note: note,
                        scores: Dictionary(final.map { ($0.key, $0.score) }, uniquingKeysWith: { a, _ in a }),
-                       projectText: projectText, otherTexts: otherTexts, language: readLanguage)
+                       projectText: projectText, otherTexts: otherTexts, language: readLanguage,
+                       madeRoom: limited.madeRoom, pinned: pinned)
     }
 }
