@@ -182,6 +182,34 @@ func run() async throws {
     check("all repos: progress cleared afterwards", ProjectFitsRunner.shared.batch == nil)
     ProjectFitsService.remove(second[0], in: ctx)
 
+    // 6b2. 7daa: Stop after adding several repos stops the ones still waiting.
+    let three = ProjectFitsService.add([("kika/One", "https://github.com/kika/One", "Uninstall leftover caches"),
+                                        ("kika/Two", "https://github.com/kika/Two", "Uninstall leftover caches")],
+                                       in: ctx)
+    ProjectFitsRunner.shared.run(three.map(\.id), in: ctx)
+    ProjectFitsRunner.shared.stop(three[0].id)
+    await ProjectFitsRunner.shared.waitForQueue()
+    check("7daa: Stop on the first added repo stops the rest", three.allSatisfy { $0.lastRunAt == nil })
+    ProjectFitsRunner.shared.run(three.map(\.id), in: ctx)
+    await ProjectFitsRunner.shared.waitForQueue()
+    check("7daa: without Stop each added repo runs", three.allSatisfy { $0.lastRunAt != nil })
+
+    // 7daa: Remove from Sidebar removes nothing when its backup fails.
+    let realBackups = CatalogBackupService.backupsDirectoryOverride
+    let blocker = backups.appendingPathComponent("not-a-folder")
+    try? FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+    try Data("x".utf8).write(to: blocker)
+    CatalogBackupService.backupsDirectoryOverride = blocker
+    check("7daa: a failed backup keeps the repo", !ProjectFitsService.removeWithBackup(three[0], in: ctx)
+          && ProjectFitsService.repo(three[0].id, in: ctx) != nil)
+    CatalogBackupService.backupsDirectoryOverride = realBackups
+    let oneID = three[0].id
+    check("7daa: with a backup the repo goes", ProjectFitsService.removeWithBackup(three[0], in: ctx)
+          && ProjectFitsService.repo(oneID, in: ctx) == nil
+          && CatalogBackupService.snapshotURLs().contains {
+              CatalogBackupService.reason(in: $0) == "Before removing One from My Repos" })
+    ProjectFitsService.remove(three[1], in: ctx)
+
     // 6c. A run whose limit pushes a saved fit off says so (made room), and
     //      the list shows it under the fits, not in them.
     let savedTwo = [FitIncremental.Saved(key: "tw93/mole", why: "saved mole", score: 0.2, isTopShelf: true),

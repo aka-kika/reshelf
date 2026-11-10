@@ -54,7 +54,17 @@ final class ProjectFitsRunner: ObservableObject {
 
     func stop(_ repoID: UUID) {
         tasks[repoID]?.cancel()
+        // Stop after adding several repos stops the ones still waiting too
+        // (7daa: only the one running stopped, the rest went on).
+        if queued.contains(repoID) {
+            queueTask?.cancel()
+            queued = []
+        }
     }
+
+    /// The repos an Add run has not reached yet, and that run.
+    private var queued: Set<UUID> = []
+    private var queueTask: Task<Void, Never>?
 
     /// New Fits looks only at shelf repos new or changed since the
     /// last run; Analyze All Fits (and a first run) looks at the whole shelf.
@@ -62,10 +72,26 @@ final class ProjectFitsRunner: ObservableObject {
 
     /// Runs Find Fits for each repo in turn (the Add popup adds several).
     func run(_ repoIDs: [UUID], mode: Mode = .all, in context: ModelContext) {
-        Task { @MainActor in
-            for id in repoIDs { await self.run(id, mode: mode, in: context) }
+        guard repoIDs.count > 1 else {
+            if let id = repoIDs.first { Task { @MainActor in await self.run(id, mode: mode, in: context) } }
+            return
         }
+        // One Add run at a time; a second one waits for the first.
+        let previous = queueTask
+        queued.formUnion(repoIDs)
+        let task = Task { @MainActor [self] in
+            await previous?.value
+            for id in repoIDs {
+                guard !Task.isCancelled, queued.contains(id) else { break }
+                await run(id, mode: mode, in: context)
+                queued.remove(id)
+            }
+        }
+        queueTask = task
     }
+
+    /// Waits for the Add run in progress (tests).
+    func waitForQueue() async { await queueTask?.value }
 
     /// One run over all her repos (right-click the My Repos heading): one
     /// after another, each with its own filter, one progress line.

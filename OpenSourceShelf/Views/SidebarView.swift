@@ -368,12 +368,20 @@ struct SidebarView: View {
         }
         Divider()
         Button("Remove from Sidebar") {
-            if selection == .myRepo(repo.id) { selection = .builtin(.allProjects) }
             fitsRunner.stop(repo.id)
-            // The fits list and hidden ones go with it; a backup keeps them.
-            CatalogBackupService.writeSnapshot(from: modelContext,
-                                               reason: "Before removing \(repo.displayName) from My Repos")
-            ProjectFitsService.remove(repo, in: modelContext)
+            let id = repo.id
+            // The fits list and hidden ones go with it; a backup keeps them,
+            // and without one nothing is removed.
+            guard ProjectFitsService.removeWithBackup(repo, in: modelContext) else {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Couldn't save a backup"
+                alert.informativeText = "The repo was not removed. Check that the disk has free space, then try again."
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+                return
+            }
+            if selection == .myRepo(id) { selection = .builtin(.allProjects) }
         }
     }
 

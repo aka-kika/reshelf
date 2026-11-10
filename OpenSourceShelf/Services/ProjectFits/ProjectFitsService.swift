@@ -49,6 +49,17 @@ enum ProjectFitsService {
         return added
     }
 
+    /// Remove from Sidebar: a labelled backup first, and nothing is removed
+    /// when it could not be written (7daa). `false` then.
+    @discardableResult
+    static func removeWithBackup(_ repo: MyRepo, in context: ModelContext) -> Bool {
+        guard CatalogBackupService.writeSnapshot(from: context,
+                                                 reason: "Before removing \(repo.displayName) from My Repos")
+        else { return false }
+        remove(repo, in: context)
+        return true
+    }
+
     /// Removes the repo and its fits. The shelf repos stay as they are.
     static func remove(_ repo: MyRepo, in context: ModelContext) {
         for fit in fits(for: repo.id, in: context) { context.delete(fit) }
