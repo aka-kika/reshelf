@@ -238,7 +238,10 @@ final class FormatMenuPruner: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { _ in
-            Self.prune()
+            // didUpdate fires after every event: walk the menus only when
+            // SwiftUI rebuilt or replaced one (d135). Items added to a menu
+            // later are handled by the didAddItem observer below.
+            Self.pruneIfMenuChanged()
         })
         // SwiftUI and AppKit fill some menus only as they open ("Settings…",
         // "Start Dictation…"): retitle an item the moment it lands in the
@@ -260,8 +263,27 @@ final class FormatMenuPruner: NSObject, NSApplicationDelegate {
         return false
     }
 
+    private static var lastMenuSignature: [Int] = []
+
+    /// The main menu, its top-level items and each submenu with its size:
+    /// cheap to read, and different whenever SwiftUI rebuilds the menus.
+    private static func menuSignature(_ menu: NSMenu) -> [Int] {
+        var signature = [ObjectIdentifier(menu).hashValue, menu.items.count]
+        for item in menu.items {
+            signature.append(item.submenu.map { ObjectIdentifier($0).hashValue } ?? 0)
+            signature.append(item.submenu?.items.count ?? -1)
+        }
+        return signature
+    }
+
+    private static func pruneIfMenuChanged() {
+        guard let menu = NSApp.mainMenu, menuSignature(menu) != lastMenuSignature else { return }
+        prune()
+    }
+
     private static func prune() {
         guard let menu = NSApp.mainMenu else { return }
+        defer { lastMenuSignature = menuSignature(menu) }
         if let format = menu.items.first(where: { $0.title == "Format" }) {
             menu.removeItem(format)
         }

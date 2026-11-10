@@ -177,8 +177,11 @@ func run() async throws {
     let second = ProjectFitsService.add([("kika/Kartina", "https://github.com/kika/Kartina", "Image library")], in: ctx)
     FakeGitHub.pages["/repos/kika/kartina/readme"] = .body("Image library with tags, uninstall leftover caches")
     let before = added[0].lastRunAt
+    FakeGitHub.requested = []
     await ProjectFitsRunner.shared.runAll([added[0].id, second[0].id], mode: .all, in: ctx)
     check("all repos: each ran", second[0].lastRunAt != nil && added[0].lastRunAt != before)
+    check("d135: a batch reads each shelf README once",
+          FakeGitHub.requested.filter { $0 == "/repos/tw93/mole/readme" }.count == 1)
     check("all repos: progress cleared afterwards", ProjectFitsRunner.shared.batch == nil)
     ProjectFitsService.remove(second[0], in: ctx)
 

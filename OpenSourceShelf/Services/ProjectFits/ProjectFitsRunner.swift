@@ -93,6 +93,27 @@ final class ProjectFitsRunner: ObservableObject {
     /// Waits for the Add run in progress (tests).
     func waitForQueue() async { await queueTask?.value }
 
+    /// READMEs read during one run over all her repos: each shelf README is
+    /// fetched once for the batch, not once per repo of hers (d135: about
+    /// 280 calls for 11 repos). A failed read is not kept.
+    final class ReadmeCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var pages: [String: String?] = [:]
+
+        func readme(fullName: String) async throws -> String? {
+            let key = fullName.lowercased()
+            lock.lock()
+            let known = pages[key]
+            lock.unlock()
+            if let known { return known }
+            let page = try await ProjectFitsGitHub.readme(fullName: fullName)
+            lock.lock()
+            pages[key] = .some(page)
+            lock.unlock()
+            return page
+        }
+    }
+
     /// One run over all her repos (right-click the My Repos heading): one
     /// after another, each with its own filter, one progress line.
     struct Batch: Equatable {
@@ -107,13 +128,14 @@ final class ProjectFitsRunner: ObservableObject {
     func runAll(_ repoIDs: [UUID], mode: Mode, in context: ModelContext) async {
         guard batch == nil, !repoIDs.isEmpty else { return }
         batch = Batch(done: 0, total: repoIDs.count, current: "")
+        let readmes = ReadmeCache()
         let task = Task { @MainActor [self] in
             for (index, id) in repoIDs.enumerated() {
                 if Task.isCancelled { break }
                 batchCurrent = id
                 batch = Batch(done: index, total: repoIDs.count,
                               current: ProjectFitsService.repo(id, in: context)?.displayName ?? "")
-                await run(id, mode: mode, in: context)
+                await run(id, mode: mode, in: context, readmes: readmes)
             }
         }
         batchTask = task
@@ -130,7 +152,7 @@ final class ProjectFitsRunner: ObservableObject {
         if let id = batchCurrent { stop(id) }
     }
 
-    func run(_ repoID: UUID, mode: Mode = .all, in context: ModelContext) async {
+    func run(_ repoID: UUID, mode: Mode = .all, in context: ModelContext, readmes: ReadmeCache? = nil) async {
         guard tasks[repoID] == nil, let repo = ProjectFitsService.repo(repoID, in: context) else { return }
         let fullName = repo.fullName
         let summary = repo.summary
@@ -172,7 +194,8 @@ final class ProjectFitsRunner: ObservableObject {
                                                       hidden: hidden, others: others,
                                                       limit: limit, filters: filters,
                                                       projectLanguage: projectLanguage,
-                                                      incremental: incremental, saved: saved) { [weak self] step in
+                                                      incremental: incremental, saved: saved,
+                                                      readmes: readmes) { [weak self] step in
                     self?.progress[repoID] = step
                 }
                 guard !Task.isCancelled else { return }
@@ -293,7 +316,13 @@ final class ProjectFitsRunner: ObservableObject {
                                      limit: Int = FitScorer.defaultLimit, filters: FitFilters = FitFilters(),
                                      projectLanguage: String = "", incremental: Incremental? = nil,
                                      saved: [FitIncremental.Saved] = [],
+                                     readmes: ReadmeCache? = nil,
                                      report: @escaping @MainActor (Progress) -> Void) async throws -> Outcome {
+        // A shelf or other-repo README: once per batch when a cache is given.
+        func readme(_ fullName: String) async throws -> String? {
+            if let readmes { return try await readmes.readme(fullName: fullName) }
+            return try await ProjectFitsGitHub.readme(fullName: fullName)
+        }
         guard !inputs.isEmpty else { throw RunError.emptyShelf }
         let name = fullName.split(separator: "/").last.map(String.init) ?? fullName
 
@@ -346,7 +375,7 @@ final class ProjectFitsRunner: ObservableObject {
                 // No README (nil) is saved too, so it is not asked again; a
                 // failed call (limit, network) is tried again next run.
                 do {
-                    if let live = try await ProjectFitsGitHub.readme(fullName: other.fullName) {
+                    if let live = try await readme(other.fullName) {
                         text = [other.text, FitScorer.cleanReadme(live)].joined(separator: "\n")
                     }
                     otherTexts[other.id] = text
@@ -382,7 +411,7 @@ final class ProjectFitsRunner: ObservableObject {
             guard let input = byKey[key], let i = candidates.firstIndex(where: { $0.key == key }) else { continue }
             if limitHit { usedSaved += 1; continue }
             do {
-                if let live = try await ProjectFitsGitHub.readme(fullName: input.fullName) {
+                if let live = try await readme(input.fullName) {
                     candidates[i].text = input.storedText + "\n" + FitScorer.cleanReadme(live)
                 }
             } catch CaptureError.rateLimited {
