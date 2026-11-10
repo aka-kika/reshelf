@@ -396,9 +396,11 @@ final class ProjectFitsRunner: ObservableObject {
         }
         let final = limited.list
         let pickedByKey = Dictionary(picked.map { ($0.candidate.key, $0) }, uniquingKeysWith: { a, _ in a })
-        // A why line is written for fits new on the list; saved ones keep theirs.
-        let savedKeys = Set((incremental?.saved ?? []).map(\.key))
-        let toWrite = final.filter { !savedKeys.contains($0.key) }.compactMap { pickedByKey[$0.key] }
+        // A why line is written for fits new on the list; saved ones keep
+        // theirs, on New Fits and on Analyze All Fits alike (b493: a full run
+        // rewrote every line, up to 25 slow generations, and turned written
+        // sentences into "Shares: …" with Apple Intelligence off).
+        let toWrite = final.filter { $0.why.isEmpty }.compactMap { pickedByKey[$0.key] }
 
         // 4. Why lines, for the fits this run found.
         var whyByKey: [String: String] = [:]

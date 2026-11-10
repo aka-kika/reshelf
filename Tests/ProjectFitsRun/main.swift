@@ -192,6 +192,17 @@ func run() async throws {
           && squeezed.pinned == ["x/notes"])
     check("the saved fit that lost its place made room", squeezed.madeRoom.map(\.key) == ["tw93/mole"])
 
+    // 6d. b493: Analyze All Fits keeps the saved why lines; only a fit new
+    //     on the list gets one written.
+    let savedWhyLine = [FitIncremental.Saved(key: "tw93/mole", why: "Her own words about Mole", score: 0.2,
+                                             isTopShelf: true)]
+    let fullAgain = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: inputs,
+                                                         hidden: [], limit: 10, saved: savedWhyLine) { _ in }
+    check("b493: a full run keeps a saved why line",
+          fullAgain.fits.first { $0.key == "tw93/mole" }?.why == "Her own words about Mole")
+    check("b493: a fit new on the list still gets a why line",
+          fullAgain.fits.filter { $0.key != "tw93/mole" }.allSatisfy { !$0.why.isEmpty })
+
     // 7. The list for one of her repos: Top Shelf heading first, new dot,
     //    hidden left out but counted, search narrows, a shelf move regroups.
     let sift = added[0]
