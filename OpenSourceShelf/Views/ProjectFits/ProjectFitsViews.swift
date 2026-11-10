@@ -210,3 +210,13 @@ struct HiddenFitsSheet: View {
         projects.first { GitHubRepositoryURL.dedupKey(for: $0.githubURL) == key }?.name ?? key
     }
 }
+
+/// A long sidebar list folded to its first rows, with the picked row kept
+/// visible past the cut (My Repos: first 5, then "Show 3 more").
+enum SidebarFold {
+    static func visible<T>(_ items: [T], limit: Int, showAll: Bool, keep: (T) -> Bool) -> [T] {
+        guard !showAll, items.count > limit else { return items }
+        let shown = Array(items.prefix(limit))
+        return shown + items.dropFirst(limit).filter(keep).prefix(1)
+    }
+}

@@ -70,6 +70,10 @@ struct SidebarView: View {
     /// Set in Settings → General → Sidebar Tags.
     @AppStorage(SidebarTagRanking.modeKey) private var tagsMode: SidebarTagRanking.Mode = .top
     @AppStorage("reshelf.sidebar.showAllTags") private var showAllTags = false
+    @AppStorage("reshelf.sidebar.showAllMyRepos") private var showAllMyRepos = false
+    /// My Repos listed before "Show more", so a long list does not push the
+    /// categories out of sight (Kika, round 2).
+    static let myReposShownFolded = 5
     /// Tags listed before "Show more": the long list read as clutter.
     static let tagsShownFolded = 8
 
@@ -112,13 +116,16 @@ struct SidebarView: View {
                 // Her own repos (Project fits). Always shown: the + in its
                 // heading is where she adds the first one.
                 Section(isExpanded: $myReposExpanded) {
-                    ForEach(myRepos) { repo in
+                    ForEach(visibleMyRepos) { repo in
                         MyRepoSidebarRow(
                             repo: repo,
                             count: visibleFitCount(of: repo, byKey: fitsByKey),
                             isRunning: fitsRunner.isRunning(repo.id)
                         )
                         .contextMenu { myRepoMenu(repo) }
+                    }
+                    if myRepos.count > Self.myReposShownFolded {
+                        ShowMoreTagsRow(hidden: myRepos.count - Self.myReposShownFolded, showsAll: $showAllMyRepos)
                     }
                 } header: {
                     HStack {
@@ -268,6 +275,12 @@ struct SidebarView: View {
                 withAnimation(.easeInOut(duration: 0.2)) { isExpanded.wrappedValue.toggle() }
             }
             .help(isExpanded.wrappedValue ? "Hide \(section.rawValue)" : "Show \(section.rawValue)")
+    }
+
+    /// The folded list keeps the picked repo visible even past the cut.
+    private var visibleMyRepos: [MyRepo] {
+        let picked = selection?.myRepoID
+        return SidebarFold.visible(myRepos, limit: Self.myReposShownFolded, showAll: showAllMyRepos) { $0.id == picked }
     }
 
     /// The folded tag list keeps a selected tag visible even past the cut.
@@ -541,7 +554,7 @@ private struct SidebarCount: View {
     }
 }
 
-/// "Show 7 more" / "Show less" under the folded tag list.
+/// "Show 7 more" / "Show less" under the folded tag list (and My Repos).
 private struct ShowMoreTagsRow: View {
     let hidden: Int
     @Binding var showsAll: Bool

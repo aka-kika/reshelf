@@ -193,6 +193,14 @@ func run() async throws {
     let moved = FitsListModel(repo: sift, fits: fitsNow, allProjects: all, search: "")
     check("list: a shelf move keeps the fit order", moved.projects.map(\.name) == ["uninstally", "Mole"])
 
+    // 7b. My Repos folds after 5 rows, keeping the picked one in sight.
+    let eight = Array(1...8)
+    check("fold: first 5", SidebarFold.visible(eight, limit: 5, showAll: false) { _ in false } == [1, 2, 3, 4, 5])
+    check("fold: picked row past the cut stays", SidebarFold.visible(eight, limit: 5, showAll: false) { $0 == 7 }
+          == [1, 2, 3, 4, 5, 7])
+    check("fold: Show more lists all", SidebarFold.visible(eight, limit: 5, showAll: true) { _ in false }.count == 8)
+    check("fold: 5 or fewer, nothing folded", SidebarFold.visible([1, 2, 3], limit: 5, showAll: false) { _ in false }.count == 3)
+
     // 8. A clone's README on disk is read (README.md, any case).
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fits-readme-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
