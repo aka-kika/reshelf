@@ -7,6 +7,9 @@ enum SidebarItem: String, Identifiable, CaseIterable {
     case collector = "collector"
     case yardSale = "yardSale"
     case cloned = "cloned"
+    /// Repos whose code went into one of her projects (`ToolProject.usedIn`).
+    /// Kika, 11 Nov: "reshelfed", with the owl in one color.
+    case reshelfed = "reshelfed"
 
     // Categories
     case databaseTools = "databaseTools"
@@ -42,6 +45,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .collector: "The Collector"
         case .yardSale: "Yard Sale"
         case .cloned: "Cloned"
+        case .reshelfed: "Reshelfed"
         case .databaseTools: "Database"
         case .backendTools: "Backend"
         case .agentTools: "AI / Agent"
@@ -73,6 +77,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
         case .collector: "square.stack.3d.up"
         case .yardSale: "tag"
         case .cloned: "internaldrive"
+        // The row draws the owl glyph instead (`ReshelfOwlGlyph`).
+        case .reshelfed: "checkmark.seal"
         case .databaseTools: "cylinder"
         case .backendTools: "server.rack"
         case .agentTools: "brain"
@@ -99,7 +105,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     var section: SidebarSection {
         switch self {
-        case .allProjects, .topShelf, .collector, .yardSale, .cloned:
+        case .allProjects, .topShelf, .collector, .yardSale, .cloned, .reshelfed:
             return .library
         case .databaseTools, .backendTools, .agentTools,
              .computerUseTools, .mcpTools, .internalTools,
@@ -124,7 +130,7 @@ enum SidebarItem: String, Identifiable, CaseIterable {
 
     /// Items shown in the sidebar list (catalog filters only).
     static var sidebarCatalogItems: [SidebarItem] {
-        [.allProjects, .topShelf, .collector, .yardSale, .cloned] + sidebarCategoryItems
+        [.allProjects, .topShelf, .collector, .yardSale, .cloned, .reshelfed] + sidebarCategoryItems
     }
 
     /// Sidebar items that narrow the catalog list.
@@ -150,6 +156,8 @@ enum SidebarItem: String, Identifiable, CaseIterable {
             return project.statusRaw == ProjectStatus.yardSale.rawValue
         case .cloned:
             return CatalogCloneService.isCloned(project)
+        case .reshelfed:
+            return project.isUsed
         case .localFirst:
             return project.isLocalFirst
         default:

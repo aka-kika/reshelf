@@ -27,6 +27,8 @@ enum DuplicateMerge {
         // A flag set on either copy stays set. Never turn one off.
         if victim.isLocalFirst { keeper.isLocalFirst = true }
         if victim.isSelfHosted { keeper.isSelfHosted = true }
+        if victim.likesUI { keeper.likesUI = true }
+        keeper.usedIn = union(keeper.usedIn, victim.usedIn)
     }
 
     /// Higher = keep. A higher shelf wins, then richer data, then the flags.

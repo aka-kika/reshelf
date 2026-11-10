@@ -220,6 +220,7 @@ struct SidebarView: View {
             SidebarRow(item: .collector, count: counts.count(for: .collector))
             SidebarRow(item: .yardSale, count: counts.count(for: .yardSale))
             SidebarRow(item: .cloned, count: counts.count(for: .cloned))
+            SidebarRow(item: .reshelfed, count: counts.count(for: .reshelfed))
         }
         case "My Repos":
         // Her own repos (Project fits). Always shown: the + in its
@@ -601,11 +602,17 @@ struct SidebarRow: View {
 
     var body: some View {
         HStack {
-            Image(systemName: item.icon)
-                .frame(width: 20)
-                .font(.system(size: 13))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(item.sidebarTint ?? Color.secondary)
+            if item == .reshelfed {
+                ReshelfOwlMark(size: 15)
+                    .foregroundStyle(Color.secondary)
+                    .frame(width: 20)
+            } else {
+                Image(systemName: item.icon)
+                    .frame(width: 20)
+                    .font(.system(size: 13))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(item.sidebarTint ?? Color.secondary)
+            }
             Text(item.title)
                 .font(.system(size: 13))
             Spacer()

@@ -31,3 +31,4 @@ future-features.md
 docs/inbox/
 IDEAS.md
 docs/plan/
+__pycache__/

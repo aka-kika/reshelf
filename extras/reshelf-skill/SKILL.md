@@ -34,6 +34,7 @@ python3 $S/shelf.py clone <name-or-github-url> --yes   # clone, ONLY after the u
 python3 $S/shelf.py fits                         # their own repos under My Repos, last run
 python3 $S/shelf.py fits <repo>                  # shelf repos that fit one of them, with why
 python3 $S/shelf.py fits --here                  # the same for the repo you are working in
+python3 $S/shelf.py used <name> --what "..."      # after borrowing code: thank-you line + record
 bash    $S/shelf-map.sh ["<Category>" | --all]   # browse what's on disk by category
 ```
 
@@ -45,6 +46,15 @@ the Fits filter leaves out (language, last update, GPL/AGPL, archived, how many)
 out. A `filter:` line says which filter the repo uses: its own (set in the app with
 right-click > Filter) or the main one (Settings > Fits). `KEPT by the user` marks a fit they kept; fits the last run's limit
 pushed off are named in one line at the end, not listed. It never runs a match: only the user does that, in the app.
+`ALREADY USED in <repo>` marks a fit whose code that repo already borrowed.
+
+Two marks the user sets in the app show under a repo in `find` and `fits`:
+
+- `UI: Kika likes its UI`: they like how its app looks. When the task touches the look
+  (layout, controls, colors, motion), study this repo's UI first, from its screenshots and
+  its view code. Its code can still be used for anything else, like any shelf repo.
+- `reshelfed in: Localpen, ...`: their projects that already borrowed code from it. A repo
+  that already worked in one of their projects is a safer pick for the next one.
 
 `find` prints, per repo: category, the **date it was added**, `CLONED` + path or
 `not cloned` + GitHub URL, a **license note**, and tags. It reads the app's catalog
@@ -133,6 +143,25 @@ Close every recommendation by offering both paths:
   to their setup, call out what to change. **Mind the license** (step 4), keep
   attribution where required.
 
+### 7. Say thank you when code is borrowed
+
+When code (not only an idea) from a shelf repo goes into their project, run, inside that
+project:
+
+```bash
+python3 $S/shelf.py used <name> --what "the folder watcher, adapted"
+```
+
+It adds one line to the project's `ACKNOWLEDGEMENTS.md` (repo, author, license, what was
+borrowed; the file is made if missing, a repo already thanked gets no second line), and
+records "Reshelfed in <project>" for reshelf, which shows it the next time its window is
+active. `--dry-run` shows both without writing. It refuses a repo with no clear license:
+that code must not be copied. Recording does not replace the license rule: an MIT or
+Apache notice still travels with the copied code.
+
+A GitHub star is the user's call: offer it in one line, and star only after they say yes
+(`gh api -X PUT user/starred/<owner>/<repo>`).
+
 If they haven't said which, infer from context (mid-build: likely Use; exploring: likely
 Learn) or ask.
 
@@ -151,8 +180,10 @@ source**, not memory of its API:
 
 - **Clones are read-only.** Don't edit, build, run, `git pull`, or modify anything under
   `~/reshelf/repos`. Updating clones is the app's job.
-- **The only write is `shelf.py clone --yes`, and only after the user said yes** in this
-  conversation, for that repo. Never clone in bulk, never clone "to check".
+- **The writes are `shelf.py clone --yes`, only after the user said yes** in this
+  conversation, for that repo (never clone in bulk, never clone "to check"), and
+  `shelf.py used`, only after code was really borrowed into their project.
+- **Never star a repo on GitHub without the user's yes.**
 - **Don't execute repo code or install its dependencies** just to inspect it.
 - **Never use the Yard Sale.**
 - **Stay on the shelf.** If they clearly want the open web instead, that's a different

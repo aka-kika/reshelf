@@ -299,6 +299,7 @@ struct ContentView: View {
             // the app is when out-of-app changes (Finder moves, Trash restores,
             // CLI clones) can have happened — rescan so badges don't go stale.
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                UsedInbox.drain(in: modelContext)
                 Task {
                     await CatalogCloneService.refreshCloneIndex()
                     appRefreshStore.handle(.catalogStateUpdated)
@@ -447,6 +448,8 @@ struct ContentView: View {
         mergeCategoriesIfNeeded()
         reclassifyProjectsIfNeeded()
         repairSchemelessLinks()
+        // "Reshelfed in" records agents left while reshelf was closed.
+        UsedInbox.drain(in: modelContext)
         let projects = freshProjects()
         let folders = freshFolders()
         // Clones an older build made in a custom folder get their marker.

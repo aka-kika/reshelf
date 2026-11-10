@@ -198,6 +198,13 @@
 			path = "OpenSourceShelf/Resources/ReshelfBrand.png";
 			sourceTree = SOURCE_ROOT;
 		};
+		OWLG1F001234567890ABCDEF07 /* ReshelfOwlGlyph.png */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = image.png;
+			name = "ReshelfOwlGlyph.png";
+			path = "OpenSourceShelf/Resources/ReshelfOwlGlyph.png";
+			sourceTree = SOURCE_ROOT;
+		};
 		SOC1F001234567890ABCDE01 /* SocialIcons */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = folder;
@@ -436,6 +443,13 @@
 			path = "OpenSourceShelf/Services/LiveProject.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		USIN1F001234567890ABCDE01 /* UsedInbox.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "UsedInbox.swift";
+			path = "OpenSourceShelf/Services/UsedInbox.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -580,6 +594,7 @@
 				R9S2F001234567890ABCDEF05 /* ReshelfBrandImage.swift */,
 				R9R2F001234567890ABCDEF09 /* AppIcon.icns */,
 				R9R1F001234567890ABCDEF07 /* ReshelfBrand.png */,
+				OWLG1F001234567890ABCDEF07 /* ReshelfOwlGlyph.png */,
 				SK1LF001234567890ABCDE01 /* reshelf-skill */,
 				RNOT1F001234567890ABCDE01 /* release-notes */,
 				WNEW1F001234567890ABCDE01 /* WhatsNew.swift */,
@@ -587,6 +602,7 @@
 				07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */,
 				ICR1REF01234567890ABCDEF01 /* IconRules.swift */,
 				LIVE1F001234567890ABCDE01 /* LiveProject.swift */,
+				USIN1F001234567890ABCDE01 /* UsedInbox.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
@@ -816,6 +832,10 @@
 			isa = PBXBuildFile;
 			fileRef = R9R1F001234567890ABCDEF07;
 		};
+		OWLG1B011234567890ABCDEF07 /* ReshelfOwlGlyph.png in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = OWLG1F001234567890ABCDEF07;
+		};
 		SOC1B001234567890ABCDE02 /* SocialIcons in Resources */ = {
 			isa = PBXBuildFile;
 			fileRef = SOC1F001234567890ABCDE01;
@@ -871,6 +891,10 @@
 		LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = LIVE1F001234567890ABCDE01;
+		};
+		USIN1B001234567890ABCDE01 /* UsedInbox.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = USIN1F001234567890ABCDE01;
 		};
 		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
 			isa = PBXBuildFile;
@@ -971,6 +995,7 @@
 			files = (
 				R9R2B011234567890ABCDEF09 /* AppIcon.icns in Resources */,
 				R9R1B011234567890ABCDEF07 /* ReshelfBrand.png in Resources */,
+				OWLG1B011234567890ABCDEF07 /* ReshelfOwlGlyph.png in Resources */,
 				SK1LB001234567890ABCDE02 /* reshelf-skill in Resources */,
 				RNOT1B001234567890ABCDE01 /* release-notes in Resources */,
 				SOC1B001234567890ABCDE02 /* SocialIcons in Resources */,
@@ -1037,6 +1062,7 @@
 				967CB7F565F1E5FFDFDAD3EA,
 				C5392DFC038F8A68E7A21263,
 				LIVE1B001234567890ABCDE01 /* LiveProject.swift in Sources */,
+				USIN1B001234567890ABCDE01 /* UsedInbox.swift in Sources */,
 				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
 				CSAV1B001234567890ABCDE01 /* CatalogSave.swift in Sources */,
 				WNEW1B001234567890ABCDE01 /* WhatsNew.swift in Sources */,

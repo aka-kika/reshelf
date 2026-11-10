@@ -13,9 +13,15 @@ for (name, link, shelf, license) in [
     ("gone", "https://github.com/x/gone", .yardSale, "MIT"),
     ("hiddenone", "https://github.com/x/hiddenone", .collector, "MIT"),
 ] {
-    ctx.insert(ToolProject(name: name, shortDescription: "\(name) desc", githubURL: link,
-                           category: "macOS", status: shelf, license: license))
+    let project = ToolProject(name: name, shortDescription: "\(name) desc", githubURL: link,
+                              category: "macOS", status: shelf, license: license)
+    // Round 3: the UI mark and Reshelfed in.
+    if name == "Mole" { project.likesUI = true }
+    if name == "uninstally" { project.usedIn = ["Sift"] }
+    ctx.insert(project)
 }
+ctx.insert(ToolProject(name: "nolicense", githubURL: "https://github.com/x/nolicense", category: "CLI",
+                       status: .collector, license: ""))
 let sift = MyRepo(fullName: "kika/Sift", githubURL: "https://github.com/kika/Sift", summary: "Scores Mac apps", sortIndex: 0)
 sift.lastRunAt = Date(timeIntervalSince1970: 1_762_790_400)
 sift.lastRunNote = "GitHub's limit was reached: 3 repos used saved info."

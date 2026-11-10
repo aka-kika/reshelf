@@ -9,6 +9,9 @@
     shelf.py fits                            the user's own repos under My Repos, with last run
     shelf.py fits <repo>                     the shelf repos that fit one of them, with why
     shelf.py fits --here                     the same for the repo this folder is a clone of
+    shelf.py used <name-or-github-url> --what "what you borrowed"
+                                             after borrowing code: thank-you line in this project's
+                                             ACKNOWLEDGEMENTS.md + "Reshelfed in <project>" in reshelf
 
 Reads the reshelf app's catalog (live store, or the newest JSON backup) read-only.
 Yard Sale is always left out: those repos are on their way out.
@@ -20,6 +23,8 @@ Clones exactly like the app does: <clone root>/<Category>/<repo>, falling back t
 counts as cloned only with the reshelf marker (.git/reshelf-clone), written when
 this script clones. A custom clone folder is never stamped. The app picks the new
 clone up the next time its window becomes active.
+`used` never writes the app's catalog: it adds a line to ~/reshelf/used-inbox.jsonl,
+which the app applies the next time its window is active (or at launch).
 """
 import glob
 import json
@@ -35,6 +40,7 @@ from datetime import datetime, timezone
 HOME = os.path.expanduser("~")
 RESHELF_HOME = os.path.expanduser(os.environ.get("RESHELF_HOME", "~/reshelf"))
 STORE = os.path.join(RESHELF_HOME, "catalog.store")
+USED_INBOX = os.path.join(RESHELF_HOME, "used-inbox.jsonl")
 # Core Data / SwiftData timestamps count seconds from 2001-01-01 UTC.
 APPLE_EPOCH = 978307200
 
@@ -76,10 +82,13 @@ def load_catalog():
             cols = {r[1] for r in db.execute("PRAGMA table_info(ZTOOLPROJECT)")}
             added = "ZADDEDDATE" if "ZADDEDDATE" in cols else "0"
             updated = "ZLASTUPDATEDDATE" if "ZLASTUPDATEDDATE" in cols else "NULL"
+            likes = "ZLIKESUI" if "ZLIKESUI" in cols else "0"
+            used = "ZUSEDIN" if "ZUSEDIN" in cols else "NULL"
             rows = db.execute(f"""SELECT ZNAME, ZSHORTDESCRIPTION, ZLONGDESCRIPTION, ZGITHUBURL,
                 ZCATEGORY, ZSTATUSRAW, ZLICENSE, ZSTARS, ZNOTES, ZPERSONALNOTE, ZTAGS, ZUSECASES,
-                {added} AS ADDED, {updated} AS UPDATED FROM ZTOOLPROJECT""").fetchall()
-            return "live catalog", [dict(
+                {added} AS ADDED, {updated} AS UPDATED, {likes} AS LIKESUI, {used} AS USEDIN
+                FROM ZTOOLPROJECT""").fetchall()
+            return "live catalog", _with_pending_used([dict(
                 name=r["ZNAME"] or "", short=r["ZSHORTDESCRIPTION"] or "",
                 long=r["ZLONGDESCRIPTION"] or "", url=r["ZGITHUBURL"] or "",
                 category=r["ZCATEGORY"] or "", status=r["ZSTATUSRAW"] or "collector",
@@ -87,7 +96,8 @@ def load_catalog():
                 notes=r["ZNOTES"] or "", personal=r["ZPERSONALNOTE"] or "",
                 tags=_archived_strings(r["ZTAGS"]), usecases=_archived_strings(r["ZUSECASES"]),
                 added=float(r["ADDED"] or 0) + APPLE_EPOCH,
-                updated=_apple_time(r["UPDATED"])) for r in rows]
+                updated=_apple_time(r["UPDATED"]), likes_ui=bool(r["LIKESUI"]),
+                used_in=_archived_strings(r["USEDIN"])) for r in rows])
         except sqlite3.Error:
             pass
     backups = sorted(glob.glob(os.path.join(RESHELF_HOME, "backups", "catalog-*.json")),
@@ -96,14 +106,58 @@ def load_catalog():
         sys.exit("No reshelf catalog found. Open the reshelf app once so it writes one.")
     data = json.load(open(backups[0]))
     rows = data.get("projects", []) if isinstance(data, dict) else data
-    return f"backup {os.path.basename(backups[0])}", [dict(
+    return f"backup {os.path.basename(backups[0])}", _with_pending_used([dict(
         name=p.get("name", ""), short=p.get("shortDescription", ""),
         long=p.get("longDescription", ""), url=p.get("githubURL", ""),
         category=p.get("category", ""), status=p.get("status", "collector"),
         license=p.get("license", ""), stars=p.get("stars", ""), notes=p.get("notes", ""),
         personal=p.get("personalNote", "") or "", tags=p.get("tags", []),
         usecases=p.get("useCases", []), added=_iso_seconds(p.get("addedDate")),
-        updated=_iso_seconds(p.get("lastUpdatedDate")) or None) for p in rows]
+        updated=_iso_seconds(p.get("lastUpdatedDate")) or None,
+        likes_ui=bool(p.get("likesUI")), used_in=list(p.get("usedIn") or [])) for p in rows])
+
+
+def _pending_used():
+    """Lines `used` wrote that the app has not applied yet (it reads them when
+    its window is next active): {owner/repo lowercased: [project, ...]}."""
+    pending = {}
+    try:
+        lines = open(USED_INBOX, encoding="utf-8").read().splitlines()
+    except OSError:
+        return pending
+    for line in lines:
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        o = owner_repo("github.com/" + e.get("repo", "")) or owner_repo(e.get("repo", ""))
+        if o and e.get("project"):
+            pending.setdefault(f"{o[0]}/{o[1]}".lower(), []).append(e["project"])
+    return pending
+
+
+def _with_pending_used(catalog):
+    pending = _pending_used()
+    if pending:
+        for p in catalog:
+            o = owner_repo(p["url"])
+            for project in pending.get(f"{o[0]}/{o[1]}".lower() if o else "", []):
+                if project.lower() not in (u.lower() for u in p["used_in"]):
+                    p["used_in"] = p["used_in"] + [project]
+    return catalog
+
+
+UI_LINE = "UI: Kika likes its UI - study its look first; its code can still be used"
+
+
+def mark_lines(p):
+    """The UI mark and where its code was used, for find and fits."""
+    lines = []
+    if p.get("likes_ui"):
+        lines.append(UI_LINE)
+    if p.get("used_in"):
+        lines.append("reshelfed in: " + ", ".join(p["used_in"]))
+    return lines
 
 
 def _iso_seconds(text):
@@ -286,6 +340,8 @@ def cmd_find(args):
         print(f"    license: {license_note(p['license'])}")
         if p["tags"]:
             print(f"    tags: {', '.join(p['tags'][:8])}")
+        for line in mark_lines(p):
+            print(f"    {line}")
     if len(hits) > 25:
         print(f"\n({len(hits) - 25} more; narrow the terms)")
     if not collector:
@@ -558,13 +614,17 @@ def cmd_fits(args):
     shelf_names = {"topShelf": "Top Shelf", "collector": "The Collector"}
     for f, p in shown:
         path = clone_path(p, index)
+        here_used = name.lower() in (u.lower() for u in p.get("used_in", []))
         print(f"- {p['name']}  [{shelf_names[p['status']]} · {p['category'] or 'no category'}]  "
               f"{'CLONED' if path else 'not cloned'}{'  NEW since the run before' if f['new'] else ''}"
-              f"{'  KEPT by the user' if f.get('kept') else ''}")
+              f"{'  KEPT by the user' if f.get('kept') else ''}"
+              f"{f'  ALREADY USED in {name}' if here_used else ''}")
         if f["why"]:
             print(f"    why: {f['why'][:200]}")
         print(f"    {path if path else p['url']}")
         print(f"    license: {license_note(p['license'])}")
+        for line in mark_lines(p):
+            print(f"    {line}")
     room = [by_key[f["key"]]["name"] for f in repo["fits"]
             if f.get("made_room") and not f["hidden"] and f["key"] in by_key]
     if room:
@@ -575,6 +635,109 @@ def cmd_fits(args):
         print(f"({filtered} left out by the Fits filter above; not shown)")
     print("\nSaved by the app the last time fits ran for this repo (New Fits or Analyze All Fits); "
           "not refreshed here.")
+
+
+# --- used (thank-you when code is borrowed) -------------------------------------
+
+ACK_FILE = "ACKNOWLEDGEMENTS.md"
+ACK_HEADER = ("# Acknowledgements\n\n"
+              "Open-source code this project borrows, with thanks to its authors.\n\n")
+
+
+def _project_dir():
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, cwd=os.getcwd()).stdout.strip()
+    except OSError:
+        top = ""
+    return top or os.getcwd()
+
+
+def _project_name(folder):
+    """The project's name as reshelf's My Repos shows it: the repo part of the
+    folder's GitHub origin, else the folder's name."""
+    o = _origin_of_cwd()
+    return o[1] if o else os.path.basename(os.path.abspath(folder))
+
+
+def ack_line(owner, repo, license_raw, what):
+    lic = (license_raw or "").strip() or "license not known"
+    return f"- [{owner}/{repo}](https://github.com/{owner}/{repo}) by {owner}, {lic}: {what.strip()}\n"
+
+
+def cmd_used(args):
+    what, project, dry = "", "", "--dry-run" in args
+    rest = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--what" and i + 1 < len(args):
+            what = args[i + 1]
+            i += 2
+        elif args[i] == "--project" and i + 1 < len(args):
+            project = args[i + 1]
+            i += 2
+        elif args[i].startswith("--"):
+            i += 1
+        else:
+            rest.append(args[i])
+            i += 1
+    wanted = " ".join(rest).strip()
+    if not wanted or not what.strip():
+        sys.exit('Usage: shelf.py used <name-or-github-url> --what "what you borrowed" '
+                 "[--project <name>] [--dry-run]\nRun it inside the project that borrowed the code.")
+    _, catalog = load_catalog()
+    want_or = owner_repo(wanted) or owner_repo("github.com/" + wanted)
+    matches = [p for p in catalog
+               if (want_or and owner_repo(p["url"])
+                   and "/".join(owner_repo(p["url"])).lower() == "/".join(want_or).lower())
+               or p["name"].lower() == wanted.lower()]
+    if not matches:
+        sys.exit(f"'{wanted}' is not on the reshelf shelf. Only shelf repos are recorded.")
+    if len(matches) > 1:
+        sys.exit(f"'{wanted}' names {len(matches)} repos; give the GitHub URL.")
+    p = matches[0]
+    o = owner_repo(p["url"])
+    if not o:
+        sys.exit(f"{p['name']} has no GitHub link on the shelf.")
+    k = (p["license"] or "").strip().lower()
+    if k in ("", "none", "noassertion", "other"):
+        sys.exit(f"{p['name']}: {license_note(p['license'])}. Its code must not be copied, "
+                 "so nothing was recorded. Take the idea only, written your own way.")
+
+    folder = _project_dir()
+    project = project or _project_name(folder)
+    ack = os.path.join(folder, ACK_FILE)
+    line = ack_line(o[0], o[1], p["license"], what)
+    existing = open(ack, encoding="utf-8").read() if os.path.exists(ack) else ""
+    already = f"https://github.com/{o[0]}/{o[1]})".lower() in existing.lower()
+    entry = {"repo": f"{o[0]}/{o[1]}", "project": project, "what": what.strip(),
+             "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    if dry:
+        print(f"Dry run. Would add to {ack}:\n  {line.strip()}" if not already
+              else f"Dry run. {ack} already thanks {o[0]}/{o[1]}; no new line.")
+        print(f"Would record: {p['name']} reshelfed in {project}.")
+        return
+    if not already:
+        with open(ack, "a", encoding="utf-8") as fh:
+            if not existing:
+                fh.write(ACK_HEADER)
+            elif not existing.endswith("\n"):
+                fh.write("\n")
+            fh.write(line)
+        print(f"Thank-you line added to {ack}:\n  {line.strip()}")
+    else:
+        print(f"{ack} already thanks {o[0]}/{o[1]}; no new line.")
+    os.makedirs(os.path.dirname(USED_INBOX), exist_ok=True)
+    with open(USED_INBOX, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    print(f"Recorded: {p['name']} reshelfed in {project} (reshelf shows it the next time its window "
+          "is active).")
+    if any(x in k for x in ("mit", "apache", "bsd", "isc", "zlib")):
+        print(f"Keep {p['name']}'s copyright and license notice with the copied code ({p['license']}).")
+    if "gpl" in k and "lgpl" not in k:
+        print(f"Careful: {p['license']} is strong copyleft; it can't ship in an App Store app.")
+    print(f"A GitHub star for {o[0]}/{o[1]} only if the user says yes "
+          f"(then: gh api -X PUT user/starred/{o[0]}/{o[1]}).")
 
 
 # --- clone ---------------------------------------------------------------------
@@ -659,8 +822,10 @@ def main():
         cmd_clone(args)
     elif cmd == "fits":
         cmd_fits(args)
+    elif cmd == "used":
+        cmd_used(args)
     else:
-        sys.exit(f"Unknown command '{cmd}'. Use find, fits or clone.")
+        sys.exit(f"Unknown command '{cmd}'. Use find, fits, used or clone.")
 
 
 if __name__ == "__main__":

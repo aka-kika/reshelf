@@ -467,6 +467,8 @@ enum CatalogBackupService {
             // written, which is the exact bug the content comparison replaced
             // byte-length checking to fix.
             hasher.combine(row.folderID)
+            hasher.combine(row.likesUI)
+            hasher.combine(row.usedIn)
         }
         return hasher.finalize()
     }

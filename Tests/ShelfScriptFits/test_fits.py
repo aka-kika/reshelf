@@ -127,5 +127,52 @@ for args in (["fits"], ["fits", "Sift"], ["fits", "--here"]):
     if r.returncode != 0 or "No My Repos yet" not in r.stdout or "Find Fits" not in r.stdout:
         fail(f"old catalog, {args}: " + r.stdout + r.stderr)
 
+# 8. Round 3: the UI mark and Reshelfed in show in fits and find.
+out = run(live, "fits", "Sift").stdout
+if "UI: Kika likes its UI - study its look first" not in out:
+    fail("UI mark line in fits: " + out)
+if "ALREADY USED in Sift" not in out or "reshelfed in: Sift" not in out:
+    fail("a fit already used in this repo is marked: " + out)
+out = run(live, "find", "--top").stdout
+if "UI: Kika likes its UI" not in out:
+    fail("UI mark line in find: " + out)
+
+# 9. `used`: thank-you line + an inbox line, never the store; no license refused.
+proj = os.path.join(work, "Localpen")
+os.makedirs(proj, exist_ok=True)
+subprocess.run(["git", "init", "-q", proj], check=True)
+subprocess.run(["git", "-C", proj, "remote", "add", "origin", "https://github.com/kika/Localpen"], check=True)
+before = os.path.getmtime(store)
+inbox = os.path.join(live, "used-inbox.jsonl")
+r = run(live, "used", "x/uninstally", "--what", "the dry-run list", "--dry-run", cwd=proj)
+if r.returncode != 0 or "Dry run" not in r.stdout or os.path.exists(os.path.join(proj, "ACKNOWLEDGEMENTS.md")) \
+        or os.path.exists(inbox):
+    fail("dry run writes nothing: " + r.stdout + r.stderr)
+r = run(live, "used", "uninstally", "--what", "the dry-run list", cwd=proj)
+ack = open(os.path.join(proj, "ACKNOWLEDGEMENTS.md")).read() if r.returncode == 0 else ""
+if not ack.startswith("# Acknowledgements") or \
+        "- [x/uninstally](https://github.com/x/uninstally) by x, MIT: the dry-run list" not in ack:
+    fail("thank-you line: " + ack + r.stdout + r.stderr)
+lines = open(inbox).read().splitlines() if os.path.exists(inbox) else []
+if len(lines) != 1 or json.loads(lines[0]).get("project") != "Localpen" \
+        or json.loads(lines[0]).get("repo") != "x/uninstally":
+    fail("inbox line names the repo and the project from origin: " + str(lines))
+if "Keep uninstally's copyright and license notice" not in r.stdout or "only if the user says yes" not in r.stdout:
+    fail("notice and star reminders: " + r.stdout)
+r = run(live, "used", "uninstally", "--what", "more", cwd=proj)
+if open(os.path.join(proj, "ACKNOWLEDGEMENTS.md")).read().count("x/uninstally") != 2 or "already thanks" not in r.stdout:
+    fail("second use adds no second line: " + r.stdout)
+out = run(live, "fits", "Sift").stdout
+if "reshelfed in: Sift, Localpen" not in out:
+    fail("a pending inbox line shows before the app applies it: " + out)
+r = run(live, "used", "nolicense", "--what", "x", cwd=proj)
+if r.returncode == 0 or "must not be copied" not in r.stderr:
+    fail("no license refused: " + r.stdout + r.stderr)
+r = run(live, "used", "x/notonshelf", "--what", "x", cwd=proj)
+if r.returncode == 0 or "not on the reshelf shelf" not in r.stderr:
+    fail("repo not on shelf refused: " + r.stdout + r.stderr)
+if os.path.getmtime(store) != before:
+    fail("used wrote the store")
+
 print("ShelfScriptFits: all passed" if failures == 0 else f"ShelfScriptFits: {failures} failed")
 sys.exit(1 if failures else 0)

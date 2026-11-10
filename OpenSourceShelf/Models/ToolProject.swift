@@ -39,6 +39,13 @@ final class ToolProject {
 
     var isLocalFirst: Bool = false
     var isSelfHosted: Bool = false
+    /// The UI mark (round 3, Kika: "only mark the ones I like the UI"): she
+    /// likes how its app looks, so agents study its look first. Set by hand only.
+    var likesUI: Bool = false
+    /// Her projects that borrowed code from it ("Localpen"), with a thank-you
+    /// line in their ACKNOWLEDGEMENTS.md. Set by the reshelf skill (through
+    /// `UsedInbox`) or by hand; Used in the sidebar counts these repos.
+    var usedIn: [String] = []
     @Attribute(.externalStorage) var iconData: Data?
 
     var status: ProjectStatus {
@@ -85,6 +92,13 @@ final class ToolProject {
         self.folderID = folderID
         self.isLocalFirst = isLocalFirst
         self.isSelfHosted = isSelfHosted
+    }
+
+    var isUsed: Bool { !usedIn.isEmpty }
+
+    /// Whether it is used in this project of hers (by name, any case).
+    func isUsed(in project: String) -> Bool {
+        usedIn.contains { $0.caseInsensitiveCompare(project) == .orderedSame }
     }
 
     func matchesSearch(_ query: String) -> Bool {

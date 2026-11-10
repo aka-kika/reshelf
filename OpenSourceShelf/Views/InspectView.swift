@@ -136,6 +136,38 @@ struct InspectView: View {
                         .padding(.top, 2)
                     }
 
+                    // The UI mark and Reshelfed (round 3): only when set, like Folder.
+                    if project.likesUI {
+                        HStack {
+                            Text("UI")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Label("You like its look", systemImage: ReshelfMarks.uiSymbol)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .help("Agents study its look first. Right-click the row in the list to change it.")
+                        }
+                        .padding(.top, 2)
+                    }
+                    if project.isUsed {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Reshelfed in")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            HStack(spacing: 4) {
+                                ReshelfOwlMark(size: 11)
+                                Text(project.usedIn.joined(separator: ", "))
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .help("Code from it went into these projects of yours, with a thank-you line in their ACKNOWLEDGEMENTS.md.")
+                        }
+                        .padding(.top, 2)
+                    }
+
                     HStack(spacing: 8) {
                         Button(action: { presentSheetAfterEndingTextEditing { isEditing = true } }) {
                             Label("Edit", systemImage: "pencil")

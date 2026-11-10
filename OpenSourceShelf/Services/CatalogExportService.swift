@@ -39,6 +39,10 @@ struct CatalogProjectDTO: Codable {
     /// directly on import — ids diverge between machines, so
     /// `CatalogImportService` remaps it against the local folder table.
     var folderID: String?
+    /// Round 3. Optional: older files have no key, and importing one must not
+    /// clear a mark or a Used record made on this Mac.
+    var likesUI: Bool?
+    var usedIn: [String]?
 
     init(_ p: ToolProject) {
         id = p.id.uuidString
@@ -63,6 +67,8 @@ struct CatalogProjectDTO: Codable {
         isLocalFirst = p.isLocalFirst
         isSelfHosted = p.isSelfHosted
         folderID = p.folderID?.uuidString
+        likesUI = p.likesUI
+        usedIn = p.usedIn
     }
 
     private var resolvedFitScoreSetByUser: Bool {
@@ -94,6 +100,8 @@ struct CatalogProjectDTO: Codable {
         if let uuid = UUID(uuidString: id) { project.id = uuid }
         project.lastCheckedDate = lastCheckedDate
         project.fitScoreSetByUser = resolvedFitScoreSetByUser
+        project.likesUI = likesUI ?? false
+        project.usedIn = usedIn ?? []
         return project
     }
 
@@ -125,6 +133,8 @@ struct CatalogProjectDTO: Codable {
         if let lastUpdatedDate { project.lastUpdatedDate = lastUpdatedDate }
         project.isLocalFirst = isLocalFirst
         project.isSelfHosted = isSelfHosted
+        if let likesUI { project.likesUI = likesUI }
+        if let usedIn { project.usedIn = usedIn }
     }
 
     /// Restore from Backup's "put back changes": only the shelf, the tags,
@@ -135,6 +145,8 @@ struct CatalogProjectDTO: Codable {
         project.tags = tags
         project.notes = notes
         if let personalNote { project.personalNote = personalNote }
+        if let likesUI { project.likesUI = likesUI }
+        if let usedIn { project.usedIn = usedIn }
     }
 
     /// Whether put-back would change the shelf, tags or notes. Folder membership
@@ -145,6 +157,8 @@ struct CatalogProjectDTO: Codable {
             || tags != project.tags
             || notes != project.notes
             || (personalNote.map { $0 != project.personalNote } ?? false)
+            || (likesUI.map { $0 != project.likesUI } ?? false)
+            || (usedIn.map { $0 != project.usedIn } ?? false)
     }
 
     /// True when `apply(to:)` would change something the user can see, so a
@@ -173,6 +187,8 @@ struct CatalogProjectDTO: Codable {
             || (personalNote.map { $0 != project.personalNote } ?? false)
             || isLocalFirst != project.isLocalFirst
             || isSelfHosted != project.isSelfHosted
+            || (likesUI.map { $0 != project.likesUI } ?? false)
+            || (usedIn.map { $0 != project.usedIn } ?? false)
             || !sameDate(addedDate, project.addedDate)
             || !sameDate(lastCheckedDate, project.lastCheckedDate)
             || (lastUpdatedDate.map { !sameDate($0, project.lastUpdatedDate) } ?? false)

@@ -216,6 +216,9 @@ struct ProjectListView: View {
                                         hasNoClearLicense: project.hasNoClearLicense,
                                         isNewFit: fits?.newIDs.contains(project.id) ?? false,
                                         showsShelf: fits != nil,
+                                        likesUI: project.likesUI,
+                                        reshelfedIn: fits.map { project.isUsed(in: $0.repo.displayName) ? $0.repo.displayName : "" }
+                                            ?? project.usedIn.joined(separator: ", "),
                                         contentKey: ProjectRowView.contentKey(for: project),
                                         onSelect: { selectProject(project, modifiers: $0) }
                                     )
@@ -1257,6 +1260,11 @@ struct ProjectRowView: View, Equatable {
     /// In a fits list the shelf is named on the row ("Top Shelf · macOS"):
     /// the list is ordered by fit, so there are no shelf headings.
     var showsShelf: Bool = false
+    /// The UI mark (round 3).
+    var likesUI: Bool = false
+    /// Where its code went: in a fits list only that repo ("picked"),
+    /// elsewhere all of them. Empty: not reshelfed.
+    var reshelfedIn: String = ""
     /// Captured text and icon presence, for the same reason as `statusKey`: an
     /// edit or a fetched icon changes the project but not the reference.
     var contentKey: String = ""
@@ -1276,6 +1284,8 @@ struct ProjectRowView: View, Equatable {
             && lhs.hasNoClearLicense == rhs.hasNoClearLicense
             && lhs.isNewFit == rhs.isNewFit
             && lhs.showsShelf == rhs.showsShelf
+            && lhs.likesUI == rhs.likesUI
+            && lhs.reshelfedIn == rhs.reshelfedIn
             && lhs.isSelected == rhs.isSelected
             && lhs.contentKey == rhs.contentKey
     }
@@ -1294,6 +1304,11 @@ struct ProjectRowView: View, Equatable {
                     Text(project.name)
                         .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
+                    if !reshelfedIn.isEmpty {
+                        ReshelfOwlMark(size: 12)
+                            .foregroundStyle(.secondary)
+                            .help("Reshelfed in \(reshelfedIn)")
+                    }
                     if isNewFit {
                         Circle()
                             .fill(Color.accentColor.opacity(0.7))
@@ -1318,6 +1333,8 @@ struct ProjectRowView: View, Equatable {
             // down the list; whichever apply show side by side.
             HStack(spacing: 4) {
                 licenseIcon
+                    .frame(width: 16)
+                uiIcon
                     .frame(width: 16)
                 shelfIcon
                     .frame(width: 16)
@@ -1358,6 +1375,18 @@ struct ProjectRowView: View, Equatable {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .help("No clear license: study only, don't copy its code")
+        } else {
+            Color.clear.frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var uiIcon: some View {
+        if likesUI {
+            Image(systemName: ReshelfMarks.uiSymbol)
+                .font(.system(size: 11))
+                .foregroundStyle(ReshelfMarks.uiTint)
+                .help("UI: you like its look")
         } else {
             Color.clear.frame(height: 1)
         }
