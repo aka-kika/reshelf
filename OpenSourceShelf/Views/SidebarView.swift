@@ -206,6 +206,9 @@ struct SidebarView: View {
             }
             .onChange(of: selection) { _, new in
                 if new?.tagName != nil { tagsExpanded = true }
+                // A repo just added (or picked from the Shelf menu) must be
+                // visible even when the section was folded.
+                if new?.myRepoID != nil { myReposExpanded = true }
             }
             .alert("Delete Folder?", isPresented: presenting($deleteTarget)) {
                 Button("Delete Folder", role: .destructive) {

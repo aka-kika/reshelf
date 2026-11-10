@@ -44,6 +44,7 @@ struct FitsListModel {
 
     /// "4 fits · last run 10 Nov, 18:40"
     var subtitle: String {
+        guard repo.lastRunAt != nil else { return "Not run yet" }
         let count = projects.count
         var parts = ["\(count) fit\(count == 1 ? "" : "s")"]
         if let last = repo.lastRunAt {
