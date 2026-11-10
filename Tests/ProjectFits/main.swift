@@ -115,6 +115,31 @@ func run() throws {
     check("first run marks nothing new",
           FitMerge.merge(previous: [], found: [("a", ""), ("b", "")], isFirstRun: true).allSatisfy { !$0.isNew })
 
+    // 5b. Find Fits Again: only repos added or changed since the last run,
+    //     merged into the saved list by score.
+    let lastRun = Date(timeIntervalSince1970: 1_000_000)
+    let changed = FitIncremental.changed([
+        ("old", lastRun.addingTimeInterval(-100), nil),
+        ("added", lastRun.addingTimeInterval(100), nil),
+        ("pushed", lastRun.addingTimeInterval(-100), lastRun.addingTimeInterval(50)),
+        ("stale", lastRun.addingTimeInterval(-100), lastRun.addingTimeInterval(-10)),
+    ], since: lastRun)
+    check("new and changed repos found, the rest left alone", changed == ["added", "pushed"])
+    let savedList = [FitIncremental.Saved(key: "a", why: "a why", score: 0.20, isTopShelf: false),
+                     FitIncremental.Saved(key: "pushed", why: "old why", score: 0.30, isTopShelf: false),
+                     FitIncremental.Saved(key: "gone", why: "", score: 0.25, isTopShelf: true),
+                     FitIncremental.Saved(key: "c", why: "c why", score: 0.10, isTopShelf: false)]
+    let newList = [FitIncremental.Saved(key: "added", why: "", score: 0.15, isTopShelf: true),
+                   FitIncremental.Saved(key: "tie", why: "", score: 0.10, isTopShelf: true)]
+    let mergedRun = FitIncremental.merge(saved: savedList, new: newList, changed: ["added", "pushed", "tie"],
+                                         onShelf: ["a", "pushed", "c", "added", "tie"], limit: 3)
+    check("new fits slot in by score; changed and gone ones re-checked or dropped; limit kept",
+          mergedRun.map(\.key) == ["a", "added", "tie"])
+    check("tie goes to Top Shelf", FitIncremental.merge(saved: savedList, new: newList, changed: [],
+                                                       onShelf: ["c"], limit: 5).map(\.key) == ["added", "tie", "c"])
+    check("run signature names version and limit",
+          FitScorer.runSignature(limit: 15) != FitScorer.runSignature(limit: 20))
+
     // 6. Saved fits in the store.
     let ctx = try makeContext()
     let shelfRow = ToolProject(name: "Cleaner", githubURL: "https://github.com/Test/Cleaner", status: .topShelf)
@@ -126,10 +151,11 @@ func run() throws {
           ProjectFitsService.add([("KIKA/sift", "https://github.com/kika/Sift", "")], in: ctx).isEmpty)
     let sift = added[0]
     ProjectFitsService.applyRun(repoID: sift.id, found: [("test/cleaner", "Finds leftovers")],
-                                scores: ["test/cleaner": 0.12], matchText: "sift text", note: "", in: ctx)
+                                scores: ["test/cleaner": 0.12], matchText: "sift text",
+                                signature: FitScorer.runSignature(limit: 15), note: "", in: ctx)
     check("run saved with its time", sift.lastRunAt != nil && sift.previousRunAt == nil)
-    check("score and match text saved", ProjectFitsService.fits(for: sift.id, in: ctx).first?.score == 0.12
-          && sift.matchText == "sift text")
+    check("score, match text and signature saved", ProjectFitsService.fits(for: sift.id, in: ctx).first?.score == 0.12
+          && sift.matchText == "sift text" && sift.runSignature == FitScorer.runSignature(limit: 15))
     check("fit saved", ProjectFitsService.fits(for: sift.id, in: ctx).map(\.repoKey) == ["test/cleaner"])
     ProjectFitsService.setHidden(true, repoKey: "test/cleaner", repoID: sift.id, in: ctx)
     ProjectFitsService.applyRun(repoID: sift.id, found: [("test/cleaner", "again"), ("test/other", "new")],

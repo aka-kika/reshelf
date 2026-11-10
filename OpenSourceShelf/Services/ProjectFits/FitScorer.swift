@@ -23,6 +23,11 @@ enum FitScorer {
     /// How many candidates get today's README in the second pass: the limit
     /// plus room for the ones that drop out once their README is read.
     static func shortlistCount(for limit: Int) -> Int { limit + 10 }
+    /// What a saved list was made with. Find Fits Again only adds new repos
+    /// to a list made the same way; any change means checking all again.
+    static func runSignature(limit: Int, filters: String = "") -> String {
+        "v\(version) limit \(limit)" + (filters.isEmpty ? "" : " " + filters)
+    }
     /// Below this TF-IDF cosine a repo does not fit, however it ranks: an
     /// empty list beats padding (Kika: "If nothing fits, say so").
     /// Calibrated on Kika's shelf (10 Nov): real fits for Sift and Kartina
@@ -302,6 +307,38 @@ enum FitScorer {
     static func fallbackWhy(_ scored: Scored) -> String {
         guard !scored.sharedTerms.isEmpty else { return "Close to your project overall." }
         return "Shares: " + scored.sharedTerms.joined(separator: ", ")
+    }
+}
+
+/// Find Fits Again (round 2, Kika: "it should not reanalyze all, it should
+/// analyze the new reshelfs"): only shelf repos added or changed since the
+/// last run are scored, then merged into the saved list by score.
+enum FitIncremental {
+    /// A fit on the saved list.
+    struct Saved: Equatable, Sendable {
+        let key: String
+        let why: String
+        let score: Double
+        let isTopShelf: Bool
+    }
+
+    /// Keys of shelf repos added to the shelf, or changed upstream as far as
+    /// reshelf knows, after `since`.
+    static func changed(_ items: [(key: String, added: Date, updated: Date?)], since: Date) -> Set<String> {
+        Set(items.filter { $0.added > since || ($0.updated ?? .distantPast) > since }.map(\.key))
+    }
+
+    /// The saved fits that still stand (on the shelf, not re-scored this run)
+    /// plus the new ones, best first, at most `limit`. Ties: Top Shelf first.
+    static func merge(saved: [Saved], new: [Saved], changed: Set<String>, onShelf: Set<String>,
+                      limit: Int) -> [Saved] {
+        let newKeys = Set(new.map(\.key))
+        let kept = saved.filter { onShelf.contains($0.key) && !changed.contains($0.key) && !newKeys.contains($0.key) }
+        return Array((kept + new).sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            if $0.isTopShelf != $1.isTopShelf { return $0.isTopShelf }
+            return $0.key < $1.key
+        }.prefix(limit))
     }
 }
 

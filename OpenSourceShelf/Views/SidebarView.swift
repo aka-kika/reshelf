@@ -284,6 +284,13 @@ struct SidebarView: View {
             Button(repo.lastRunAt == nil ? "Find Fits" : "Find Fits Again") {
                 NotificationCenter.default.post(name: .findFitsAgain, object: repo.id)
             }
+            .help("Looks only at shelf repos new or changed since the last run")
+            if repo.lastRunAt != nil {
+                Button("Check All Again") {
+                    NotificationCenter.default.post(name: .checkAllFitsAgain, object: repo.id)
+                }
+                .help("Looks at your whole shelf again")
+            }
         }
         Button("Show Hidden Fits") {
             NotificationCenter.default.post(name: .showHiddenFits, object: repo.id)

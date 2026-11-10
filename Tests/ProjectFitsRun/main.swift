@@ -92,6 +92,37 @@ func run() async throws {
     check("saved text not read again", withOthers.otherTexts[otherC] == nil
           && !FakeGitHub.requested.contains("/repos/kika/localpen/readme"))
 
+    // 3c. Find Fits Again with nothing new: the saved list stands, no calls.
+    FakeGitHub.requested = []
+    let saved = outcome.fits.map { FitIncremental.Saved(key: $0.key, why: $0.why, score: outcome.scores[$0.key] ?? 0,
+                                                        isTopShelf: $0.key == "tw93/mole") }
+    let nothingNew = try await ProjectFitsRunner.findFits(
+        fullName: "kika/Sift", summary: "", inputs: inputs, hidden: [],
+        incremental: .init(projectText: outcome.projectText, changed: [], saved: saved)) { _ in }
+    check("nothing new: no GitHub calls", FakeGitHub.requested.isEmpty)
+    check("nothing new: same list, said so", nothingNew.fits.map(\.key) == outcome.fits.map(\.key)
+          && nothingNew.note.contains("Nothing new"))
+
+    // 3d. One new repo: only its README is read, it joins the list by score,
+    //     and the saved why lines stay.
+    let newRow = ToolProject(name: "AppCleaner", shortDescription: "Uninstaller that finds leftover preference files and caches",
+                             githubURL: "https://github.com/x/appcleaner", status: .collector)
+    ctx.insert(newRow)
+    try ctx.save()
+    let inputs2 = ProjectFitsRunner.candidateInputs(in: ctx, excluding: "kika/sift")
+    FakeGitHub.pages["/repos/x/appcleaner/readme"] = .body("Removes apps and their leftover launch agents and caches.")
+    FakeGitHub.requested = []
+    let oneNew = try await ProjectFitsRunner.findFits(
+        fullName: "kika/Sift", summary: "", inputs: inputs2, hidden: [],
+        incremental: .init(projectText: outcome.projectText, changed: ["x/appcleaner"], saved: saved)) { _ in }
+    check("one new: only its README read", FakeGitHub.requested == ["/repos/x/appcleaner/readme"])
+    check("one new: it joins the list", oneNew.fits.map(\.key).contains("x/appcleaner"))
+    check("one new: saved fits keep their why", oneNew.fits.first { $0.key == "tw93/mole" }?.why
+          == outcome.fits.first { $0.key == "tw93/mole" }?.why)
+    check("one new: said how many were looked at", oneNew.note.contains("1 repo new or changed"))
+    ctx.delete(newRow)
+    try ctx.save()
+
     // 4. Hidden ones are never picked again.
     let again = try await ProjectFitsRunner.findFits(fullName: "kika/Sift", summary: "", inputs: inputs,
                                                      hidden: ["tw93/mole"]) { _ in }
@@ -108,9 +139,15 @@ func run() async throws {
 
     // 6. The whole run through the shared runner saves the list with its time.
     let added = ProjectFitsService.add([("kika/Sift", "https://github.com/kika/Sift", "Scores Mac apps")], in: ctx)
-    await ProjectFitsRunner.shared.run(added[0].id, in: ctx)
-    check("run saved", added[0].lastRunAt != nil
+    await ProjectFitsRunner.shared.run(added[0].id, mode: .newOnly, in: ctx)
+    check("run saved (Find Fits Again on a never-run repo checks all)", added[0].lastRunAt != nil
           && ProjectFitsService.fits(for: added[0].id, in: ctx).contains { $0.repoKey == "tw93/mole" })
+    check("run saved its signature and text", added[0].runSignature == FitScorer.runSignature(limit: ProjectFitsRunner.limit)
+          && !added[0].matchText.isEmpty)
+    FakeGitHub.requested = []
+    await ProjectFitsRunner.shared.run(added[0].id, mode: .newOnly, in: ctx)
+    check("Find Fits Again right after: no GitHub calls", FakeGitHub.requested.isEmpty
+          && added[0].lastRunNote.contains("Nothing new"))
     check("runner idle afterwards", !ProjectFitsRunner.shared.isRunning(added[0].id))
 
     // 7. The list for one of her repos: Top Shelf heading first, new dot,

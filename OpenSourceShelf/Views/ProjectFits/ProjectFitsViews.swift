@@ -61,6 +61,7 @@ struct FitsEmptyState: View {
     let progress: ProjectFitsRunner.Progress?
     let failure: String?
     let onFind: () -> Void
+    var onCheckAll: (() -> Void)? = nil
     let onStop: () -> Void
 
     var body: some View {
@@ -89,9 +90,14 @@ struct FitsEmptyState: View {
                     .foregroundStyle(.secondary.opacity(0.75))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 280)
-                Button(repo.lastRunAt == nil ? "Find Fits" : "Find Fits Again", action: onFind)
-                    .controlSize(.small)
-                    .padding(.top, 4)
+                HStack(spacing: 8) {
+                    Button(repo.lastRunAt == nil ? "Find Fits" : "Find Fits Again", action: onFind)
+                    if repo.lastRunAt != nil, let onCheckAll {
+                        Button("Check All Again", action: onCheckAll)
+                    }
+                }
+                .controlSize(.small)
+                .padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

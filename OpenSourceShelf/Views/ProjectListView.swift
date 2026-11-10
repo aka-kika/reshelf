@@ -157,6 +157,9 @@ struct ProjectListView: View {
                         onFind: {
                             NotificationCenter.default.post(name: .findFitsAgain, object: fits.repo.id)
                         },
+                        onCheckAll: {
+                            NotificationCenter.default.post(name: .checkAllFitsAgain, object: fits.repo.id)
+                        },
                         onStop: { fitsRunner.stop(fits.repo.id) })
                 } else if visibleProjects.isEmpty {
                     catalogListEmptyState

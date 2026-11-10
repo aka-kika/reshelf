@@ -60,7 +60,7 @@ enum ProjectFitsService {
     /// hidden, new ones get the dot) and stamps the run time. `found` is in
     /// list order, best fit first.
     static func applyRun(repoID: UUID, found: [(key: String, why: String)], scores: [String: Double] = [:],
-                         matchText: String? = nil, note: String,
+                         matchText: String? = nil, signature: String? = nil, note: String,
                          at date: Date = Date(), in context: ModelContext) {
         guard let repo = repo(repoID, in: context) else { return }
         let saved = fits(for: repoID, in: context)
@@ -76,6 +76,7 @@ enum ProjectFitsService {
                                    score: row.isHidden ? row.score : (scores[row.key] ?? row.score)))
         }
         if let matchText { repo.matchText = matchText }
+        if let signature { repo.runSignature = signature }
         repo.previousRunAt = repo.lastRunAt
         repo.lastRunAt = date
         repo.lastRunNote = note

@@ -735,15 +735,10 @@ private struct ProjectFitsHandlers: ViewModifier {
                 presentSheetAfterEndingTextEditing { showingAddRepos = true }
             }
             .onReceive(NotificationCenter.default.publisher(for: .findFitsAgain)) { note in
-                // From the Shelf menu there is no id: the repo picked in the sidebar.
-                guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else {
-                    NotificationCenter.default.post(
-                        name: .catalogStatusNotice,
-                        object: "Pick one of your repos under My Repos first, then Find Fits Again.")
-                    return
-                }
-                sidebarSelection = .myRepo(id)
-                ProjectFitsRunner.shared.run([id], in: modelContext)
+                run(note, mode: .newOnly)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .checkAllFitsAgain)) { note in
+                run(note, mode: .all)
             }
             .onReceive(NotificationCenter.default.publisher(for: .showHiddenFits)) { note in
                 guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else { return }
@@ -757,6 +752,18 @@ private struct ProjectFitsHandlers: ViewModifier {
             .sheet(item: $hiddenFitsFor) { request in
                 HiddenFitsSheet(repoID: request.id)
             }
+    }
+
+    private func run(_ note: Notification, mode: ProjectFitsRunner.Mode) {
+        // From the Shelf menu there is no id: the repo picked in the sidebar.
+        guard let id = (note.object as? UUID) ?? sidebarSelection?.myRepoID else {
+            NotificationCenter.default.post(
+                name: .catalogStatusNotice,
+                object: "Pick one of your repos under My Repos first, then Find Fits Again.")
+            return
+        }
+        sidebarSelection = .myRepo(id)
+        ProjectFitsRunner.shared.run([id], mode: mode, in: modelContext)
     }
 }
 

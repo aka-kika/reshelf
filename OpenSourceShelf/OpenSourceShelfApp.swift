@@ -471,11 +471,14 @@ struct OpenSourceShelfApp: App {
                 Divider()
 
                 // Project fits: runs only when asked, for the repo picked
-                // under My Repos.
+                // under My Repos. No "…" (Kika, round 2).
                 Button("Find Fits Again") {
                     NotificationCenter.default.post(name: .findFitsAgain, object: nil)
                 }
-                Button("Add Your Repos to the Sidebar…") {
+                Button("Check All Again") {
+                    NotificationCenter.default.post(name: .checkAllFitsAgain, object: nil)
+                }
+                Button("Add Your Repos to the Sidebar") {
                     NotificationCenter.default.post(name: .addMyRepos, object: nil)
                 }
             }
@@ -615,8 +618,11 @@ extension Notification.Name {
     /// Project fits: open the Add Your Repos popup.
     static let addMyRepos = Notification.Name("addMyRepos")
     /// Run Find Fits for one of her repos (object: its UUID; nil = the one
-    /// selected in the sidebar).
+    /// selected in the sidebar). After the first run it looks only at shelf
+    /// repos new or changed since the last one.
     static let findFitsAgain = Notification.Name("findFitsAgain")
+    /// The same, but over the whole shelf instead of only what is new.
+    static let checkAllFitsAgain = Notification.Name("checkAllFitsAgain")
     /// Show the hidden fits of one of her repos (object: its UUID).
     static let showHiddenFits = Notification.Name("showHiddenFits")
     /// Hide one fit from one of her repos (object: the catalog row's UUID).

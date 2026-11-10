@@ -27,6 +27,10 @@ final class MyRepo {
     /// runs read it to tell what all her repos share, so a shelf repo that
     /// fits every one of them is pushed down (round 2, 10 Nov).
     var matchText: String = ""
+    /// What the last full run was set to (`FitScorer.runSignature`: scoring
+    /// version, limit, filters). Find Fits Again looks only at new repos
+    /// while this still matches; otherwise it checks the whole shelf.
+    var runSignature: String = ""
 
     init(fullName: String, githubURL: String, summary: String = "", sortIndex: Int = 0) {
         self.id = UUID()
