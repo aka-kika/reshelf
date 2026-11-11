@@ -1,0 +1,53 @@
+<html><body>
+<h3>Added in build 43 (round 3, 11 Nov)</h3>
+<ul>
+<li>Reshelfed: a thank-you when code is borrowed. When an agent copies code from a shelf repo into one of your projects, the reshelf skill's `shelf.py used` adds a line to that project's ACKNOWLEDGEMENTS.md (repo, author, license, what was borrowed) and tells reshelf, which shows "Reshelfed in <project>" in the inspector. A Reshelfed row in the Library sidebar, with the owl in one color, counts those repos. It refuses a repo with no clear license; a GitHub star only on your yes.</li>
+<li>The UI mark. One toggle per repo for "I like its UI" (the brush). It shows on the row, in the inspector, and the skill tells agents you like its UI so they study its look first and can still use its code.</li>
+<li>Language filter next to Sort, on every list (fits lists too): Any Language, then the languages in that list with counts, then UI Only. Just the icon until you pick; then the name shows beside it.</li>
+<li>Right-click menu like Kartina's: Top Shelf, The Collector and Yard Sale as colored icons on top (the current one lit) with the UI mark after them; then Folder with your folders, the clone group, and Remove from Catalog last and alone. In a fits list it also has Reshelfed in <repo>, to mark a fit you already used.</li>
+<li>Backups, exports, Restore's put back and Remove Duplicate Repos carry both marks.</li>
+</ul>
+<h3>Changed in build 43</h3>
+<ul>
+<li>Fits: GPL and AGPL repos rank lower (they can't ship in App Store apps) and their row says so. Why lines name one concrete feature; your lists get new why lines and a full check on the next run. A fit already used in that repo shows the owl.</li>
+<li>Clones folder: watched as soon as it exists (after the first clone, or when you come back to the app), not only after a relaunch. Check Clones for Updates looks for local edits only in clones that are behind (one git status each), not in every clone.</li>
+</ul>
+<h3>Fixed in build 42 (review of build 41, 10 Nov)</h3>
+<ul>
+<li>Crash: Check Clones for Updates no longer crashes when a repo is removed while its check runs (the inspector had the same, rarer case).</li>
+<li>Backups: fits activity (a run, Hide, Keep, a filter) replaces the newest routine backup instead of adding one, so it no longer pushes your shelf history out of the 30 routine backups. "Before …" backups are never replaced.</li>
+<li>Analyze All Fits keeps the why lines already written; only fits new on the list get one.</li>
+<li>A failed run says so above a saved list (it was silent), and the saved list stays. A search with no hits in a fits list says No search results, and the header counts matches ("1 of 5 fits match"), never "0 fits".</li>
+<li>Remove from Sidebar removes nothing when its backup can't be written, and says so. Stop after adding several repos stops all of them, not only the first.</li>
+<li>New Fits keeps a saved fit whose repo changed but was not looked at again this run (it used to drop off with no way back).</li>
+<li>Speed: the clone watcher ignores git's own writes in a clone (git status, fetch); shelf keys are remembered instead of parsed on every redraw; a backup fetches the catalog once; the menu bar is checked only when it changes; a run over all your repos reads each shelf README once.</li>
+</ul>
+<h3>Changed in builds 36 to 41</h3>
+<ul>
+<li>Best fit first, real fits only. No fixed 10 and no fixed Top Shelf slots: a list holds the repos that really fit, best first whichever shelf, up to the limit you pick. Top Shelf gets a small lift and wins a near tie; each row names its shelf instead of shelf headings.</li>
+<li>Specific fits win. Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On a real shelf of 11 own repos, shelf repos listed for 3 or more of them went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).</li>
+<li>New Fits looks only at what is new (shelf repos saved or changed since the last run) and slots them into the saved list; with nothing new it says so without asking GitHub. Analyze All Fits looks at the whole shelf.</li>
+<li>Settings → Fits: most fits (10, 15, 20, 25), same language only, updated lately, hide GPL and AGPL, hide archived. They apply to runs and to the saved lists at once.</li>
+<li>My Repos shows the GitHub mark, and its first 5 with Show more / Show less.</li>
+<li>Settings tabs fit their content (no more mostly empty window), and the Guide tab explains My Repos and Find Fits.</li>
+<li>New Fits (only repos new since the last run) and Analyze All Fits (the whole shelf) are the menu names.</li>
+<li>No "…" in any menu item or button: File, Shelf, right-click menus, Settings buttons, Start Dictation. The app menu keeps the system's one Settings item (⌘,). Progress text like "Cloning…" stays.</li>
+<li>A filter per repo: right-click a repo under My Repos → Filter (same form as Settings → Fits, in a popover); Use Main Filter goes back; Settings → Fits lists repos with their own filter, each with Reset. Saved in backups; the agents' `fits` says which filter a repo used.</li>
+<li>All repos at once: right-click the My Repos heading → New Fits / Analyze All Fits (one after another, one progress line, Stop), and Filter to open Settings → Fits. Also in the Shelf menu.</li>
+<li>Made room: a run that pushes saved fits off because of the limit says so under the list ("2 older fits made room: … Show"); Keep puts one back for good and the weakest other fit goes instead. Right-click a kept fit → Unpin undoes it.</li>
+<li>Sort in fits lists: the same Sort button as every other list, with Best Fit first (and the start).</li>
+<li>Live clones folder: reshelf watches its clone folder (FSEvents, coalesced, off while the app is hidden), so a clone an agent made or a folder trashed in Finder shows without switching windows. Idea from SkillDeck (MIT); no code taken.</li>
+<li>Local edits mark: a cloned row says "local edits" (and the inspector explains it) when the clone has tracked changes, so Pull skipping it is no surprise. Checked when you select the repo, with Check Clones for Updates, and on Pull; never a scan of every clone. Idea from cortex (MIT); no code taken.</li>
+<li>Sidebar order in Settings: Settings → General → Sidebar lists the sections (Library, My Repos, Folders, Categories, Tags) to drag into order and show or hide, with the same list as the Inspector's (one shared component); Reset to Default. Backups and exports carry it.</li>
+<li>No sparkle icons: the Capture tab shows a tray, Quick Capture's AI Suggestions a lightbulb.</li>
+<li>The skill's `shelf.py fits` follows the new order and the Fits filters.</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li>My Repos and Project fits. Add your own GitHub repos to the sidebar (the + next to My Repos: a popup lists your repos; without a token, your public ones by user name). Click one and the list shows the repos on your shelf that fit it: Top Shelf first, then The Collector, with a dot on fits that are new since the run before. The inspector shows Why it fits on top, one line written on your Mac by Apple Intelligence (the shared words when it is not available).</li>
+<li>Runs only when you ask. Fits are found once when you add a repo, then only with New Fits (right-click the repo, or the Shelf menu). It reads your repo's README, compares it with everything on Top Shelf and The Collector, reads today's README of the best 25, and saves the list with the time it ran. Nothing runs on open or in the background. Stop ends a run and keeps the saved list.</li>
+<li>Hide from <repo> Fits (right-click a fit) keeps a repo out of that list through later runs; Show Hidden Fits brings it back. Remove from Sidebar takes the repo and its list away, after a backup; the shelf repos are untouched.</li>
+<li>Your repos, their fits and hidden ones go into backups and exports, and come back with Restore and Import.</li>
+<li>Agents see the fits: the reshelf skill's `shelf.py fits`, `fits <repo>` and `fits --here` read the saved lists, read-only.</li>
+</ul>
+</body></html>
