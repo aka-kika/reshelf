@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aka-kika/reshelf/releases/latest"><img src="https://img.shields.io/badge/download-reshelf.dmg-1f8fff" alt="Download reshelf.dmg"></a>
+  <a href="https://github.com/aka-kika/reshelf/releases/latest"><img src="https://img.shields.io/badge/download-latest%20DMG-1f8fff" alt="Download the latest reshelf DMG"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue" alt="platform: macOS 14+">
   <img src="https://img.shields.io/badge/universal-arm64%20%2B%20x86__64-555" alt="universal: arm64 + x86_64">
   <img src="https://img.shields.io/badge/signed%20%26%20notarized-Developer%20ID-4c1" alt="signed and notarized with a Developer ID">
@@ -30,7 +30,7 @@
 </p>
 
 > **Download:** grab the latest **signed & notarized**
-> [`reshelf.dmg` from Releases](https://github.com/aka-kika/reshelf/releases/latest)
+> [`reshelf-<version>.dmg` from Releases](https://github.com/aka-kika/reshelf/releases/latest)
 > — universal (Apple Silicon + Intel), macOS 14+. Drag to Applications and run; no
 > Gatekeeper warnings. Or build from source (below).
 >
@@ -67,6 +67,22 @@
 - **Update checks** — a read-only `git ls-remote` tells you which clones are behind;
   one-click **Pull**, **Check Clones for Updates** (⌘⇧U) to sweep them all, or
   right-click a folder → **Pull Repos** to update just that project's clones.
+- **See what fits your own projects (new in 1.17)** — press the **+** next to
+  **My Repos** and tick your GitHub repos. Click one and the list shows the repos on
+  your shelf that really fit it, best first, with a one-line **Why it fits** written
+  on your Mac by Apple Intelligence. It runs only when you ask (adding a repo,
+  **New Fits**, **Analyze All Fits**), never in the background. **Settings → Fits**
+  sets how many fits, same language only, recently updated, and hiding GPL / AGPL or
+  archived repos.
+- **Reshelfed** — when an agent borrows code from a shelf repo for one of your
+  projects, the reshelf skill thanks the author in that project's
+  `ACKNOWLEDGEMENTS.md` and the inspector shows "Reshelfed in <project>". The
+  **Reshelfed** row in the sidebar counts them.
+- **The UI mark and a Language filter** — mark the repos whose UI you like
+  (right-click, the brush), and filter any list by language or **UI Only**, next to
+  Sort.
+- **A tidy right-click menu** — the three shelves and the UI mark as icons on top,
+  then Folder, your clone, and Remove from Catalog last.
 - **Understand licenses** — an ⓘ next to any license explains in plain language what
   you can and must do, with an optional caution for copyleft / source-available ones.
 - **No duplicates** — capture detects a repo that's already in your catalog;
@@ -115,7 +131,7 @@ Tip: drag the sidebar/inspector dividers to resize, and in **Settings** show/hid
 
 ## How you run it
 
-**Download (no Xcode)** — grab `reshelf.dmg` from
+**Download (no Xcode)** — grab the latest `reshelf-<version>.dmg` from
 [Releases](https://github.com/aka-kika/reshelf/releases/latest), open it, and drag
 **reshelf** to Applications. It's signed & notarized, so it just opens.
 
@@ -150,7 +166,7 @@ Resolves **GRDB** via Swift Package Manager on first build.
 | Local clones | `~/reshelf/repos/<Category>/<repo>` (grouped by category; full clones) |
 | Clone + metadata records | `~/reshelf/database/opensource-shelf.sqlite` (GRDB) |
 
-## Extending reshelf with skills 🧩
+## Extending reshelf with skills
 
 reshelf keeps your clones in a predictable, scriptable layout —
 `~/reshelf/repos/<Category>/<repo>` — and your catalog as plain JSON in
@@ -191,6 +207,7 @@ explicitly welcome.
 
 ## Privacy and network
 
+- **My Repos and fits** — only when you add your repos or run fits: your repo list and READMEs, and the READMEs of the best matches. A GitHub token (Settings → Capture, kept in the Keychain) is optional and adds your private repos.
 - **GitHub** — when you capture or import a repo (repo info and its owner's avatar as the icon), when you pull a clone or use Shelf → Refresh Info (fresh stars, license, last activity), and for update checks on clones (`git ls-remote`). Missing icons are fetched again at launch.
 - **AI** — never leaves the Mac. Capture Assist runs on-device Apple Intelligence; there is no cloud provider to configure.
 - **Update checks** — Sparkle fetches a static appcast from GitHub Pages. Nothing about you is sent; it's a plain file request.
@@ -201,7 +218,7 @@ explicitly welcome.
 ### Is reshelf free?
 
 Yes — free and open source under the MIT license. Download the signed, notarized
-`reshelf.dmg` from [Releases](https://github.com/aka-kika/reshelf/releases/latest),
+`reshelf-<version>.dmg` from [Releases](https://github.com/aka-kika/reshelf/releases/latest),
 or build it from source.
 
 ### How is this different from GitHub stars or browser bookmarks?
