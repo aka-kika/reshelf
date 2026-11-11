@@ -9,7 +9,6 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
   - **New Fits / Analyze All Fits for all repos** (My Repos heading, Shelf menu) is unit-tested only; run it once live with the GitHub token.
   - The fits list **Sort** (Best Fit, `CatalogSortOrder`) has no test group (the enum lives in `ProjectListView.swift`).
   - On macOS 27.2 the system Settings item's accessibility name still ends in "…" (it shows without on 27.3). Watch it after macOS updates.
-- [ ] **The public skill names Kika.** `extras/reshelf-skill/scripts/shelf.py` prints `UI: Kika likes its UI` (`UI_LINE`) and `SKILL.md` quotes it with "Localpen" as the Reshelfed example; every user who installs the skill sees her name. Say "the user likes its UI" instead (1.17.1).
 - [ ] **cursor/ and general/ skill copies run the older shelf.py** (20 Oct, no `fits` or `used`, no clone-marker rules). Their docs now list `fits` and `used` with a note that they need the newer script. Kika decides whether they get `claude/scripts/shelf.py`.
 - [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
 - [ ] *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits using plain git so you can see what changed.
