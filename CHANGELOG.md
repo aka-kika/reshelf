@@ -5,7 +5,7 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
-## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
+## [1.17.0] — private build 43, 2026-11-11 (Kika is checking it; not released)
 
 ### Added in build 43 (round 3, 11 Nov)
 - **Reshelfed: a thank-you when code is borrowed.** When an agent copies code from a shelf repo into one of your projects, the reshelf skill's `shelf.py used` adds a line to that project's ACKNOWLEDGEMENTS.md (repo, author, license, what was borrowed) and tells reshelf, which shows "Reshelfed in Localpen" in the inspector. A **Reshelfed** row in the Library sidebar, with the owl in one color, counts those repos. It refuses a repo with no clear license; a GitHub star only on your yes.
