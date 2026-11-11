@@ -5,11 +5,15 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
+### Planned (v2 — first up)
+- **GitHub login inside the app** — connect your GitHub account (read-only) to
+  improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
 ## [1.17.0] — 2026-11-11 (build 43)
 
 ### Added in build 43 (round 3, 11 Nov)
-- **Reshelfed: a thank-you when code is borrowed.** When an agent copies code from a shelf repo into one of your projects, the reshelf skill's `shelf.py used` adds a line to that project's ACKNOWLEDGEMENTS.md (repo, author, license, what was borrowed) and tells reshelf, which shows "Reshelfed in Localpen" in the inspector. A **Reshelfed** row in the Library sidebar, with the owl in one color, counts those repos. It refuses a repo with no clear license; a GitHub star only on your yes.
-- **The UI mark.** One toggle per repo for "I like its UI" (the brush). It shows on the row, in the inspector, and the skill tells agents "Kika likes its UI" so they study its look first and can still use its code.
+- **Reshelfed: a thank-you when code is borrowed.** When an agent copies code from a shelf repo into one of your projects, the reshelf skill's `shelf.py used` adds a line to that project's ACKNOWLEDGEMENTS.md (repo, author, license, what was borrowed) and tells reshelf, which shows "Reshelfed in <project>" in the inspector. A **Reshelfed** row in the Library sidebar, with the owl in one color, counts those repos. It refuses a repo with no clear license; a GitHub star only on your yes.
+- **The UI mark.** One toggle per repo for "I like its UI" (the brush). It shows on the row, in the inspector, and the skill tells agents you like its UI so they study its look first and can still use its code.
 - **Language filter** next to Sort, on every list (fits lists too): Any Language, then the languages in that list with counts, then UI Only. Just the icon until you pick; then the name shows beside it.
 - **Right-click menu like Kartina's:** Top Shelf, The Collector and Yard Sale as colored icons on top (the current one lit) with the UI mark after them; then Folder with your folders, the clone group, and Remove from Catalog last and alone. In a fits list it also has **Reshelfed in <repo>**, to mark a fit you already used.
 - Backups, exports, Restore's put back and Remove Duplicate Repos carry both marks.
@@ -27,15 +31,15 @@ All notable changes to **reshelf** are documented here. This project follows
 - **New Fits** keeps a saved fit whose repo changed but was not looked at again this run (it used to drop off with no way back).
 - **Speed:** the clone watcher ignores git's own writes in a clone (git status, fetch); shelf keys are remembered instead of parsed on every redraw; a backup fetches the catalog once; the menu bar is checked only when it changes; a run over all your repos reads each shelf README once.
 
-### Changed in builds 36 to 41 (Kika's first look at build 35)
+### Changed in builds 36 to 41
 - **Best fit first, real fits only.** No fixed 10 and no fixed Top Shelf slots: a list holds the repos that really fit, best first whichever shelf, up to the limit you pick. Top Shelf gets a small lift and wins a near tie; each row names its shelf instead of shelf headings.
-- **Specific fits win.** Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On Kika's shelf, repos listed for 3 or more of her 11 repos went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).
+- **Specific fits win.** Words all your own repos share count less, and a shelf repo that fits many of your repos is pushed down. On a real shelf of 11 own repos, shelf repos listed for 3 or more of them went from 11 to 2. GitHub topics now count; Apple's sentence embedding is no longer used (it ranked a notes app above the uninstallers that fit Sift).
 - **New Fits looks only at what is new** (shelf repos saved or changed since the last run) and slots them into the saved list; with nothing new it says so without asking GitHub. **Analyze All Fits** looks at the whole shelf.
 - **Settings → Fits:** most fits (10, 15, 20, 25), same language only, updated lately, hide GPL and AGPL, hide archived. They apply to runs and to the saved lists at once.
 - **My Repos** shows the GitHub mark, and its first 5 with Show more / Show less.
 - **Settings tabs fit their content** (no more mostly empty window), and the Guide tab explains My Repos and Find Fits.
-- **New Fits** (only repos new since the last run) and **Analyze All Fits** (the whole shelf) are the menu names (Kika's wording).
-- **No "…" in any menu item or button** (Kika's rule for all her apps): File, Shelf, right-click menus, Settings buttons, Start Dictation. The app menu keeps the system's one Settings item (⌘,). Progress text like "Cloning…" stays.
+- **New Fits** (only repos new since the last run) and **Analyze All Fits** (the whole shelf) are the menu names.
+- **No "…" in any menu item or button**: File, Shelf, right-click menus, Settings buttons, Start Dictation. The app menu keeps the system's one Settings item (⌘,). Progress text like "Cloning…" stays.
 - **A filter per repo:** right-click a repo under My Repos → **Filter** (same form as Settings → Fits, in a popover); **Use Main Filter** goes back; Settings → Fits lists repos with their own filter, each with **Reset**. Saved in backups; the agents' `fits` says which filter a repo used.
 - **All repos at once:** right-click the My Repos heading → **New Fits** / **Analyze All Fits** (one after another, one progress line, Stop), and **Filter** to open Settings → Fits. Also in the Shelf menu.
 - **Made room:** a run that pushes saved fits off because of the limit says so under the list ("2 older fits made room: … Show"); **Keep** puts one back for good and the weakest other fit goes instead. Right-click a kept fit → **Unpin** undoes it.
@@ -52,10 +56,6 @@ All notable changes to **reshelf** are documented here. This project follows
 - **Hide from <repo> Fits** (right-click a fit) keeps a repo out of that list through later runs; **Show Hidden Fits** brings it back. **Remove from Sidebar** takes the repo and its list away, after a backup; the shelf repos are untouched.
 - Your repos, their fits and hidden ones go into backups and exports, and come back with Restore and Import.
 - **Agents see the fits:** the reshelf skill's `shelf.py fits`, `fits <repo>` and `fits --here` read the saved lists, read-only.
-
-### Planned (v2 — first up)
-- **GitHub login inside the app** — connect your GitHub account (read-only) to
-  improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
 ## [1.16.1] — 2026-10-25
 
