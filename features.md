@@ -30,7 +30,7 @@ Stored fields you can view and edit:
 - Category, license, star count (text)
 - Tags and use cases (lists)
 - Personal notes
-- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). In the list, a row shows its shelf as a small icon on the right, next to the clone icon: Top Shelf a **star**, Yard Sale a **tag** (same symbols and soft colors as the sidebar); The Collector, the default, shows none. The inspector header keeps the colored shelf badge. With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / right-click **Move to** — so you can sort straight after capturing without the mouse. ⌘-click adds to the row you already selected, and those shortcuts move the whole batch
+- **Shelf:** Top Shelf (favorites), The Collector (default landing shelf), Yard Sale (not sure / archive). In the list, a row shows its shelf as a small icon on the right, next to the clone icon: Top Shelf a **star**, Yard Sale a **tag** (same symbols and soft colors as the sidebar); The Collector, the default, shows none. The inspector header keeps the colored shelf badge. With a repo selected, move it with **⌘T** (Top Shelf), **⌘Y** (Yard Sale), **⌘⇧G** (The Collector), or the **Shelf** menu / the shelf icons on top of the right-click menu — so you can sort straight after capturing without the mouse. ⌘-click adds to the row you already selected, and those shortcuts move the whole batch
 - **Local-first** and **self-hosted** flags
 - Repo **icon** (fetched and cached)
 - **Added** and **last checked** dates
@@ -128,6 +128,14 @@ Which repos on your shelf help a project you are building? Add the project under
 - **Sidebar** — your repos show the GitHub mark; after 5, **Show N more** / **Show less** keeps Categories in sight.
 - **Agents** — the reshelf skill's `shelf.py fits`, `fits <repo>` and `fits --here` read the saved lists read-only, best fit first, with the same Fits filters. Agents never start a run.
 
+## Round 3 (build 43): right-click menu, marks, Language filter
+
+- **Right-click menu** (like Kartina's): a row of icons on top: **Top Shelf**, **The Collector**, **Yard Sale** in their sidebar colors (the current one lit), then the **UI** mark. Then, in a fits list, **Reshelfed in <repo>**, **Unpin** and **Hide**; **Folder ▸** with your folders; the clone group (Clone Repository, or Reveal in Finder and Remove Local Clone); **Remove from Catalog** last and alone. No "…". A batch of rows gets the same menu (a shelf or the UI mark applies to all of them; a batch shelf move writes a backup first).
+- **UI mark** — "I like its UI" (a brush). It shows on the row's right next to the shelf icon and in the inspector ("UI: You like its look"). The reshelf skill's `find` and `fits` print "Kika likes its UI" so agents study its look first; its code can still be used. Backups and exports carry it.
+- **Reshelfed** — repos whose code went into one of your projects. When an agent borrows code it runs `shelf.py used <repo> --what "…"` inside that project: one thank-you line in the project's `ACKNOWLEDGEMENTS.md` (repo, author, license, what), and a line in `~/reshelf/used-inbox.jsonl` that reshelf applies at launch and whenever it comes to the front (it never writes the catalog itself; a line for a repo not on the shelf waits). The inspector shows **Reshelfed in** with the projects; the **Reshelfed** row in the Library sidebar (the owl in one color) counts them; a fits row shows the owl when that repo already used it, and right-click → **Reshelfed in <repo>** sets it by hand. No license: refused. A GitHub star only on your yes.
+- **Language filter** — next to Sort on every list (fits lists too): **Any Language**, then the languages in the list with how many repos each (GitHub's main language from the saved metadata), then **UI Only**. Just the icon until something is picked; then its name shows beside it. One setting for every list, like Sort; the footer says "3 of 40 · Swift", and a list it empties says so with **Show All**.
+- **Fits** — GPL and AGPL repos rank lower (×0.7) and their row says "not for App Store apps". Why lines name one concrete feature of the shelf repo.
+
 ## Folders
 
 A **folder** is a grouping you make: "everything I cloned for project X". Deliberately not a category (those are a fixed taxonomy describing *what a repo is*) and not a shelf (that says how much you value it) — a project's worth of repos spans all three shelves and a dozen categories.
@@ -135,7 +143,7 @@ A **folder** is a grouping you make: "everything I cloned for project X". Delibe
 - **One folder at most** per project, so "what did I get for X" stays unambiguous.
 - **Any project qualifies**, cloned or not. Uncloning must not eject a repo from the group that exists to make the cleanup possible.
 - **Pull Repos** — right-click a folder → **Pull Repos** checks only that folder's clones against GitHub and updates the ones behind (clones with local edits are skipped).
-- **Assign** — right-click a project → **Add to Folder ▸** lists your folders, marks the one it's in, and offers **New Folder** and **Remove from Folder**.
+- **Assign** — right-click a project → **Folder ▸** lists your folders, marks the one it's in, and offers **New Folder** and **Remove from Folder**.
 - **Sidebar** — folders get their own section between Library and Categories, shown only once one exists. Each row has a folder icon, a live count, and filters the list exactly like a category row.
 - **Rename / Delete** — right-click a folder row. Rename refuses a name another folder already has, ignoring capitals. **Deleting a folder only ungroups**: its projects keep their shelf, their clone, their notes and everything else. A labelled backup is written first (the same for moving a batch of repos to a shelf). If that backup cannot be written, nothing changes. The confirmation says how many will be ungrouped and that nothing else changes.
 - **Inspector** — a **Folder** row appears next to Added / Updated when a project is in one.

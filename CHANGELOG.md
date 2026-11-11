@@ -7,6 +7,17 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [1.17.0] — private build 2026-11-10 (Kika is checking it; not released)
 
+### Added in build 43 (round 3, 11 Nov)
+- **Reshelfed: a thank-you when code is borrowed.** When an agent copies code from a shelf repo into one of your projects, the reshelf skill's `shelf.py used` adds a line to that project's ACKNOWLEDGEMENTS.md (repo, author, license, what was borrowed) and tells reshelf, which shows "Reshelfed in Localpen" in the inspector. A **Reshelfed** row in the Library sidebar, with the owl in one color, counts those repos. It refuses a repo with no clear license; a GitHub star only on your yes.
+- **The UI mark.** One toggle per repo for "I like its UI" (the brush). It shows on the row, in the inspector, and the skill tells agents "Kika likes its UI" so they study its look first and can still use its code.
+- **Language filter** next to Sort, on every list (fits lists too): Any Language, then the languages in that list with counts, then UI Only. Just the icon until you pick; then the name shows beside it.
+- **Right-click menu like Kartina's:** Top Shelf, The Collector and Yard Sale as colored icons on top (the current one lit) with the UI mark after them; then Folder with your folders, the clone group, and Remove from Catalog last and alone. In a fits list it also has **Reshelfed in <repo>**, to mark a fit you already used.
+- Backups, exports, Restore's put back and Remove Duplicate Repos carry both marks.
+
+### Changed in build 43
+- **Fits:** GPL and AGPL repos rank lower (they can't ship in App Store apps) and their row says so. Why lines name one concrete feature; your lists get new why lines and a full check on the next run. A fit already used in that repo shows the owl.
+- **Clones folder:** watched as soon as it exists (after the first clone, or when you come back to the app), not only after a relaunch. Check Clones for Updates looks for local edits only in clones that are behind (one git status each), not in every clone.
+
 ### Fixed in build 42 (review of build 41, 10 Nov)
 - **Crash:** Check Clones for Updates no longer crashes when a repo is removed while its check runs (the inspector had the same, rarer case).
 - **Backups:** fits activity (a run, Hide, Keep, a filter) replaces the newest routine backup instead of adding one, so it no longer pushes your shelf history out of the 30 routine backups. "Before …" backups are never replaced.

@@ -54,7 +54,7 @@
   **tags** (most used or recently added — your pick in Settings), or **Cloned**. Every
   sidebar section folds away with a click on its heading. Sort by Recently Added / Name / Most Stars / Last Updated.
 - **Folders for what you got them for** — clone thirty repos for one project and group
-  them: right-click → **Add to Folder**. Folders are yours to name, sit in their own
+  them: right-click → **Folder**. Folders are yours to name, sit in their own
   sidebar section, and are separate from categories (what a repo *is*) and shelves (how
   much you value it). **Deleting a folder only ungroups** — nothing else changes.
 - **Batch actions** — **⌘-click** rows (or **⇧-click** a range), then move them all to a
