@@ -72,10 +72,20 @@ func run() throws {
 
     // 4. A failed save keeps the lines for next time and the marks off.
     write([#"{"repo":"fayazara/lotion","project":"Kartina"}"#])
+    mark.notes = "an unsaved edit of hers"
     CatalogSave.failureForTesting = NSError(domain: "test", code: 1)
     check("failed save applies nothing", UsedInbox.drain(in: ctx) == 0 && !lotion.isUsed(in: "Kartina"))
+    check("a failed save takes back only its own marks (review)", mark.notes == "an unsaved edit of hers")
     CatalogSave.failureForTesting = nil
     check("kept lines apply on the next drain", UsedInbox.drain(in: ctx) == 1 && lotion.isUsed(in: "Kartina"))
+
+    // 4b. Review: a line appended to the renamed file after it was read is
+    //     not lost. Simulated: a .reading file that grows during apply is
+    //     hard to time, so check the tail logic through a leftover file.
+    let tailFile = work.appendingPathComponent("used-inbox.tail.reading")
+    try (#"{"repo":"vinny380/mark","project":"Kartina"}"# + "\n").write(to: tailFile, atomically: true, encoding: .utf8)
+    check("a leftover .reading file is read", UsedInbox.drain(in: ctx) == 1 && mark.isUsed(in: "Kartina")
+          && !FileManager.default.fileExists(atPath: tailFile.path))
 
     // 5. Backups carry the UI mark and Reshelfed in; older files leave them alone.
     lotion.likesUI = true
@@ -91,6 +101,13 @@ func run() throws {
     other.usedIn = ["Sift"]
     old.apply(to: other)
     check("an older file keeps marks made here", other.likesUI && other.usedIn == ["Sift"])
+    var monday = dto
+    monday.usedIn = []
+    monday.apply(to: other)
+    check("importing an export made before a record keeps the record (review)", other.usedIn == ["Sift"])
+    monday.usedIn = ["Localpen"]
+    monday.apply(to: other)
+    check("import joins Reshelfed in, any case once", other.usedIn == ["Sift", "Localpen"])
     var changed = dto
     changed.likesUI = false
     check("put-back sees a UI mark change", changed.putBackDiffers(from: lotion))

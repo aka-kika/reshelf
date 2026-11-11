@@ -38,15 +38,21 @@ enum UsedInbox {
         }
     }
 
+    /// One mark `apply` made, so a failed save can take back exactly that.
+    struct Mark {
+        let project: ToolProject
+        let name: String
+    }
+
     /// Marks each entry's repo as used in its project (once per project, any
-    /// case). Returns how many marks are new and the entries whose repo is not
-    /// on the shelf.
-    static func apply(_ entries: [Entry], to projects: [ToolProject]) -> (added: Int, unmatched: [Entry]) {
+    /// case). Returns the marks it made and the entries whose repo is not on
+    /// the shelf.
+    static func apply(_ entries: [Entry], to projects: [ToolProject]) -> (marks: [Mark], unmatched: [Entry]) {
         var byKey: [String: [ToolProject]] = [:]
         for project in projects where !project.githubURL.isEmpty {
-            byKey[GitHubRepositoryURL.dedupKey(for: project.githubURL), default: []].append(project)
+            byKey[GitHubRepositoryURL.cachedDedupKey(for: project.githubURL), default: []].append(project)
         }
-        var added = 0
+        var marks: [Mark] = []
         var unmatched: [Entry] = []
         for entry in entries {
             let link = entry.repo.contains("/") && !entry.repo.contains("://")
@@ -57,10 +63,10 @@ enum UsedInbox {
             }
             for row in rows where !row.isUsed(in: entry.project) {
                 row.usedIn.append(entry.project)
-                added += 1
+                marks.append(Mark(project: row, name: entry.project))
             }
         }
-        return (added, unmatched)
+        return (marks, unmatched)
     }
 
     /// Reads and applies the file. The file is renamed first, so a line an
@@ -82,38 +88,57 @@ enum UsedInbox {
         guard !readingFiles.isEmpty else { return 0 }
 
         var entries: [Entry] = []
+        var readBytes: [URL: Int] = [:]
         for file in readingFiles {
-            entries += parse((try? String(contentsOf: file, encoding: .utf8)) ?? "")
+            let data = (try? Data(contentsOf: file)) ?? Data()
+            readBytes[file] = data.count
+            entries += parse(String(decoding: data, as: UTF8.self))
         }
         let projects = (try? context.fetch(FetchDescriptor<ToolProject>())) ?? []
         let result = apply(entries, to: projects)
-        if result.added > 0, !CatalogSave.save(context, "the Used in records") {
-            // Not saved: undo the marks and keep the files for next time.
-            context.rollback()
+        if !result.marks.isEmpty, !CatalogSave.save(context, "the Reshelfed records") {
+            // Not saved: take back only these marks (other unsaved edits stay)
+            // and keep the files for next time.
+            for mark in result.marks {
+                if let i = mark.project.usedIn.lastIndex(of: mark.name) { mark.project.usedIn.remove(at: i) }
+            }
             return 0
         }
-        if !result.unmatched.isEmpty { putBack(result.unmatched) }
+        // An agent that opened the inbox just before the rename appends to
+        // the renamed file: lines after what was read go back to the inbox.
+        var keep = result.unmatched
+        for file in readingFiles {
+            guard let data = try? Data(contentsOf: file), let read = readBytes[file], data.count > read else { continue }
+            keep += parse(String(decoding: data.suffix(from: read), as: UTF8.self))
+        }
+        guard putBack(keep) else { return result.marks.count }
         for file in readingFiles { try? fm.removeItem(at: file) }
-        return result.added
+        return result.marks.count
     }
 
     /// Appends entries to the inbox (lines for repos not on the shelf yet).
-    static func putBack(_ entries: [Entry]) {
+    @discardableResult
+    static func putBack(_ entries: [Entry]) -> Bool {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         let lines = entries.compactMap { try? encoder.encode($0) }
             .compactMap { String(data: $0, encoding: .utf8) }
-        guard !lines.isEmpty else { return }
+        guard !lines.isEmpty else { return true }
         let text = lines.joined(separator: "\n") + "\n"
         let url = fileURL
-        if let handle = try? FileHandle(forWritingTo: url) {
-            defer { try? handle.close() }
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: Data(text.utf8))
-        } else {
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
-                                                     withIntermediateDirectories: true)
-            try? Data(text.utf8).write(to: url)
+        do {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                defer { try? handle.close() }
+                try handle.seekToEnd()
+                try handle.write(contentsOf: Data(text.utf8))
+            } else {
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                        withIntermediateDirectories: true)
+                try Data(text.utf8).write(to: url)
+            }
+            return true
+        } catch {
+            return false
         }
     }
 }

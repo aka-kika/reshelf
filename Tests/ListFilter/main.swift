@@ -34,4 +34,14 @@ check("both", ListFilter(language: "Swift", uiOnly: true).apply(projects, facts:
 check("title", ListFilter(language: "Swift", uiOnly: true).title == "Swift · UI" && ListFilter(uiOnly: true).title == "UI")
 check("active only when set", !ListFilter().isActive && ListFilter(language: "Go").isActive)
 
+// Review: one pass gives the same answers as the separate ones.
+let one = ListFilter(language: "Swift", uiOnly: true).evaluate(projects, facts: facts)
+check("one pass: visible", one.visible.map(\.name) == ["b"])
+check("one pass: languages among UI-marked repos", one.languages.map(\.name) == ["Swift", "TypeScript"]
+      && one.languages.first?.count == 1)
+check("one pass: UI count among Swift repos", one.uiCount == 1)
+let plain = ListFilter().evaluate(projects, facts: facts)
+check("one pass, no filter: same as counts", plain.languages.map(\.name) == counts.map(\.name)
+      && plain.uiCount == 3 && plain.visible.count == projects.count)
+
 exit(failures == 0 ? 0 : 1)

@@ -171,6 +171,17 @@ if r.returncode == 0 or "must not be copied" not in r.stderr:
 r = run(live, "used", "x/notonshelf", "--what", "x", cwd=proj)
 if r.returncode == 0 or "not on the reshelf shelf" not in r.stderr:
     fail("repo not on shelf refused: " + r.stdout + r.stderr)
+plain = os.path.join(work, "not-a-repo")
+os.makedirs(plain, exist_ok=True)
+r = run(live, "used", "uninstally", "--what", "x", cwd=plain)
+if r.returncode == 0 or os.path.exists(os.path.join(plain, "ACKNOWLEDGEMENTS.md")):
+    fail("outside a git repo: refused, nothing written: " + r.stdout + r.stderr)
+shelf_clone = os.path.join(live, "repos", "macOS", "someclone")
+os.makedirs(shelf_clone, exist_ok=True)
+subprocess.run(["git", "init", "-q", shelf_clone], check=True)
+r = run(live, "used", "uninstally", "--what", "x", cwd=shelf_clone)
+if r.returncode == 0 or "shelf clone" not in r.stderr or os.path.exists(os.path.join(shelf_clone, "ACKNOWLEDGEMENTS.md")):
+    fail("inside a shelf clone: refused: " + r.stdout + r.stderr)
 if os.path.getmtime(store) != before:
     fail("used wrote the store")
 

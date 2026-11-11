@@ -78,6 +78,16 @@ struct ProjectListView: View {
     @AppStorage(ListFilter.languageKey) private var listLanguage = ""
     @AppStorage(ListFilter.uiOnlyKey) private var listUIOnly = false
 
+    /// Bumped when the metadata store was read again, so the list redraws.
+    @State private var factsVersion = 0
+
+    /// The GitHub metadata the Language filter reads (`factsVersion` ties the
+    /// redraw to a reload).
+    private var factsForList: [String: RepoFacts] {
+        _ = factsVersion
+        return ProjectFitsRunner.facts()
+    }
+
     private var listFilter: Binding<ListFilter> {
         Binding(get: { ListFilter(language: listLanguage, uiOnly: listUIOnly) },
                 set: { listLanguage = $0.language; listUIOnly = $0.uiOnly })
@@ -100,11 +110,12 @@ struct ProjectListView: View {
         // read from the footer and from every batch row's context menu, which
         // re-sorted the whole catalog per row (multi-second hangs at ~950 repos).
         let fits = fitsModel
-        let facts = ProjectFitsRunner.facts()
+        let facts = factsForList
         let filter = listFilter.wrappedValue
         // The list before the Language filter: its languages fill the menu.
         let unfiltered = fits.map { fitsSortOrder.sorted($0.projects) } ?? sidebarAndSearchProjects
-        let visibleProjects = filter.apply(unfiltered, facts: facts)
+        let filtered = filter.evaluate(unfiltered, facts: facts)
+        let visibleProjects = filtered.visible
         let batchProjects = batchSelection.isEmpty
             ? []
             : visibleProjects.filter { batchSelection.contains($0.id) }
@@ -134,12 +145,8 @@ struct ProjectListView: View {
                     }
                     Spacer()
                     // The same Language and Sort buttons on every list; fits add Best Fit.
-                    LanguageFilterMenu(
-                        filter: listFilter,
-                        languages: ListFilter.counts(ListFilter(uiOnly: filter.uiOnly).apply(unfiltered, facts: facts),
-                                                     facts: facts, keeping: filter.language),
-                        uiCount: ListFilter(language: filter.language).apply(unfiltered, facts: facts)
-                            .filter(\.likesUI).count)
+                    LanguageFilterMenu(filter: listFilter, languages: filtered.languages,
+                                       uiCount: filtered.uiCount)
                     if fits == nil {
                         sortMenu(selection: $sortOrderRaw, options: CatalogSortOrder.catalogChoices, current: sortOrder)
                     } else {
@@ -303,8 +310,6 @@ struct ProjectListView: View {
         }
         .onChange(of: allProjects.count) { _, _ in
             IconFetcher.fetchAll(for: allProjects, in: modelContext)
-            // A new capture's language is in the metadata store now.
-            _ = ProjectFitsRunner.facts(reload: true)
         }
         .onChange(of: searchText) { _, _ in
             clearBatchSelection()
@@ -322,7 +327,14 @@ struct ProjectListView: View {
             clearBatchSelection()
         }
         .onChange(of: appRefreshStore.catalogRevision) { _, _ in
+            // A capture's GitHub metadata (its language) lands after the save,
+            // then the refresh bus fires: reload, and redraw with it.
+            _ = ProjectFitsRunner.facts(reload: true)
+            factsVersion += 1
         }
+        // Rows the Language filter hides must not stay in a batch.
+        .onChange(of: listLanguage) { _, _ in clearBatchSelection() }
+        .onChange(of: listUIOnly) { _, _ in clearBatchSelection() }
         .modifier(CatalogEventHandlers(
             onCheckCloneUpdates: { checkAllClonesForUpdates() },
             onPullCloneUpdates: { pullFlaggedClones() },
@@ -819,6 +831,9 @@ struct ProjectListView: View {
                 // processes for 67 clones). Others keep their last answer.
                 if CloneEditsStore.checksEdits(after: status), LiveProject.isAlive(project) {
                     await CloneEditsStore.shared.check(project)
+                } else if status == .upToDate {
+                    // Nothing for Pull to do: an old "local edits" mark would only mislead.
+                    CloneEditsStore.shared.set(id, hasEdits: false)
                 }
                 switch status {
                 case .updatesAvailable: behind.insert(id)
@@ -1184,7 +1199,7 @@ struct ProjectListView: View {
     /// What the list shows: sidebar, search (or a fits list), then the Language filter.
     private var filteredProjects: [ToolProject] {
         let base = fitsModel.map { fitsSortOrder.sorted($0.projects) } ?? sidebarAndSearchProjects
-        return listFilter.wrappedValue.apply(base, facts: ProjectFitsRunner.facts())
+        return listFilter.wrappedValue.apply(base, facts: factsForList)
     }
 
     private var sidebarAndSearchProjects: [ToolProject] {

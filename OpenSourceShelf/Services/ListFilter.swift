@@ -22,7 +22,7 @@ struct ListFilter: Equatable {
     /// GitHub's main language for a shelf repo, or "" when reshelf has none.
     static func language(of project: ToolProject, facts: [String: RepoFacts]) -> String {
         guard !project.githubURL.isEmpty else { return "" }
-        return facts[GitHubRepositoryURL.dedupKey(for: project.githubURL)]?.language ?? ""
+        return facts[GitHubRepositoryURL.cachedDedupKey(for: project.githubURL)]?.language ?? ""
     }
 
     /// The languages in a list, most repos first, then by name. The picked
@@ -45,6 +45,40 @@ struct ListFilter: Equatable {
         }
         return counts.map { (name: spelling[$0.key] ?? $0.key, count: $0.value) }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+    }
+
+    /// Everything the list header needs, in one pass with one key lookup per
+    /// repo (review: four passes per redraw re-read every link).
+    struct Outcome {
+        var visible: [ToolProject] = []
+        /// The languages among the repos UI Only lets through.
+        var languages: [(name: String, count: Int)] = []
+        /// UI-marked repos among those the language lets through.
+        var uiCount = 0
+    }
+
+    func evaluate(_ projects: [ToolProject], facts: [String: RepoFacts]) -> Outcome {
+        var out = Outcome()
+        var counts: [String: Int] = [:]
+        var spelling: [String: String] = [:]
+        for project in projects {
+            let lang = Self.language(of: project, facts: facts)
+            let langOK = language.isEmpty || lang.caseInsensitiveCompare(language) == .orderedSame
+            let uiOK = !uiOnly || project.likesUI
+            if langOK, uiOK { out.visible.append(project) }
+            if langOK, project.likesUI { out.uiCount += 1 }
+            if uiOK, !lang.isEmpty {
+                counts[lang.lowercased(), default: 0] += 1
+                if spelling[lang.lowercased()] == nil { spelling[lang.lowercased()] = lang }
+            }
+        }
+        if !language.isEmpty {
+            if counts[language.lowercased()] == nil { counts[language.lowercased()] = 0 }
+            spelling[language.lowercased()] = language
+        }
+        out.languages = counts.map { (name: spelling[$0.key] ?? $0.key, count: $0.value) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+        return out
     }
 
     func apply(_ projects: [ToolProject], facts: [String: RepoFacts]) -> [ToolProject] {

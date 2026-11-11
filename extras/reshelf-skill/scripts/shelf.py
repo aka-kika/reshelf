@@ -645,12 +645,13 @@ ACK_HEADER = ("# Acknowledgements\n\n"
 
 
 def _project_dir():
+    """The git top-level folder of the current folder, or "" outside a repo
+    (review: it used to fall back to the current folder, even ~)."""
     try:
-        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
-                             text=True, cwd=os.getcwd()).stdout.strip()
+        return subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                              text=True, cwd=os.getcwd()).stdout.strip()
     except OSError:
-        top = ""
-    return top or os.getcwd()
+        return ""
 
 
 def _project_name(folder):
@@ -705,6 +706,16 @@ def cmd_used(args):
                  "so nothing was recorded. Take the idea only, written your own way.")
 
     folder = _project_dir()
+    if not folder:
+        sys.exit("Run it inside the project that borrowed the code (a git repo); nothing was written.")
+    real = os.path.realpath(folder)
+    for off_limits in (RESHELF_HOME, clone_root()):
+        base = os.path.realpath(off_limits)
+        if real == base or real.startswith(base + os.sep):
+            sys.exit(f"{folder} is reshelf's own folder or a shelf clone, not one of the user's projects. "
+                     "Run it inside the project that borrowed the code; nothing was written.")
+    if real == os.path.realpath(HOME):
+        sys.exit("That is the home folder, not a project. Run it inside the project; nothing was written.")
     project = project or _project_name(folder)
     ack = os.path.join(folder, ACK_FILE)
     line = ack_line(o[0], o[1], p["license"], what)

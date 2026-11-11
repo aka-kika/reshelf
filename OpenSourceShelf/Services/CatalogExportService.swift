@@ -134,7 +134,9 @@ struct CatalogProjectDTO: Codable {
         project.isLocalFirst = isLocalFirst
         project.isSelfHosted = isSelfHosted
         if let likesUI { project.likesUI = likesUI }
-        if let usedIn { project.usedIn = usedIn }
+        // Joined, never replaced: an older export must not erase a record an
+        // agent made since (its thank-you line is still in that project).
+        if let usedIn { project.usedIn = DuplicateMerge.union(project.usedIn, usedIn) }
     }
 
     /// Restore from Backup's "put back changes": only the shelf, the tags,
@@ -188,7 +190,7 @@ struct CatalogProjectDTO: Codable {
             || isLocalFirst != project.isLocalFirst
             || isSelfHosted != project.isSelfHosted
             || (likesUI.map { $0 != project.likesUI } ?? false)
-            || (usedIn.map { $0 != project.usedIn } ?? false)
+            || (usedIn.map { !Set($0.map { $0.lowercased() }).isSubset(of: project.usedIn.map { $0.lowercased() }) } ?? false)
             || !sameDate(addedDate, project.addedDate)
             || !sameDate(lastCheckedDate, project.lastCheckedDate)
             || (lastUpdatedDate.map { !sameDate($0, project.lastUpdatedDate) } ?? false)
