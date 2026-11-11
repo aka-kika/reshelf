@@ -76,4 +76,26 @@ try! fm.createDirectory(at: root.appendingPathComponent("CLI/other"), withInterm
 waitFor(2.5) { false }
 check("no rescans while stopped (app hidden)", calls == afterStop)
 
+// 3. Build 41 review: a clones folder that does not exist yet is watched
+//    once it appears (fresh install, an unplugged drive).
+let later = base.appendingPathComponent("later-repos")
+var laterCalls = 0
+let waitingWatcher = CloneFolderWatcher()
+waitingWatcher.settle = 0.3
+waitingWatcher.start(root: later) { laterCalls += 1 }
+check("missing folder: not running, waiting", !waitingWatcher.isRunning && waitingWatcher.isWaiting)
+waitingWatcher.startIfWaiting()
+check("still waiting while the folder is missing", !waitingWatcher.isRunning)
+try! fm.createDirectory(at: later, withIntermediateDirectories: true)
+waitingWatcher.startIfWaiting()
+check("starts once the folder exists", waitingWatcher.isRunning && !waitingWatcher.isWaiting)
+waitFor(0.5) { false }
+try! fm.createDirectory(at: later.appendingPathComponent("macOS/first"), withIntermediateDirectories: true)
+waitFor(6) { laterCalls > 0 }
+check("and sees the first clone", laterCalls > 0)
+waitingWatcher.stop()
+waitingWatcher.start(root: base.appendingPathComponent("gone")) {}
+waitingWatcher.stop()
+check("stop (app hidden) forgets the wait", !waitingWatcher.isWaiting)
+
 exit(failures == 0 ? 0 : 1)

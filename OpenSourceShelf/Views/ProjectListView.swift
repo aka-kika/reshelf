@@ -821,8 +821,10 @@ struct ProjectListView: View {
                 let status = await CatalogCloneService.updateStatus(for: project)
                 // The row can be removed during the ls-remote (up to 60 s):
                 // check again before the local-edits pass reads it.
-                if LiveProject.isAlive(project) {
-                    // The same pass notes clones with local edits (Pull skips them).
+                // Local edits matter only where Pull will run: one git status for
+                // a behind clone, not one per clone (build 41 review: 134
+                // processes for 67 clones). Others keep their last answer.
+                if CloneEditsStore.checksEdits(after: status), LiveProject.isAlive(project) {
                     await CloneEditsStore.shared.check(project)
                 }
                 switch status {

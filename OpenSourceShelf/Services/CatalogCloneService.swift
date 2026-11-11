@@ -600,6 +600,8 @@ enum CatalogCloneService {
         writeCloneMarker(at: dest)
         try? fm.removeItem(at: inProgress)
         invalidateCloneIndex()
+        // The first clone made the clones folder: the watcher can start now.
+        CloneFolderWatcher.shared.startIfWaiting()
         forgetUpdateStatus(for: projectID)
         // Clones live on disk, not in SwiftData, so no @Query sees this one:
         // the sidebar's Cloned count and the row badges wait for this event.
@@ -765,6 +767,10 @@ final class CloneFolderWatcher {
     var settle: TimeInterval = 1.0
 
     var isRunning: Bool { stream != nil }
+    /// The folder did not exist yet when asked to watch it (fresh install, an
+    /// unplugged drive): `startIfWaiting` starts once it does (build 41 review).
+    private var waiting: (root: URL, onChange: () -> Void)?
+    var isWaiting: Bool { waiting != nil }
 
     /// Starts (or restarts, when the folder changed) watching `root`.
     /// `onChange` runs on the main queue.
@@ -775,7 +781,10 @@ final class CloneFolderWatcher {
         self.onChange = onChange
         if stream != nil, self.root == standardized { return }
         stop()
-        guard FileManager.default.fileExists(atPath: standardized.path) else { return }
+        guard FileManager.default.fileExists(atPath: standardized.path) else {
+            waiting = (standardized, onChange)
+            return
+        }
         self.root = standardized
         // The callback reads these on the watcher's queue (no race with main).
         queue.sync {
@@ -799,7 +808,14 @@ final class CloneFolderWatcher {
         stream = created
     }
 
+    /// After a clone, or when the app comes to the front: the folder may exist now.
+    func startIfWaiting() {
+        guard stream == nil, let waiting, FileManager.default.fileExists(atPath: waiting.root.path) else { return }
+        start(root: waiting.root, onChange: waiting.onChange)
+    }
+
     func stop() {
+        waiting = nil
         pending?.cancel()
         pending = nil
         guard let stream else { return }
@@ -882,6 +898,13 @@ extension CatalogCloneService {
 final class CloneEditsStore: ObservableObject {
     static let shared = CloneEditsStore()
     @Published private(set) var edited: Set<UUID> = []
+
+    /// Check Clones for Updates looks for local edits only in clones that are
+    /// behind: those are the ones Pull would touch.
+    static func checksEdits(after status: CatalogCloneService.UpdateStatus) -> Bool {
+        if case .updatesAvailable = status { return true }
+        return false
+    }
 
     func set(_ id: UUID, hasEdits: Bool) {
         if hasEdits { edited.insert(id) } else { edited.remove(id) }

@@ -146,6 +146,12 @@ await check("800f: clone-folder helpers Settings uses") {
     try expect(CatalogCloneService.scanCloneIndex(root: empty).isEmpty, "empty folder has clones")
 }
 
+await check("build 41 review: Check Clones for Updates looks for local edits only in behind clones") {
+    try expect(CloneEditsStore.checksEdits(after: .updatesAvailable), "behind clone not checked")
+    try expect(!CloneEditsStore.checksEdits(after: .upToDate), "up-to-date clone checked")
+    try expect(!CloneEditsStore.checksEdits(after: .error("offline")), "failed check checked")
+}
+
 if failures > 0 {
     print("\(failures) case(s) failed")
     exit(1)

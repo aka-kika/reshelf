@@ -300,6 +300,8 @@ struct ContentView: View {
             // CLI clones) can have happened — rescan so badges don't go stale.
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 UsedInbox.drain(in: modelContext)
+                // The clones folder may have appeared since (first clone, a drive plugged in).
+                CloneFolderWatcher.shared.startIfWaiting()
                 Task {
                     await CatalogCloneService.refreshCloneIndex()
                     appRefreshStore.handle(.catalogStateUpdated)
