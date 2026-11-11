@@ -50,10 +50,10 @@ pushed off are named in one line at the end, not listed. It never runs a match: 
 
 Two marks the user sets in the app show under a repo in `find` and `fits`:
 
-- `UI: Kika likes its UI`: they like how its app looks. When the task touches the look
+- `UI: you like its UI`: they like how its app looks. When the task touches the look
   (layout, controls, colors, motion), study this repo's UI first, from its screenshots and
   its view code. Its code can still be used for anything else, like any shelf repo.
-- `reshelfed in: Localpen, ...`: their projects that already borrowed code from it. A repo
+- `reshelfed in: <your project>, ...`: their projects that already borrowed code from it. A repo
   that already worked in one of their projects is a safer pick for the next one.
 
 `find` prints, per repo: category, the **date it was added**, `CLONED` + path or

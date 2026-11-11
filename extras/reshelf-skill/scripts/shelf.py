@@ -147,7 +147,7 @@ def _with_pending_used(catalog):
     return catalog
 
 
-UI_LINE = "UI: Kika likes its UI - study its look first; its code can still be used"
+UI_LINE = "UI: you like its UI - study its look first; its code can still be used"
 
 
 def mark_lines(p):

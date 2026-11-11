@@ -9,6 +9,11 @@ All notable changes to **reshelf** are documented here. This project follows
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
 
+## [1.17.1] — 2026-11-11 (build 44)
+
+### Fixed
+- **The agent skill no longer names the app's maker.** `shelf.py` showed "UI: Kika likes its UI" for repos with the UI mark, and the skill's notes used one of her projects as the Reshelfed example. It now says "UI: you like its UI" and "reshelfed in: <your project>". Install the skill again from Settings → Library → Agent Skill.
+
 ## [1.17.0] — 2026-11-11 (build 43)
 
 ### Added in build 43 (round 3, 11 Nov)

@@ -129,12 +129,12 @@ for args in (["fits"], ["fits", "Sift"], ["fits", "--here"]):
 
 # 8. Round 3: the UI mark and Reshelfed in show in fits and find.
 out = run(live, "fits", "Sift").stdout
-if "UI: Kika likes its UI - study its look first" not in out:
+if "UI: you like its UI - study its look first" not in out:
     fail("UI mark line in fits: " + out)
 if "ALREADY USED in Sift" not in out or "reshelfed in: Sift" not in out:
     fail("a fit already used in this repo is marked: " + out)
 out = run(live, "find", "--top").stdout
-if "UI: Kika likes its UI" not in out:
+if "UI: you like its UI" not in out:
     fail("UI mark line in find: " + out)
 
 # 9. `used`: thank-you line + an inbox line, never the store; no license refused.
