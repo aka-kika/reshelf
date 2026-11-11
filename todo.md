@@ -4,17 +4,13 @@ Near-term work for **reshelf**. Check off as you go. Agents: do not recreate thi
 
 ## Open
 
-- [ ] **Fits round 2 leftovers** (branch `project-fits-2-2026-11-10`, build 1.17.0 (41) installed privately 10 Nov; a review runs on the branch next):
+- [ ] **Fits round 2 leftovers** (shipped in 1.17.0):
   - Settings → General → Sidebar: **Reset to Default** and drag-reorder were checked by tests only (on m1 the Reset button was not reachable by accessibility, drag was not driven). Try both by hand.
   - **New Fits / Analyze All Fits for all repos** (My Repos heading, Shelf menu) is unit-tested only; run it once live with the GitHub token.
   - The fits list **Sort** (Best Fit, `CatalogSortOrder`) has no test group (the enum lives in `ProjectListView.swift`).
   - On macOS 27.2 the system Settings item's accessibility name still ends in "…" (it shows without on 27.3). Watch it after macOS updates.
-- [ ] **Release steps for My Repos, Project fits and round 3** (branches `project-fits-2026-11-10`, `project-fits-2-2026-11-10`, `round3-2026-11-11`), after the release is installed. Round 3 added `shelf.py used` (thank-you line + Reshelfed) and the UI mark lines to the skill copy in `extras/reshelf-skill/`; the live skill folder gets them with steps 2 and 3:
-  1. Back up the live skill folder `_INFRA/Skills-collection/kika-skills/reshelf/` to `_INFRA/backups/`.
-  2. Copy `extras/reshelf-skill/scripts/shelf.py` and `SKILL.md` into its `claude/` folder (`claude/scripts/shelf.py`, `claude/SKILL.md`).
-  3. Add the three `fits` commands, the "fits --here first" line, the `used` step (7. Say thank you) and the UI mark / Reshelfed lines to `cursor/reshelf.mdc` and `general/reshelf.md`. Do **not** replace their `shelf.py`: those copies (20 Oct) are older than `claude/` and lack the clone marker rules (a checkout counts as cloned only with `.git/reshelf-clone`, written after a clone; old clones adopted by origin). Kika decides whether they get the new script.
-  4. Run the skill librarian's `librarian_reindex`.
-  5. Until a build with My Repos has run, `shelf.py fits` says "No My Repos yet" (the tables do not exist), so the order above matters only for agents' first answer.
+- [ ] **The public skill names Kika.** `extras/reshelf-skill/scripts/shelf.py` prints `UI: Kika likes its UI` (`UI_LINE`) and `SKILL.md` quotes it with "Localpen" as the Reshelfed example; every user who installs the skill sees her name. Say "the user likes its UI" instead (1.17.1).
+- [ ] **cursor/ and general/ skill copies run the older shelf.py** (20 Oct, no `fits` or `used`, no clone-marker rules). Their docs now list `fits` and `used` with a note that they need the newer script. Kika decides whether they get `claude/scripts/shelf.py`.
 - [ ] **⌘⇧U — show clones needing updates first** — after *Check Clones for Updates* runs, sort the repos that have updates available (the orange-dot / "behind" ones) to the **top** of the list, instead of leaving them in place.
 - [ ] *[nice-to-have]* **Show changelog on clone update (no AI)** — when pulling updates for a cloned repo, optionally surface the incoming commits using plain git so you can see what changed.
 - [ ] **Verify the folder import round-trip on both Macs** — export here, import there, confirm folders match by name rather than duplicating. The export half is proven (the app's own backup writes folders + memberships correctly); the import half has only been reasoned through, not exercised.
