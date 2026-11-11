@@ -66,8 +66,12 @@ struct FitsListModel {
                 else { return nil }
                 return (fit, project)
             }
+        // A list saved before scoring version 3 lowers GPL and AGPL at once,
+        // not only after the next run (round 3: notebook stayed first).
+        let ordered = FitScorer.whyIsCurrent(runSignature: repo.runSignature)
+            ? passing : FitScorer.reorderedForCopyleft(passing.map { ($0, $1, $0.score, $1.license) }).map { ($0.0, $0.1) }
         // A lower limit shows at once; a higher one fills on the next run.
-        return Array(passing.prefix(limit))
+        return Array(ordered.prefix(limit))
     }
 
     /// "4 fits · last run 10 Nov, 18:40"

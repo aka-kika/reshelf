@@ -12,31 +12,19 @@ struct LanguageFilterMenu: View {
 
     var body: some View {
         Menu {
-            Button {
-                filter.language = ""
-            } label: {
-                choiceLabel("Any Language", on: filter.language.isEmpty)
-            }
-            if !languages.isEmpty { Divider() }
-            ForEach(languages, id: \.name) { language in
-                Button {
-                    filter.language = language.name
-                } label: {
-                    choiceLabel("\(language.name)  \(language.count)",
-                                on: filter.language.caseInsensitiveCompare(language.name) == .orderedSame)
+            // A picker, like Sort: the menu draws the tick on the picked one
+            // (images in these menus are not shown, so a checkmark label was blank).
+            Picker("Language", selection: $filter.language) {
+                Text("Any Language").tag("")
+                ForEach(languages, id: \.name) { language in
+                    Text("\(language.name)  \(language.count)").tag(language.name)
                 }
             }
+            .pickerStyle(.inline)
+            .labelsHidden()
             Divider()
-            Button {
-                filter.uiOnly.toggle()
-            } label: {
-                if filter.uiOnly {
-                    Label("UI Only  \(uiCount)", systemImage: "checkmark")
-                } else {
-                    Label("UI Only  \(uiCount)", systemImage: ReshelfMarks.uiSymbol)
-                }
-            }
-            .help("Only repos whose UI you like")
+            Toggle("UI Only  \(uiCount)", isOn: $filter.uiOnly)
+                .help("Only repos whose UI you like")
             if filter.isActive {
                 Divider()
                 Button("Clear Filter") { filter = ListFilter() }
@@ -65,14 +53,5 @@ struct LanguageFilterMenu: View {
         .fixedSize()
         .help(filter.isActive ? "Language: \(filter.title)" : "Language")
         .titlebarClickable()
-    }
-
-    @ViewBuilder
-    private func choiceLabel(_ title: String, on: Bool) -> some View {
-        if on {
-            Label(title, systemImage: "checkmark")
-        } else {
-            Text(title)
-        }
     }
 }

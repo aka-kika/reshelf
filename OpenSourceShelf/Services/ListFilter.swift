@@ -37,8 +37,10 @@ struct ListFilter: Equatable {
             counts[lang.lowercased(), default: 0] += 1
             if spelling[lang.lowercased()] == nil { spelling[lang.lowercased()] = lang }
         }
-        if !picked.isEmpty, counts[picked.lowercased()] == nil {
-            counts[picked.lowercased()] = 0
+        // The picked one keeps its own spelling (the menu's tick matches it
+        // exactly), and stays listed with 0 when this list has none.
+        if !picked.isEmpty {
+            if counts[picked.lowercased()] == nil { counts[picked.lowercased()] = 0 }
             spelling[picked.lowercased()] = picked
         }
         return counts.map { (name: spelling[$0.key] ?? $0.key, count: $0.value) }

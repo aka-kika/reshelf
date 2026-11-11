@@ -586,15 +586,8 @@ struct ProjectListView: View {
             Divider()
             let key = GitHubRepositoryURL.dedupKey(for: project.githubURL)
             let used = project.isUsed(in: repo.displayName)
-            Button {
-                setReshelfed(!used, in: repo.displayName, for: project)
-            } label: {
-                if used {
-                    Label("Reshelfed in \(repo.displayName)", systemImage: "checkmark")
-                } else {
-                    Text("Reshelfed in \(repo.displayName)")
-                }
-            }
+            Toggle("Reshelfed in \(repo.displayName)", isOn: Binding(
+                get: { used }, set: { setReshelfed($0, in: repo.displayName, for: project) }))
             if repoFits.contains(where: { $0.myRepoID == repoID && $0.repoKey == key && $0.isPinned }) {
                 // Kept with Keep: Unpin lets it compete like any fit next run.
                 Button("Unpin") {
@@ -1421,6 +1414,8 @@ struct ProjectRowView: View, Equatable {
                     Text(detail)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help(detail)
                 }
             }
 

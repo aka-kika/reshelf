@@ -317,6 +317,19 @@ enum FitScorer {
         runSignature.isEmpty || runSignature.hasPrefix("v\(version) ")
     }
 
+    /// A saved list from before version 3, ordered as a run now would:
+    /// GPL and AGPL scores lowered. Items without a saved score keep their place
+    /// relative to each other (stable), and sort after scored ones only by score.
+    static func reorderedForCopyleft<A, B>(_ items: [(A, B, Double, String)]) -> [(A, B)] {
+        guard items.contains(where: { FitFilters.isStrongCopyleft($0.3) }),
+              items.allSatisfy({ $0.2 > 0 }) else { return items.map { ($0.0, $0.1) } }
+        return items.enumerated().sorted { a, b in
+            let sa = a.element.2 * (FitFilters.isStrongCopyleft(a.element.3) ? strongCopyleftDrop : 1)
+            let sb = b.element.2 * (FitFilters.isStrongCopyleft(b.element.3) ? strongCopyleftDrop : 1)
+            return sa != sb ? sa > sb : a.offset < b.offset
+        }.map { ($0.element.0, $0.element.1) }
+    }
+
     /// The plain why line when Apple Intelligence can't write one.
     static func fallbackWhy(_ scored: Scored) -> String {
         guard !scored.sharedTerms.isEmpty else { return "Close to your project overall." }

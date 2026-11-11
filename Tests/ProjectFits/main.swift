@@ -121,6 +121,12 @@ func run() throws {
             && FitScorer.whyIsCurrent(runSignature: FitScorer.runSignature(limit: 15))
             && FitScorer.whyIsCurrent(runSignature: ""))
 
+    let olderList = FitScorer.reorderedForCopyleft([("gpl", 0, 0.14, "GPL-3.0"), ("mit", 1, 0.13, "MIT"),
+                                              ("mit2", 2, 0.09, "MIT")]).map(\.0)
+    check("a list saved before v3 shows GPL lower at once", olderList == ["mit", "gpl", "mit2"])
+    check("unscored saved lists keep their order",
+          FitScorer.reorderedForCopyleft([("gpl", 0, 0.0, "GPL-3.0"), ("mit", 1, 0.0, "MIT")]).map(\.0) == ["gpl", "mit"])
+
     // 5. Merge: hidden stay hidden, new gets the dot, gone ones drop, first run marks nothing.
     let prev = [FitMerge.Row(key: "a", rank: 0, why: "", isNew: false, isHidden: false),
                 FitMerge.Row(key: "h", rank: 1, why: "", isNew: false, isHidden: true),

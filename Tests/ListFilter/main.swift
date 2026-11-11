@@ -22,6 +22,7 @@ let facts: [String: RepoFacts] = [
 let counts = ListFilter.counts(projects, facts: facts)
 check("languages counted, most first, case folded", counts.map(\.name) == ["Swift", "Rust", "TypeScript"]
       && counts.first?.count == 3)
+check("the picked spelling is kept for the tick", ListFilter.counts(projects, facts: facts, keeping: "swift").first?.name == "swift")
 check("unknown language not listed", !counts.contains { $0.name.isEmpty })
 let kept = ListFilter.counts(projects, facts: facts, keeping: "Go")
 check("the picked language stays in the menu with 0", kept.last?.name == "Go" && kept.last?.count == 0)
