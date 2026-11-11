@@ -15,6 +15,7 @@ swiftc -o "$out/test" \
     "$app/Services/CatalogSave.swift" \
     "$app/Services/Ingestion/GitHubRepositoryURL.swift" \
     "$app/Services/CatalogExportService.swift" \
+    "$app/Services/DuplicateMerge.swift" \
     "$app/Services/CatalogImportService.swift" \
     "$app/Services/CatalogBackupService.swift" \
     "$here/main.swift" 2>&1 | grep -v "warning:" || true
