@@ -126,7 +126,7 @@ Which repos on your shelf help a project you are building? Add the project under
 - **Remove from Sidebar** — takes the repo and its list away after a labelled backup. The shelf repos are not touched.
 - **Saved and backed up** — each repo keeps its last list, hidden ones and run time (SwiftData tables `MyRepo`, `RepoFit`). Backups and exports carry them (`myRepos`); Restore and Import add the repos this Mac does not have.
 - **Sidebar** — your repos show the GitHub mark; after 5, **Show N more** / **Show less** keeps Categories in sight.
-- **Agents** — the reshelf skill's `shelf.py fits`, `fits <repo>` and `fits --here` read the saved lists read-only, best fit first, with the same Fits filters. Agents never start a run.
+- **Agents** — the reshelf skill's `shelf.py fits`, `fits <repo>` and `fits --here` read the saved lists read-only, best fit first, with the same Fits filters. Agents never start a run. After checking a list, an agent clears it: `fits <repo> --hide <name>` for the ones that do not fit, `fits <repo> --used <name> --what "…"` for the ones it borrowed from (a `used` record, then hidden). They add lines to `~/reshelf/fits-inbox.jsonl`; reshelf applies them at launch and whenever it comes to the front, exactly as its own **Hide** (a labelled backup first, **Show Hidden Fits** brings them back), and `fits` leaves them out at once, so the next session does not read the same list again.
 
 ## Round 3 (build 43): right-click menu, marks, Language filter
 

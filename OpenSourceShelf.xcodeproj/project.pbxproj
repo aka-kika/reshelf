@@ -464,6 +464,13 @@
 			path = "OpenSourceShelf/Services/UsedInbox.swift";
 			sourceTree = SOURCE_ROOT;
 		};
+		FINB1F001234567890ABCDE01 /* FitsInbox.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "FitsInbox.swift";
+			path = "OpenSourceShelf/Services/FitsInbox.swift";
+			sourceTree = SOURCE_ROOT;
+		};
 		07D2AD6B75DA37AAD823A7F8 /* IconFetcher.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -619,6 +626,7 @@
 				LFMN1F001234567890ABCDE01 /* LanguageFilterMenu.swift */,
 				LFLT1F001234567890ABCDE01 /* ListFilter.swift */,
 				USIN1F001234567890ABCDE01 /* UsedInbox.swift */,
+				FINB1F001234567890ABCDE01 /* FitsInbox.swift */,
 				AIP7REF01234567890ABCDEF07 /* AppleIntelligenceService.swift */,
 				237E7AA00468CB92FB2FC0A4 /* QuickCaptureService.swift */,
 				CE01F1A2B3C4D5E6F7080001 /* CatalogExportService.swift */,
@@ -920,6 +928,10 @@
 			isa = PBXBuildFile;
 			fileRef = USIN1F001234567890ABCDE01;
 		};
+		FINB1B001234567890ABCDE01 /* FitsInbox.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = FINB1F001234567890ABCDE01;
+		};
 		AIP7BUILD1234567890ABCDEF07 /* AppleIntelligenceService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = AIP7REF01234567890ABCDEF07;
@@ -1089,6 +1101,7 @@
 				LFMN1B001234567890ABCDE01 /* LanguageFilterMenu.swift in Sources */,
 				LFLT1B001234567890ABCDE01 /* ListFilter.swift in Sources */,
 				USIN1B001234567890ABCDE01 /* UsedInbox.swift in Sources */,
+				FINB1B001234567890ABCDE01 /* FitsInbox.swift in Sources */,
 				DUPM1B001234567890ABCDE01 /* DuplicateMerge.swift in Sources */,
 				CSAV1B001234567890ABCDE01 /* CatalogSave.swift in Sources */,
 				WNEW1B001234567890ABCDE01 /* WhatsNew.swift in Sources */,

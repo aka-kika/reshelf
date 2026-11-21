@@ -35,6 +35,8 @@ python3 $S/shelf.py fits                         # their own repos under My Repo
 python3 $S/shelf.py fits <repo>                  # shelf repos that fit one of them, with why
 python3 $S/shelf.py fits --here                  # the same for the repo you are working in
 python3 $S/shelf.py used <name> --what "..."      # after borrowing code: thank-you line + record
+python3 $S/shelf.py fits <repo> --hide <name> [--hide <name> ...] --yes   # after checking its fits
+python3 $S/shelf.py fits <repo> --used <name> --what "..." --yes         # a fit you borrowed from
 bash    $S/shelf-map.sh ["<Category>" | --all]   # browse what's on disk by category
 ```
 
@@ -47,6 +49,16 @@ out. A `filter:` line says which filter the repo uses: its own (set in the app w
 right-click > Filter) or the main one (Settings > Fits). `KEPT by the user` marks a fit they kept; fits the last run's limit
 pushed off are named in one line at the end, not listed. It never runs a match: only the user does that, in the app.
 `ALREADY USED in <repo>` marks a fit whose code that repo already borrowed.
+
+**After checking a repo's fits, clear them** so the next session does not read the same
+list again: hide every fit that is not relevant with `fits <repo> --hide <name>` (repeat
+`--hide`; a name hides every listing with it, `owner/repo` picks one), and mark the ones
+whose code went into the project with `fits <repo> --used <name> --what "..."`, run
+inside that project (it does what `used` does, then hides the fit). Leave the ones worth
+a look later on the list. Both are dry runs until you add `--yes`. They never write the
+app's catalog: the lines go to `~/reshelf/fits-inbox.jsonl`, `fits` leaves them out at
+once, and reshelf hides them in its own list the next time its window is active (the
+user can show them again there).
 
 Two marks the user sets in the app show under a repo in `find` and `fits`:
 
@@ -182,7 +194,8 @@ source**, not memory of its API:
   `~/reshelf/repos`. Updating clones is the app's job.
 - **The writes are `shelf.py clone --yes`, only after the user said yes** in this
   conversation, for that repo (never clone in bulk, never clone "to check"), and
-  `shelf.py used`, only after code was really borrowed into their project.
+  `shelf.py used`, only after code was really borrowed into their project, and
+  `shelf.py fits <repo> --hide` / `--used` for fits you checked (they only hide them).
 - **Never star a repo on GitHub without the user's yes.**
 - **Don't execute repo code or install its dependencies** just to inspect it.
 - **Never use the Yard Sale.**

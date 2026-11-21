@@ -9,6 +9,11 @@
     shelf.py fits                            the user's own repos under My Repos, with last run
     shelf.py fits <repo>                     the shelf repos that fit one of them, with why
     shelf.py fits --here                     the same for the repo this folder is a clone of
+    shelf.py fits <repo> --hide <name> [--hide <name> ...] [--yes]
+                                             after checking its fits: hide the ones that do not fit
+                                             (dry run without --yes)
+    shelf.py fits <repo> --used <name> --what "what you borrowed" [--yes]
+                                             a fit you used: `used` below, then hidden from the list
     shelf.py used <name-or-github-url> --what "what you borrowed"
                                              after borrowing code: thank-you line in this project's
                                              ACKNOWLEDGEMENTS.md + "Reshelfed in <project>" in reshelf
@@ -25,6 +30,9 @@ this script clones. A custom clone folder is never stamped. The app picks the ne
 clone up the next time its window becomes active.
 `used` never writes the app's catalog: it adds a line to ~/reshelf/used-inbox.jsonl,
 which the app applies the next time its window is active (or at launch).
+`fits --hide` / `--used` do not write it either: they add lines to ~/reshelf/fits-inbox.jsonl,
+which the app applies the same way, as its own "Hide from <repo> Fits" (the app backs up
+first). `fits` counts those lines as hidden at once, so the next session skips them.
 """
 import glob
 import json
@@ -41,6 +49,7 @@ HOME = os.path.expanduser("~")
 RESHELF_HOME = os.path.expanduser(os.environ.get("RESHELF_HOME", "~/reshelf"))
 STORE = os.path.join(RESHELF_HOME, "catalog.store")
 USED_INBOX = os.path.join(RESHELF_HOME, "used-inbox.jsonl")
+FITS_INBOX = os.path.join(RESHELF_HOME, "fits-inbox.jsonl")
 # Core Data / SwiftData timestamps count seconds from 2001-01-01 UTC.
 APPLE_EPOCH = 978307200
 
@@ -384,7 +393,7 @@ def load_my_repos():
                                       summary=r["ZSUMMARY"] or "", last=_apple_time(r["ZLASTRUNAT"]),
                                       note=r["ZLASTRUNNOTE"] or "", language=r["LANGUAGE"] or "",
                                       own_filter=r["OWNFILTER"] or "", fits=fits))
-                return "live catalog", repos
+                return "live catalog", _with_pending_hides(repos)
             if "ZTOOLPROJECT" in tables:
                 return "live catalog", []
         except sqlite3.Error:
@@ -406,7 +415,38 @@ def load_my_repos():
                        new=bool(f.get("isNew")), hidden=bool(f.get("isHidden")),
                        kept=bool(f.get("isPinned")), made_room=bool(f.get("isBumped")))
                   for f in sorted(r.get("fits", []), key=lambda f: f.get("rank", 0))]))
-    return f"backup {os.path.basename(backups[0])}", repos
+    return f"backup {os.path.basename(backups[0])}", _with_pending_hides(repos)
+
+
+def _pending_hides():
+    """Hides `fits --hide` queued that the app has not applied yet:
+    {her repo owner/name lowercased: {shelf repo key, ...}}."""
+    pending = {}
+    try:
+        lines = open(FITS_INBOX, encoding="utf-8").read().splitlines()
+    except OSError:
+        return pending
+    for line in lines:
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(e, dict) or e.get("action", "hide") != "hide":
+            continue
+        mine, repo = str(e.get("myRepo", "")).strip().lower(), str(e.get("repo", "")).strip().lower()
+        if mine and repo:
+            pending.setdefault(mine, set()).add(repo)
+    return pending
+
+
+def _with_pending_hides(repos):
+    pending = _pending_hides()
+    for r in repos:
+        keys = pending.get(r["full"].lower(), set())
+        for f in r["fits"]:
+            if f["key"].lower() in keys and not f["hidden"]:
+                f["hidden"] = f["queued"] = True
+    return repos
 
 
 def _origin_of_cwd():
@@ -546,9 +586,41 @@ def _shown_fits(repo, by_key, filters=None, facts=None):
     return shown, filtered
 
 
+def _fits_args(args):
+    """(here, wanted, hides, used, what, project, yes) from the fits arguments."""
+    here, yes, hides, used, what, project, rest = False, False, [], [], "", "", []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        value = args[i + 1] if i + 1 < len(args) else None
+        if a in ("--hide", "--used", "--what", "--project"):
+            if value is None or value.startswith("--"):
+                sys.exit(f"{a} needs a value.")
+            {"--hide": hides, "--used": used}.get(a, []).append(value)
+            if a == "--what":
+                what = value
+            elif a == "--project":
+                project = value
+            i += 2
+            continue
+        if a == "--here":
+            here = True
+        elif a == "--yes":
+            yes = True
+        elif a.startswith("--"):
+            sys.exit(f"Unknown option {a}.")
+        else:
+            rest.append(a)
+        i += 1
+    return here, " ".join(rest).strip(), hides, used, what, project, yes
+
+
 def cmd_fits(args):
-    here = "--here" in args
-    wanted = " ".join(a for a in args if not a.startswith("--")).strip()
+    here, wanted, hides, used_names, what, project, yes = _fits_args(args)
+    if (hides or used_names) and not (wanted or here):
+        sys.exit("Say which of her repos: shelf.py fits <repo> --hide <name> (or --here).")
+    if used_names and not what.strip():
+        sys.exit('--used needs --what "what you borrowed".')
     source, repos = load_my_repos()
     if not repos:
         # Also what an older reshelf (no My Repos tables yet) gives.
@@ -590,6 +662,9 @@ def cmd_fits(args):
             sys.exit(f"'{wanted}' is not under My Repos (there: {names}).")
 
     name = repo["full"].split("/")[-1]
+    if hides or used_names:
+        _hide_fits(repo, hides, used_names, what, project, yes)
+        return
     if repo["last"] is None:
         print(f"{name}: Find Fits has not run yet. It runs only when the user asks, in the "
               "reshelf app (right-click the repo, Find Fits). Do not run a match yourself.")
@@ -630,11 +705,84 @@ def cmd_fits(args):
     if room:
         print(f"\n({len(room)} older fit(s) made room in the last run, not listed: {', '.join(room)})")
     if hidden:
-        print(f"\n({hidden} hidden by the user from this list; not shown)")
+        queued = sum(1 for f in repo["fits"] if f.get("queued"))
+        print(f"\n({hidden} hidden by the user from this list; not shown)" if not queued else
+              f"\n({hidden} hidden from this list, {queued} of them by agents (waiting for the app); not shown)")
     if filtered:
         print(f"({filtered} left out by the Fits filter above; not shown)")
     print("\nSaved by the app the last time fits ran for this repo (New Fits or Analyze All Fits); "
           "not refreshed here.")
+
+
+def _match_fits(repo, name, by_key):
+    """The fits of one of her repos that a name means: the shelf repo's name
+    (every listing with that name), or owner/repo / a GitHub link."""
+    o = owner_repo(name) or owner_repo("github.com/" + name)
+    key = f"{o[0]}/{o[1]}".lower() if o and "/" in name else ""
+    return [f for f in repo["fits"]
+            if (key and f["key"].lower() == key)
+            or (f["key"] in by_key and by_key[f["key"]]["name"].lower() == name.strip().lower())]
+
+
+def _hide_fits(repo, hides, used_names, what, project, yes):
+    """--hide / --used: queue the app's own Hide for these fits (fits-inbox.jsonl)."""
+    by_key = _catalog_by_key()
+    mine = repo["full"]
+    plan, unknown = [], []
+    for name, used in [(n, False) for n in hides] + [(n, True) for n in used_names]:
+        found = _match_fits(repo, name, by_key)
+        if not found:
+            unknown.append(name)
+        for f in found:
+            plan.append((name, f, used))
+    if unknown:
+        listed = ", ".join(sorted({by_key[f["key"]]["name"] if f["key"] in by_key else f["key"]
+                                   for f in repo["fits"]}, key=str.lower)) or "none"
+        sys.exit(f"Not a fit of {mine}: {', '.join(unknown)}. Nothing was written.\n"
+                 f"Its fits: {listed}")
+
+    failed = 0
+    if used_names:
+        # `used` first (thank-you line + Reshelfed); a refused one is not hidden.
+        ok = set()
+        for name in dict.fromkeys(used_names):
+            keys = {f["key"] for n, f, u in plan if u and n == name}
+            for key in keys:
+                extra = ["--project", project] if project else []
+                print(f"-- used {key}")
+                try:
+                    cmd_used([key, "--what", what] + extra + ([] if yes else ["--dry-run"]))
+                    ok.add(key)
+                except SystemExit as e:
+                    print(f"   not recorded: {e.code}")
+                    failed += 1
+        plan = [(n, f, u) for n, f, u in plan if not u or f["key"] in ok]
+
+    seen, lines = set(), []
+    for name, f, used in plan:
+        if f["key"] in seen:
+            continue
+        seen.add(f["key"])
+        label = by_key[f["key"]]["name"] if f["key"] in by_key else f["key"]
+        if f["hidden"]:
+            print(f"- {label} ({f['key']}): already hidden" + (", waiting for the app" if f.get("queued") else ""))
+            continue
+        print(f"- {label} ({f['key']}): {'hide' if yes else 'would hide'}{' (used)' if used else ''}")
+        lines.append({"myRepo": mine, "repo": f["key"], "action": "hide", "name": label,
+                      "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
+    if not lines:
+        print(f"Nothing new to hide for {mine}.")
+    elif not yes:
+        print(f"Dry run: {len(lines)} fit(s) of {mine} would be hidden. Run again with --yes.")
+    else:
+        os.makedirs(os.path.dirname(FITS_INBOX), exist_ok=True)
+        with open(FITS_INBOX, "a", encoding="utf-8") as fh:
+            for line in lines:
+                fh.write(json.dumps(line, sort_keys=True) + "\n")
+        print(f"Queued: {len(lines)} fit(s) of {mine} hidden. `shelf.py fits` leaves them out now; "
+              "reshelf hides them in its list the next time its window is active (or at launch).")
+    if failed:
+        sys.exit(f"{failed} --used record(s) refused (see above); those fits stay on the list.")
 
 
 # --- used (thank-you when code is borrowed) -------------------------------------

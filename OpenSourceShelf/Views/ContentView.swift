@@ -300,6 +300,7 @@ struct ContentView: View {
             // CLI clones) can have happened — rescan so badges don't go stale.
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 UsedInbox.drain(in: modelContext)
+                FitsInbox.drain(in: modelContext)
                 // The clones folder may have appeared since (first clone, a drive plugged in).
                 CloneFolderWatcher.shared.startIfWaiting()
                 Task {
@@ -450,8 +451,9 @@ struct ContentView: View {
         mergeCategoriesIfNeeded()
         reclassifyProjectsIfNeeded()
         repairSchemelessLinks()
-        // "Reshelfed in" records agents left while reshelf was closed.
+        // "Reshelfed in" records and fits agents hid while reshelf was closed.
         UsedInbox.drain(in: modelContext)
+        FitsInbox.drain(in: modelContext)
         let projects = freshProjects()
         let folders = freshFolders()
         // Clones an older build made in a custom folder get their marker.

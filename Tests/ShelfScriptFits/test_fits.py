@@ -185,5 +185,59 @@ if r.returncode == 0 or "shelf clone" not in r.stderr or os.path.exists(os.path.
 if os.path.getmtime(store) != before:
     fail("used wrote the store")
 
+# 10. `fits --hide` / `--used` (22 Nov): queue the app's own Hide in
+#     fits-inbox.jsonl, never the store; dry run without --yes; `fits` leaves
+#     queued ones out at once.
+before = os.path.getmtime(store)
+fits_inbox = os.path.join(live, "fits-inbox.jsonl")
+inbox_lines = lambda path: open(path).read().splitlines() if os.path.exists(path) else []
+r = run(live, "fits", "Sift", "--hide", "Mole")
+if r.returncode != 0 or "would hide" not in r.stdout or "--yes" not in r.stdout or os.path.exists(fits_inbox):
+    fail("hide dry run writes nothing: " + r.stdout + r.stderr)
+r = run(live, "fits", "Sift", "--hide", "Mole", "--hide", "nope", "--yes")
+if r.returncode == 0 or "Not a fit of kika/Sift: nope" not in r.stderr or os.path.exists(fits_inbox):
+    fail("an unknown name stops the whole write: " + r.stdout + r.stderr)
+r = run(live, "fits", "--hide", "Mole")
+if r.returncode == 0 or os.path.exists(fits_inbox):
+    fail("hide without a repo refused: " + r.stdout + r.stderr)
+r = run(live, "fits", "Sift", "--hide", "Mole", "--yes")
+lines = [json.loads(x) for x in inbox_lines(fits_inbox)]
+if r.returncode != 0 or len(lines) != 1 or lines[0]["myRepo"] != "kika/Sift" or lines[0]["repo"] != "tw93/mole" \
+        or lines[0]["action"] != "hide":
+    fail("hide line names her repo and the fit's key: " + str(lines) + r.stdout + r.stderr)
+out = run(live, "fits", "Sift").stdout
+if "- Mole" in out or "- uninstally" not in out or "2 hidden from this list, 1 of them by agents (waiting for the app)" not in out:
+    fail("a queued hide is left out at once: " + out)
+if "1 fit(s)" not in run(live, "fits").stdout.split("kika/Kartina")[0]:
+    fail("the list count leaves queued hides out")
+r = run(live, "fits", "Sift", "--hide", "mole", "--hide", "hiddenone", "--yes")
+if "already hidden, waiting for the app" not in r.stdout or "hiddenone (x/hiddenone): already hidden" not in r.stdout \
+        or len(inbox_lines(fits_inbox)) != 1:
+    fail("already hidden ones add no line: " + r.stdout)
+r = run(live, "fits", "Mocker", "--hide", "tw93/Mole", "--yes")
+if r.returncode != 0 or len(inbox_lines(fits_inbox)) != 2:
+    fail("hide by owner/repo: " + r.stdout + r.stderr)
+r = run(live, "fits", "Mocker", "--used", "uninstally")
+if r.returncode == 0 or "--what" not in r.stderr:
+    fail("--used needs --what: " + r.stdout + r.stderr)
+used_before = len(inbox_lines(inbox))
+r = run(live, "fits", "Mocker", "--used", "uninstally", "--what", "the list", cwd=plain)
+if r.returncode == 0 or "not recorded" not in r.stdout or len(inbox_lines(fits_inbox)) != 2:
+    fail("a refused --used is not hidden: " + r.stdout + r.stderr)
+r = run(live, "fits", "Mocker", "--used", "uninstally", "--what", "the list", cwd=proj)
+if r.returncode != 0 or "Dry run" not in r.stdout or len(inbox_lines(inbox)) != used_before \
+        or len(inbox_lines(fits_inbox)) != 2:
+    fail("--used dry run writes nothing: " + r.stdout + r.stderr)
+r = run(live, "fits", "Mocker", "--used", "uninstally", "--what", "the list", "--yes", cwd=proj)
+lines = [json.loads(x) for x in inbox_lines(fits_inbox)]
+if r.returncode != 0 or len(inbox_lines(inbox)) != used_before + 1 or len(lines) != 3 \
+        or lines[-1]["myRepo"] != "kika/Mocker" or lines[-1]["repo"] != "x/uninstally" or "(used)" not in r.stdout:
+    fail("--used records Reshelfed and hides the fit: " + r.stdout + r.stderr)
+out = run(live, "fits", "Mocker").stdout
+if "- uninstally" in out or "- Mole" in out:
+    fail("used and hidden fits left out of Mocker: " + out)
+if os.path.getmtime(store) != before:
+    fail("fits --hide wrote the store")
+
 print("ShelfScriptFits: all passed" if failures == 0 else f"ShelfScriptFits: {failures} failed")
 sys.exit(1 if failures else 0)
