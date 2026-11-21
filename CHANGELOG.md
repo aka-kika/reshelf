@@ -5,12 +5,14 @@ All notable changes to **reshelf** are documented here. This project follows
 
 ## [Unreleased]
 
-### Added
-- **Agents clear the fits they checked.** After reading one of your repos' fits, an agent hides the ones that do not fit (`shelf.py fits <repo> --hide <name>`) and marks the ones it borrowed from (`--used`, which also records Reshelfed), so the next session does not read the same list again. reshelf hides them in its own list the next time it comes to the front, exactly like Hide from <repo> Fits, after a backup; Show Hidden Fits brings any of them back. The agent skill says to do this after every fits check.
-
 ### Planned (v2 — first up)
 - **GitHub login inside the app** — connect your GitHub account (read-only) to
   improve recommendations. See [v2.0-roadmap.md](v2.0-roadmap.md).
+
+## [1.17.2] — 2026-11-22 (build 45)
+
+### Added
+- **Agents clear the fits they checked.** After reading one of your repos' fits, an agent hides the ones that do not fit (`shelf.py fits <repo> --hide <name>`) and marks the ones it borrowed from (`--used`, which also records Reshelfed), so the next session does not read the same list again. reshelf hides them in its own list the next time it comes to the front, exactly like Hide from <repo> Fits, after a backup; Show Hidden Fits brings any of them back. The agent skill says to do this after every fits check.
 
 ## [1.17.1] — 2026-11-11 (build 44)
 
